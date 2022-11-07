@@ -6,9 +6,9 @@ pydeps requiring graphviz to be installed (not via pip!)
 https://medium.com/illumination/visualize-dependencies-between-python-modules-d6e8e9a92c50
 https://pythonawesome.com/python-module-dependency-visualization/
 
-> pydeps src/linchemin  -o src/linchemin_dependency_diagram.svg   
-> pydeps src/linchemin  -o src/linchemin_dependency_diagram.svg --cluster --max-cluster-size=3 --min-cluster-size=2 --keep-targe
-t-cluster
+> pydeps src/linchemin  -o docs/source/_static/linchemin_dependency_diagram.svg   
+> pydeps src/linchemin  -o docs/source/_static//linchemin_dependency_diagram.svg --cluster --max-cluster-size=3 --min-cluster-size=2 --keep-targe
+t-cluster  
 
 
 # Keeping track of work 
