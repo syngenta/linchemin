@@ -5,8 +5,8 @@ The Linked Chemical Information (LinChemIn) package is a python toolkit that all
 |---|---|
 |project page|https://linchemin.github.io|
 |repository|https://github.com/syngenta/linchemin   |
-|documentation|   |
-|pypi page| |
+|documentation|http://linchemin.readthedocs.io|
+|pypi page|https://pypi.org/project/linchemin|
 
 ##Install for usage
 ###1) pypi  
@@ -26,7 +26,3 @@ The Linked Chemical Information (LinChemIn) package is a python toolkit that all
 >pip install -e .[development]    
 
 Testing is based on pytest  
-
-## Dependency Diagram 
-![Alt text](docs/_static/linchemin_dependency_diagram.svg?raw=true "Dependency Diagram")
-

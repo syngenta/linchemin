@@ -17,6 +17,7 @@ implementing new data models and functionalities, LinChemIn allows the interconv
 data formats and data models and enables route-level analysis and operations,
 including route comparison and descriptors calculation.
 
+.. codeauthor:: Marta Pasquini <marta.pasquini@syngenta.com> Marco Stenta <marco.stenta@syngenta.com>
 
 Contents
 ========

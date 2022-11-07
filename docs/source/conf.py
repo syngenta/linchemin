@@ -9,7 +9,7 @@
 project = 'LinChemIn'
 copyright = '2022 Syngenta Group Co. Ltd.'
 author = 'Marco Stenta, Marta Pasquini'
-
+show_authors = True
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 modindex_common_prefix = ["linchemin."]
@@ -31,6 +31,6 @@ release = version.replace("_", "")
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'bizstyle'
-html_static_path = ['_static']
-html_logo = "_static/linchemin_logo.png"
+html_static_path = ['static']
+html_logo = "static/linchemin_logo.png"
 
