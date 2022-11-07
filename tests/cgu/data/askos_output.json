@@ -1,0 +1,783 @@
+[
+    {
+        "attributes": {
+            "depth": 4,
+            "precursor_cost": 10.0,
+            "score": null,
+            "cluster_id": null
+        },
+        "smiles": "CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+        "ppg": 0.0,
+        "as_reactant": 0,
+        "as_product": 1,
+        "properties": null,
+        "terminal": false,
+        "is_chemical": true,
+        "id": "00000000-0000-0000-0000-000000000000",
+        "children": [
+            {
+                "smiles": "CC(=O)Cl.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                "tforms": [
+                    "5e1f4b6e6348832850995ee1"
+                ],
+                "tsources": [
+                    "reaxys"
+                ],
+                "template_score": 0.10277671769014525,
+                "plausibility": 0.999535322,
+                "is_reaction": true,
+                "rank": 3,
+                "num_examples": 2098,
+                "necessary_reagent": "",
+                "precursor_smiles": "CC(=O)Cl.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                "rms_molwt": 203.580516867888,
+                "num_rings": 3,
+                "scscore": 3.649292925724544,
+                "id": "2e5102ab-1d41-4961-974b-3d1a35bc242e",
+                "children": [
+                    {
+                        "smiles": "CC(=O)Cl",
+                        "ppg": 1.0,
+                        "as_reactant": 59382,
+                        "as_product": 4147,
+                        "properties": null,
+                        "terminal": true,
+                        "is_chemical": true,
+                        "id": "24beaf43-27a5-40ed-8245-fb4b2d01b488",
+                        "children": []
+                    },
+                    {
+                        "smiles": "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                        "ppg": 0.0,
+                        "as_reactant": 0,
+                        "as_product": 0,
+                        "properties": null,
+                        "terminal": false,
+                        "is_chemical": true,
+                        "id": "0b251da4-339d-4cb6-986a-70fdb2b48ca7",
+                        "children": [
+                            {
+                                "smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                "tforms": [
+                                    "5e1f4b6e6348832850995db0"
+                                ],
+                                "tsources": [
+                                    "reaxys"
+                                ],
+                                "template_score": 0.1337608103101499,
+                                "plausibility": 0.999026895,
+                                "is_reaction": true,
+                                "rank": 3,
+                                "num_examples": 10120,
+                                "necessary_reagent": "",
+                                "precursor_smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                "rms_molwt": 407.1481207719999,
+                                "num_rings": 5,
+                                "scscore": 3.1056695265304493,
+                                "id": "80b71be5-e935-4eae-abed-494e10524f96",
+                                "children": [
+                                    {
+                                        "smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                        "ppg": 0.0,
+                                        "as_reactant": 0,
+                                        "as_product": 0,
+                                        "properties": null,
+                                        "terminal": false,
+                                        "is_chemical": true,
+                                        "id": "aca970a2-3955-460c-9bac-f4e3a25b9fb9",
+                                        "children": [
+                                            {
+                                                "smiles": "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1>>O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                                "tforms": [
+                                                    "5e1f4b6e634883285099898a"
+                                                ],
+                                                "tsources": [
+                                                    "reaxys"
+                                                ],
+                                                "template_score": 0.5117052141995845,
+                                                "plausibility": 0.99994576,
+                                                "is_reaction": true,
+                                                "rank": 1,
+                                                "num_examples": 91,
+                                                "necessary_reagent": "",
+                                                "precursor_smiles": "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1",
+                                                "rms_molwt": 292.87475820348124,
+                                                "num_rings": 6,
+                                                "scscore": 2.541315787449456,
+                                                "id": "d3271dae-31d4-459e-accf-76bfb50b7565",
+                                                "children": [
+                                                    {
+                                                        "smiles": "O=C(n1ccnc1)n1ccnc1",
+                                                        "ppg": 1.0,
+                                                        "as_reactant": 19690,
+                                                        "as_product": 113,
+                                                        "properties": null,
+                                                        "terminal": true,
+                                                        "is_chemical": true,
+                                                        "id": "1da6dc08-f940-4041-a5d6-b744fbe740c4",
+                                                        "children": []
+                                                    },
+                                                    {
+                                                        "smiles": "O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1",
+                                                        "ppg": 0.0,
+                                                        "as_reactant": 0,
+                                                        "as_product": 0,
+                                                        "properties": null,
+                                                        "terminal": false,
+                                                        "is_chemical": true,
+                                                        "id": "f29d4dc3-22b1-43ba-974c-bf123bb65f07",
+                                                        "children": [
+                                                            {
+                                                                "smiles": "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1>>O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1",
+                                                                "tforms": [
+                                                                    "5e1f4b6e6348832850995fc6"
+                                                                ],
+                                                                "tsources": [
+                                                                    "reaxys"
+                                                                ],
+                                                                "template_score": 0.9241029760842572,
+                                                                "plausibility": 0.999956727,
+                                                                "is_reaction": true,
+                                                                "rank": 1,
+                                                                "num_examples": 1372,
+                                                                "necessary_reagent": "",
+                                                                "precursor_smiles": "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1",
+                                                                "rms_molwt": 190.9921995760705,
+                                                                "num_rings": 5,
+                                                                "scscore": 2.0649573216243495,
+                                                                "id": "ebc023c8-104b-4239-842a-20a54bc84dd4",
+                                                                "children": [
+                                                                    {
+                                                                        "smiles": "Nc1ccc(N2CCOCC2)cc1",
+                                                                        "ppg": 1.0,
+                                                                        "as_reactant": 1167,
+                                                                        "as_product": 88,
+                                                                        "properties": null,
+                                                                        "terminal": true,
+                                                                        "is_chemical": true,
+                                                                        "id": "97702e13-152c-4305-96dd-50e2b1722703",
+                                                                        "children": []
+                                                                    },
+                                                                    {
+                                                                        "smiles": "O=C1c2ccccc2C(=O)N1CC1CO1",
+                                                                        "ppg": 7.0,
+                                                                        "as_reactant": 300,
+                                                                        "as_product": 32,
+                                                                        "properties": null,
+                                                                        "terminal": true,
+                                                                        "is_chemical": true,
+                                                                        "id": "0e25ecbf-ff85-4dbe-8c50-8400edd0d615",
+                                                                        "children": []
+                                                                    }
+                                                                ],
+                                                                "forward_score": null,
+                                                                "class_num": null,
+                                                                "class_name": null
+                                                            }
+                                                        ]
+                                                    }
+                                                ],
+                                                "forward_score": null,
+                                                "class_num": null,
+                                                "class_name": null
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "forward_score": null,
+                                "class_num": null,
+                                "class_name": null
+                            }
+                        ]
+                    }
+                ],
+                "forward_score": null,
+                "class_num": null,
+                "class_name": null
+            }
+        ]
+    },
+    {
+        "attributes": {
+            "depth": 4,
+            "precursor_cost": 24.0,
+            "score": null,
+            "cluster_id": null
+        },
+        "smiles": "CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+        "ppg": 0.0,
+        "as_reactant": 0,
+        "as_product": 1,
+        "properties": null,
+        "terminal": false,
+        "is_chemical": true,
+        "id": "00000000-0000-0000-0000-000000000000",
+        "children": [
+            {
+                "smiles": "CC(=O)O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                "tforms": [
+                    "5e1f4b6e63488328509967a3"
+                ],
+                "tsources": [
+                    "reaxys"
+                ],
+                "template_score": 0.030662031976453508,
+                "plausibility": 0.999123693,
+                "is_reaction": true,
+                "rank": 8,
+                "num_examples": 363,
+                "necessary_reagent": "",
+                "precursor_smiles": "CC(=O)O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                "rms_molwt": 200.51256779871753,
+                "num_rings": 3,
+                "scscore": 3.649292925724544,
+                "id": "c36f6640-0e49-4fa0-b98b-dd86db6c5302",
+                "children": [
+                    {
+                        "smiles": "CC(=O)O",
+                        "ppg": 15.0,
+                        "as_reactant": 95983,
+                        "as_product": 31807,
+                        "properties": null,
+                        "terminal": true,
+                        "is_chemical": true,
+                        "id": "9198afc8-1411-4cc5-a6b0-26ba7c53ec01",
+                        "children": []
+                    },
+                    {
+                        "smiles": "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                        "ppg": 0.0,
+                        "as_reactant": 0,
+                        "as_product": 0,
+                        "properties": null,
+                        "terminal": false,
+                        "is_chemical": true,
+                        "id": "0da09c9f-136e-49d8-a031-ad0b95e481df",
+                        "children": [
+                            {
+                                "smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                "tforms": [
+                                    "5e1f4b6e6348832850995db0"
+                                ],
+                                "tsources": [
+                                    "reaxys"
+                                ],
+                                "template_score": 0.1337608103101499,
+                                "plausibility": 0.999026895,
+                                "is_reaction": true,
+                                "rank": 3,
+                                "num_examples": 10120,
+                                "necessary_reagent": "",
+                                "precursor_smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                "rms_molwt": 407.1481207719999,
+                                "num_rings": 5,
+                                "scscore": 3.1056695265304493,
+                                "id": "0de1e012-61b0-41b7-b379-e23ba9b9ba1b",
+                                "children": [
+                                    {
+                                        "smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                        "ppg": 0.0,
+                                        "as_reactant": 0,
+                                        "as_product": 0,
+                                        "properties": null,
+                                        "terminal": false,
+                                        "is_chemical": true,
+                                        "id": "c8964db9-c0b3-4ed9-9028-1ca86a0c7e1d",
+                                        "children": [
+                                            {
+                                                "smiles": "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1>>O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                                "tforms": [
+                                                    "5e1f4b6e634883285099898a"
+                                                ],
+                                                "tsources": [
+                                                    "reaxys"
+                                                ],
+                                                "template_score": 0.5117052141995845,
+                                                "plausibility": 0.99994576,
+                                                "is_reaction": true,
+                                                "rank": 1,
+                                                "num_examples": 91,
+                                                "necessary_reagent": "",
+                                                "precursor_smiles": "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1",
+                                                "rms_molwt": 292.87475820348124,
+                                                "num_rings": 6,
+                                                "scscore": 2.541315787449456,
+                                                "id": "fc4ddb9b-5692-46e6-8e50-c37fd611f96b",
+                                                "children": [
+                                                    {
+                                                        "smiles": "O=C(n1ccnc1)n1ccnc1",
+                                                        "ppg": 1.0,
+                                                        "as_reactant": 19690,
+                                                        "as_product": 113,
+                                                        "properties": null,
+                                                        "terminal": true,
+                                                        "is_chemical": true,
+                                                        "id": "91997e68-4662-40d5-812f-1f0be3b31f2e",
+                                                        "children": []
+                                                    },
+                                                    {
+                                                        "smiles": "O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1",
+                                                        "ppg": 0.0,
+                                                        "as_reactant": 0,
+                                                        "as_product": 0,
+                                                        "properties": null,
+                                                        "terminal": false,
+                                                        "is_chemical": true,
+                                                        "id": "acaba1b4-57aa-4f47-884e-b1e84f98b353",
+                                                        "children": [
+                                                            {
+                                                                "smiles": "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1>>O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1",
+                                                                "tforms": [
+                                                                    "5e1f4b6e6348832850995fc6"
+                                                                ],
+                                                                "tsources": [
+                                                                    "reaxys"
+                                                                ],
+                                                                "template_score": 0.9241029760842572,
+                                                                "plausibility": 0.999956727,
+                                                                "is_reaction": true,
+                                                                "rank": 1,
+                                                                "num_examples": 1372,
+                                                                "necessary_reagent": "",
+                                                                "precursor_smiles": "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1",
+                                                                "rms_molwt": 190.9921995760705,
+                                                                "num_rings": 5,
+                                                                "scscore": 2.0649573216243495,
+                                                                "id": "c8e4bf97-6a0c-4d43-b87a-e39dd99ff6e6",
+                                                                "children": [
+                                                                    {
+                                                                        "smiles": "Nc1ccc(N2CCOCC2)cc1",
+                                                                        "ppg": 1.0,
+                                                                        "as_reactant": 1167,
+                                                                        "as_product": 88,
+                                                                        "properties": null,
+                                                                        "terminal": true,
+                                                                        "is_chemical": true,
+                                                                        "id": "86187bd3-575c-4dc0-ac1c-efb2c12d6892",
+                                                                        "children": []
+                                                                    },
+                                                                    {
+                                                                        "smiles": "O=C1c2ccccc2C(=O)N1CC1CO1",
+                                                                        "ppg": 7.0,
+                                                                        "as_reactant": 300,
+                                                                        "as_product": 32,
+                                                                        "properties": null,
+                                                                        "terminal": true,
+                                                                        "is_chemical": true,
+                                                                        "id": "c0f397ae-dda7-4d32-84df-74abc5b2bd24",
+                                                                        "children": []
+                                                                    }
+                                                                ],
+                                                                "forward_score": null,
+                                                                "class_num": null,
+                                                                "class_name": null
+                                                            }
+                                                        ]
+                                                    }
+                                                ],
+                                                "forward_score": null,
+                                                "class_num": null,
+                                                "class_name": null
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "forward_score": null,
+                                "class_num": null,
+                                "class_name": null
+                            }
+                        ]
+                    }
+                ],
+                "forward_score": null,
+                "class_num": null,
+                "class_name": null
+            }
+        ]
+    },
+    {
+        "attributes": {
+            "depth": 4,
+            "precursor_cost": 9.0,
+            "score": null,
+            "cluster_id": null
+        },
+        "smiles": "CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+        "ppg": 0.0,
+        "as_reactant": 0,
+        "as_product": 1,
+        "properties": null,
+        "terminal": false,
+        "is_chemical": true,
+        "id": "00000000-0000-0000-0000-000000000000",
+        "children": [
+            {
+                "smiles": "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                "tforms": [
+                    "5e1f4b6e634883285099655b"
+                ],
+                "tsources": [
+                    "reaxys"
+                ],
+                "template_score": 0.12703436567964735,
+                "plausibility": 0.998804569,
+                "is_reaction": true,
+                "rank": 2,
+                "num_examples": 458,
+                "necessary_reagent": "[C]~[C]~[O]",
+                "precursor_smiles": "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                "rms_molwt": 277.142641468,
+                "num_rings": 3,
+                "scscore": 3.649292925724544,
+                "id": "48944942-6d59-463c-a297-696ef403ace4",
+                "children": [
+                    {
+                        "smiles": "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                        "ppg": 0.0,
+                        "as_reactant": 0,
+                        "as_product": 0,
+                        "properties": null,
+                        "terminal": false,
+                        "is_chemical": true,
+                        "id": "b51f2c61-fd61-4e13-bceb-d6afef9a612b",
+                        "children": [
+                            {
+                                "smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                "tforms": [
+                                    "5e1f4b6e6348832850995db0"
+                                ],
+                                "tsources": [
+                                    "reaxys"
+                                ],
+                                "template_score": 0.1337608103101499,
+                                "plausibility": 0.999026895,
+                                "is_reaction": true,
+                                "rank": 3,
+                                "num_examples": 10120,
+                                "necessary_reagent": "",
+                                "precursor_smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                "rms_molwt": 407.1481207719999,
+                                "num_rings": 5,
+                                "scscore": 3.1056695265304493,
+                                "id": "d7cd8739-2688-418f-8fb4-dbc1196d6566",
+                                "children": [
+                                    {
+                                        "smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                        "ppg": 0.0,
+                                        "as_reactant": 0,
+                                        "as_product": 0,
+                                        "properties": null,
+                                        "terminal": false,
+                                        "is_chemical": true,
+                                        "id": "a9ea050d-2e5a-4132-9514-78e95ff0d46c",
+                                        "children": [
+                                            {
+                                                "smiles": "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1>>O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                                "tforms": [
+                                                    "5e1f4b6e634883285099898a"
+                                                ],
+                                                "tsources": [
+                                                    "reaxys"
+                                                ],
+                                                "template_score": 0.5117052141995845,
+                                                "plausibility": 0.99994576,
+                                                "is_reaction": true,
+                                                "rank": 1,
+                                                "num_examples": 91,
+                                                "necessary_reagent": "",
+                                                "precursor_smiles": "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1",
+                                                "rms_molwt": 292.87475820348124,
+                                                "num_rings": 6,
+                                                "scscore": 2.541315787449456,
+                                                "id": "98b05aaa-1f72-420d-b0e8-6f933c3a79ca",
+                                                "children": [
+                                                    {
+                                                        "smiles": "O=C(n1ccnc1)n1ccnc1",
+                                                        "ppg": 1.0,
+                                                        "as_reactant": 19690,
+                                                        "as_product": 113,
+                                                        "properties": null,
+                                                        "terminal": true,
+                                                        "is_chemical": true,
+                                                        "id": "f5d7ff63-462b-4518-90e3-6a874dfd5116",
+                                                        "children": []
+                                                    },
+                                                    {
+                                                        "smiles": "O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1",
+                                                        "ppg": 0.0,
+                                                        "as_reactant": 0,
+                                                        "as_product": 0,
+                                                        "properties": null,
+                                                        "terminal": false,
+                                                        "is_chemical": true,
+                                                        "id": "b0adf55a-9910-4486-ba77-6fafe9496bcb",
+                                                        "children": [
+                                                            {
+                                                                "smiles": "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1>>O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1",
+                                                                "tforms": [
+                                                                    "5e1f4b6e6348832850995fc6"
+                                                                ],
+                                                                "tsources": [
+                                                                    "reaxys"
+                                                                ],
+                                                                "template_score": 0.9241029760842572,
+                                                                "plausibility": 0.999956727,
+                                                                "is_reaction": true,
+                                                                "rank": 1,
+                                                                "num_examples": 1372,
+                                                                "necessary_reagent": "",
+                                                                "precursor_smiles": "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1",
+                                                                "rms_molwt": 190.9921995760705,
+                                                                "num_rings": 5,
+                                                                "scscore": 2.0649573216243495,
+                                                                "id": "19647ae0-7802-4c4b-89cc-ba6c176a0a76",
+                                                                "children": [
+                                                                    {
+                                                                        "smiles": "Nc1ccc(N2CCOCC2)cc1",
+                                                                        "ppg": 1.0,
+                                                                        "as_reactant": 1167,
+                                                                        "as_product": 88,
+                                                                        "properties": null,
+                                                                        "terminal": true,
+                                                                        "is_chemical": true,
+                                                                        "id": "18cfa978-96f0-42f2-8d61-58eded2c21a2",
+                                                                        "children": []
+                                                                    },
+                                                                    {
+                                                                        "smiles": "O=C1c2ccccc2C(=O)N1CC1CO1",
+                                                                        "ppg": 7.0,
+                                                                        "as_reactant": 300,
+                                                                        "as_product": 32,
+                                                                        "properties": null,
+                                                                        "terminal": true,
+                                                                        "is_chemical": true,
+                                                                        "id": "5de8b6da-efa6-40c6-a098-df2fcc7489bb",
+                                                                        "children": []
+                                                                    }
+                                                                ],
+                                                                "forward_score": null,
+                                                                "class_num": null,
+                                                                "class_name": null
+                                                            }
+                                                        ]
+                                                    }
+                                                ],
+                                                "forward_score": null,
+                                                "class_num": null,
+                                                "class_name": null
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "forward_score": null,
+                                "class_num": null,
+                                "class_name": null
+                            }
+                        ]
+                    }
+                ],
+                "forward_score": null,
+                "class_num": null,
+                "class_name": null
+            }
+        ]
+    },
+    {
+        "attributes": {
+            "depth": 4,
+            "precursor_cost": 10.0,
+            "score": null,
+            "cluster_id": null
+        },
+        "smiles": "CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+        "ppg": 0.0,
+        "as_reactant": 0,
+        "as_product": 1,
+        "properties": null,
+        "terminal": false,
+        "is_chemical": true,
+        "id": "00000000-0000-0000-0000-000000000000",
+        "children": [
+            {
+                "smiles": "CC(=O)OC(C)=O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                "tforms": [
+                    "5e1f4b6e6348832850995e00"
+                ],
+                "tsources": [
+                    "reaxys"
+                ],
+                "template_score": 0.3077137124725957,
+                "plausibility": 0.998742878,
+                "is_reaction": true,
+                "rank": 1,
+                "num_examples": 5624,
+                "necessary_reagent": "",
+                "precursor_smiles": "CC(=O)OC(C)=O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                "rms_molwt": 208.82829108023336,
+                "num_rings": 3,
+                "scscore": 3.649292925724544,
+                "id": "4800cb01-e4c6-495f-bbad-0f33b44b7720",
+                "children": [
+                    {
+                        "smiles": "CC(=O)OC(C)=O",
+                        "ppg": 1.0,
+                        "as_reactant": 242443,
+                        "as_product": 4231,
+                        "properties": null,
+                        "terminal": true,
+                        "is_chemical": true,
+                        "id": "47437e71-bdf8-4e5b-9117-7b0471c40a17",
+                        "children": []
+                    },
+                    {
+                        "smiles": "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                        "ppg": 0.0,
+                        "as_reactant": 0,
+                        "as_product": 0,
+                        "properties": null,
+                        "terminal": false,
+                        "is_chemical": true,
+                        "id": "072cabdb-5b7c-4236-b111-873863e0c222",
+                        "children": [
+                            {
+                                "smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                "tforms": [
+                                    "5e1f4b6e6348832850995db0"
+                                ],
+                                "tsources": [
+                                    "reaxys"
+                                ],
+                                "template_score": 0.1337608103101499,
+                                "plausibility": 0.999026895,
+                                "is_reaction": true,
+                                "rank": 3,
+                                "num_examples": 10120,
+                                "necessary_reagent": "",
+                                "precursor_smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                "rms_molwt": 407.1481207719999,
+                                "num_rings": 5,
+                                "scscore": 3.1056695265304493,
+                                "id": "77ee0f70-339c-47d2-b737-b2800392dd0a",
+                                "children": [
+                                    {
+                                        "smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                        "ppg": 0.0,
+                                        "as_reactant": 0,
+                                        "as_product": 0,
+                                        "properties": null,
+                                        "terminal": false,
+                                        "is_chemical": true,
+                                        "id": "36cd9bf0-9be0-4ed9-9258-8506532c5f29",
+                                        "children": [
+                                            {
+                                                "smiles": "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1>>O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                                                "tforms": [
+                                                    "5e1f4b6e634883285099898a"
+                                                ],
+                                                "tsources": [
+                                                    "reaxys"
+                                                ],
+                                                "template_score": 0.5117052141995845,
+                                                "plausibility": 0.99994576,
+                                                "is_reaction": true,
+                                                "rank": 1,
+                                                "num_examples": 91,
+                                                "necessary_reagent": "",
+                                                "precursor_smiles": "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1",
+                                                "rms_molwt": 292.87475820348124,
+                                                "num_rings": 6,
+                                                "scscore": 2.541315787449456,
+                                                "id": "d737b713-86a3-43a4-85fa-b0d3adf6e356",
+                                                "children": [
+                                                    {
+                                                        "smiles": "O=C(n1ccnc1)n1ccnc1",
+                                                        "ppg": 1.0,
+                                                        "as_reactant": 19690,
+                                                        "as_product": 113,
+                                                        "properties": null,
+                                                        "terminal": true,
+                                                        "is_chemical": true,
+                                                        "id": "28c728b1-77ff-4e9a-add9-d432533e9d3d",
+                                                        "children": []
+                                                    },
+                                                    {
+                                                        "smiles": "O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1",
+                                                        "ppg": 0.0,
+                                                        "as_reactant": 0,
+                                                        "as_product": 0,
+                                                        "properties": null,
+                                                        "terminal": false,
+                                                        "is_chemical": true,
+                                                        "id": "cbef65c3-73eb-4b33-8a0c-8c07496c48fa",
+                                                        "children": [
+                                                            {
+                                                                "smiles": "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1>>O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1",
+                                                                "tforms": [
+                                                                    "5e1f4b6e6348832850995fc6"
+                                                                ],
+                                                                "tsources": [
+                                                                    "reaxys"
+                                                                ],
+                                                                "template_score": 0.9241029760842572,
+                                                                "plausibility": 0.999956727,
+                                                                "is_reaction": true,
+                                                                "rank": 1,
+                                                                "num_examples": 1372,
+                                                                "necessary_reagent": "",
+                                                                "precursor_smiles": "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1",
+                                                                "rms_molwt": 190.9921995760705,
+                                                                "num_rings": 5,
+                                                                "scscore": 2.0649573216243495,
+                                                                "id": "74963038-4b84-436d-a4ad-a0de00552a0b",
+                                                                "children": [
+                                                                    {
+                                                                        "smiles": "Nc1ccc(N2CCOCC2)cc1",
+                                                                        "ppg": 1.0,
+                                                                        "as_reactant": 1167,
+                                                                        "as_product": 88,
+                                                                        "properties": null,
+                                                                        "terminal": true,
+                                                                        "is_chemical": true,
+                                                                        "id": "a1ef9cbc-f73e-44b7-ab00-edb5d9f5cd93",
+                                                                        "children": []
+                                                                    },
+                                                                    {
+                                                                        "smiles": "O=C1c2ccccc2C(=O)N1CC1CO1",
+                                                                        "ppg": 7.0,
+                                                                        "as_reactant": 300,
+                                                                        "as_product": 32,
+                                                                        "properties": null,
+                                                                        "terminal": true,
+                                                                        "is_chemical": true,
+                                                                        "id": "343680fa-f4ae-47f5-8b3e-1f1a970c80d8",
+                                                                        "children": []
+                                                                    }
+                                                                ],
+                                                                "forward_score": null,
+                                                                "class_num": null,
+                                                                "class_name": null
+                                                            }
+                                                        ]
+                                                    }
+                                                ],
+                                                "forward_score": null,
+                                                "class_num": null,
+                                                "class_name": null
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "forward_score": null,
+                                "class_num": null,
+                                "class_name": null
+                            }
+                        ]
+                    }
+                ],
+                "forward_score": null,
+                "class_num": null,
+                "class_name": null
+            }
+        ]
+    }
+]

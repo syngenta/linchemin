@@ -1,0 +1,168 @@
+Adding graph formats
+====================
+
+
+.. currentmodule:: linchemin.cgu.translate
+
+The :mod:`~linchemin.cgu.translate` module stores all the classes and functions to make translation between
+graph formats and if you are planning to include a new format, this is the module you will need to modify.
+Below we firstly give a brief description of the module architecture and then we show a practical example
+for including a new input format and one for including an output format.
+
+
+Translate overview
+-------------------
+
+
+The module is composed by a factory structure in which the subclasses of the abstract class
+:class:`~linchemin.cgu.translate.AbsTranslator` implement the concrete translators for each format,
+so that, for example, there is a ``TranslatorNetworkx``, a ``TranslatorIbm``, a ``TranslatorBipartiteSynGraph``,
+etc... For each subclass the concrete implementation of at least one of two abstract methods
+:meth:`~linchemin.cgu.translate.AbsTranslator.from_iron` and
+:meth:`~linchemin.cgu.translate.AbsTranslator.to_iron` is developed.
+The :class:`~linchemin.cgu.translate.TranslatorFactory` class handles the calls to the correct ``AbsTranslator``
+subclasses based on the user's input.
+
+On the top of the factory there is a chain of responsibility structure that enforces a sequence of translations
+from the selected input format to the output format. The steps of the sequence are:
+
+- Input format is translated to Iron
+- Iron is translated to SynGraph in the selected data model
+- SynGraph is translated to Iron
+- Iron is translated to the output format
+
+Forcing the translation to pass through SynGraph ensures that the chemical information is handled
+correctly, as :class:`~linchemin.cheminfo.molecule.Molecule` and/or
+:class:`~linchemin.cheminfo.reaction.ChemicalEquation` instances are built while constructing
+the SynGraph objects. Moreover, the conversion between data models (i.e., bipartite graph, monopartite
+graph with only reactions or monopartite graph with only molecules) is handled exclusively by
+SynGraph. This avoids the combinatorial explosion of possibilities to mix and match
+data formats and data models.
+
+Lastly, everything is wrapped by the facade function :func:`~linchemin.cgu.translate.translator`.
+It takes the 'name' of the input format, the graph object in the input format,
+the 'name' of the output format and the 'name' of the output data model and returns the graph
+translated in the output format and in the selected data model.
+
+
+Implementing a new input format
+-------------------------------
+
+In order to include a new input format among those that LinChemIn can 'read', you
+firstly need to create a new subclass of the abstract class
+:class:`~linchemin.cgu.translate.AbsTranslator` in the :mod:`~linchemin.cgu.translate` module.
+
+.. code-block:: python
+
+    class TranslatorNewInputFormat(AbsTranslator):
+    """ Translator subclass to handle translations from NewInputFormat objects """
+        as_input = None
+        as_output = None
+
+        def from_iron(self, graph: Iron):
+            pass
+
+        def to_iron(self, route) -> Iron:
+            pass
+
+What you are interested in is the :meth:`~linchemin.cgu.translate.AbsTranslator.to_iron` method, while the
+:meth:`~linchemin.cgu.translate.AbsTranslator.from_iron` can be left aside for the moment.
+
+Now you need to take your time to develop the actual code that, starting from a graph object
+in the format you are trying to add, returns an Iron instance. We recommend to add a 'node_smiles'
+key in the ``properties`` dictionary of the Iron nodes, so that the Iron object is suitable
+to be translated into a SynGraph instance. Also, remember that the translators work with single graph
+objects, not list of objects.
+If you need more information regarding the Iron format, you can have a look at :doc:`../data_structure`.
+You should also set the ``as_input`` attribute of the subclass to ``implemented``, so that
+the new format will appear as available in the helper function.
+
+
+When the code will be implemented you will have something similar
+to this:
+
+.. code-block:: python
+
+    class TranslatorNewInputFormat(AbsTranslator):
+    """ Translator subclass to handle translations from NewInputFormat objects """
+        as_input = 'implemented'
+        as_output = None
+
+        def from_iron(self, graph: Iron):
+            pass
+
+        def to_iron(self, route) -> Iron:
+            # some super cool code
+            return iron_graph
+
+The last step is to add the 'name' of your new format in the ``translators`` dictionary
+of :class:`~linchemin.cgu.translate.TranslatorFactory`, to make it available to the factory.
+
+.. code-block:: python
+
+    translators = {
+        'networkx': {'value': TranslatorNetworkx, 'info': 'Translating from/into Networkx objects'},
+        'pydot': {'value': TranslatorDot, 'info': 'Translating from/into Pydot objects'},
+        'ibm_retro': {'value': TranslatorIbm, 'info': 'Translating from outputs generated by the IBMRXN CASP tool'},
+        'az_retro': {'value': TranslatorAz,
+                     'info': 'Translating from outputs generated by the AiZynthFinder CASP tool'},
+        'mit_retro': {'value': TranslatorMit,
+                     'info': 'Translating from outputs generated by the Askos CASP tool'},
+        'syngraph': {'value': None,
+                     'info': 'Translating from/into SynGraph objects'},
+        'pydot_visualization': {'value': TranslatorDotVisualization,
+                                'info': 'Creates PNG pictures of the input routes'},
+        'iron': {'value': None, 'info': 'Translating from/into a list of Iron objects'},
+        'noc': {'value': TranslatorNOC,
+                'info': 'Translating to a format compatible with a Network of Organic Chemistry'},
+        'new_input': {'value': TranslatorNewInputFormat,
+                      'info': 'Brief description that will appear in the helper function'}
+    }
+
+That's it, you are all done! Now your newly developed format is available to all the LinChemin
+functionalities that use the
+:func:`~linchemin.cgu.translate.translator` function. For example, you can use it to translate a
+single route with the :func:`~linchemin.cgu.translate.translator` function:
+
+.. code-block:: python
+
+    from linchemin.cgu.translate import translator
+
+    syngraph = translator('new_input', new_input_graph, 'syngraph', 'bipartite')
+
+
+or you can work with a list of routes through the :func:`~linchemin.interfaces.facade.facade` function.
+
+.. code-block:: python
+
+    from linchemin.interfaces.facade import facade
+
+    routes, metadata = facade('translate', 'new_input', new_input_graph, 'syngraph', 'bipartite')
+
+
+Implementing a new output format
+---------------------------------
+
+The procedure to add a new output format is the same as the one described above,
+with the only difference that you now need to implement the
+:meth:`~linchemin.cgu.translate.AbsTranslator.from_iron` method.
+In this case, your code should take an Iron instance as input and, after the appropriate transformations,
+return a graph object in the new format.
+
+.. code-block:: python
+
+    class TranslatorNewOutputFormat(AbsTranslator):
+    """ Translator subclass to handle translations from NewOutputFormat objects """
+        as_input = None
+        as_output = 'implemented'
+
+        def from_iron(self, graph: Iron):
+            # some super cool code
+            return graph
+
+        def to_iron(self, route) -> Iron:
+            pass
+
+Of course, if you want that your format is available as both input and output,
+you will need to implement both methods and to set as ``'implemented'`` both the
+``as_input`` and ``as_output`` attributes.
