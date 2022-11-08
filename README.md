@@ -1,4 +1,4 @@
-# ![LinChemIn](https://github.com/syngenta/linchemin/blob/main/docs/source/static/linchemin_logo.png)
+# ![LinChemIn](https://github.com/syngenta/linchemin/blob/0fe374ad0f395cf8111cfb90d8190851ea3d5e35/docs/source/static/linchemin_logo.png)
 [![Powered by RDKit](https://img.shields.io/badge/Powered%20by-RDKit-3838ff.svg?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAFVBMVEXc3NwUFP8UPP9kZP+MjP+0tP////9ZXZotAAAAAXRSTlMAQObYZgAAAAFiS0dEBmFmuH0AAAAHdElNRQfmAwsPGi+MyC9RAAAAQElEQVQI12NgQABGQUEBMENISUkRLKBsbGwEEhIyBgJFsICLC0iIUdnExcUZwnANQWfApKCK4doRBsKtQFgKAQC5Ww1JEHSEkAAAACV0RVh0ZGF0ZTpjcmVhdGUAMjAyMi0wMy0xMVQxNToyNjo0NyswMDowMDzr2J4AAAAldEVYdGRhdGU6bW9kaWZ5ADIwMjItMDMtMTFUMTU6MjY6NDcrMDA6MDBNtmAiAAAAAElFTkSuQmCC)](https://www.rdkit.org/)  
 [![Pypi version](https://img.shields.io/pypi/v/linchemin.svg)](https://pypi.python.org/pypi/linchemin)  
 [![Documentation Status](https://readthedocs.org/projects/linchemin/badge/?version=latest)](https://linchemin.readthedocs.io/en/latest/?badge=latest)  
