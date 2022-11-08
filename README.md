@@ -1,5 +1,5 @@
 
-##LinChemIn (Linked Chemical Information)  
+## LinChemIn (Linked Chemical Information)  
 
 [![Powered by RDKit](https://img.shields.io/badge/Powered%20by-RDKit-3838ff.svg?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAFVBMVEXc3NwUFP8UPP9kZP+MjP+0tP////9ZXZotAAAAAXRSTlMAQObYZgAAAAFiS0dEBmFmuH0AAAAHdElNRQfmAwsPGi+MyC9RAAAAQElEQVQI12NgQABGQUEBMENISUkRLKBsbGwEEhIyBgJFsICLC0iIUdnExcUZwnANQWfApKCK4doRBsKtQFgKAQC5Ww1JEHSEkAAAACV0RVh0ZGF0ZTpjcmVhdGUAMjAyMi0wMy0xMVQxNToyNjo0NyswMDowMDzr2J4AAAAldEVYdGRhdGU6bW9kaWZ5ADIwMjItMDMtMTFUMTU6MjY6NDcrMDA6MDBNtmAiAAAAAElFTkSuQmCC)](https://www.rdkit.org/)  
 [![Pypi version](https://img.shields.io/pypi/v/linchemin.svg)](https://pypi.python.org/pypi/linchemin)  
@@ -19,19 +19,19 @@ The Linked Chemical Information (LinChemIn) package is a python toolkit that all
 |documentation|http://linchemin.readthedocs.io|
 |pypi page|https://pypi.org/project/linchemin|
 
-##Install for usage  
-###1) pypi  
+## Install for usage  
+### 1) pypi  
 >pip install linchemin  
 > 
-###2) clone & pip   
+### 2) clone & pip   
 >git clone https://github.com/syngenta/linchemin    
 >cd linchemin    
 >pip install .   
 
-###3) pip from git  
+### 3) pip from git  
 >pip install git+https://github.com/syngenta/linchemin
 
-##Install for development  
+## Install for development  
 >git clone https://github.com/syngenta/linchemin  
 >cd linchemin  
 >pip install -e .[development]    
