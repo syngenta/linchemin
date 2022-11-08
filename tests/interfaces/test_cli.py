@@ -11,7 +11,7 @@ def test_cli_basic(capfd):
 
 
 def test_cli(capfd):
-    os.system('python ../../src/linchemin/interfaces/cli.py -input_dict ../cgu/data/askos_output.json=askcos')
+    os.system('python ../../src/linchemin/interfaces/cli.py -input_dict ../test_file/askos_output.json=askcos')
     out, err = capfd.readouterr()
     assert 'Translating the routes in the input file to a list of SynGraph....' in out
     os.remove('routes.json')
