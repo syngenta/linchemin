@@ -28,3 +28,10 @@ def mit_path():
     conftest_path = Path(__file__)
     data_path = conftest_path.parent / 'test_file'
     return data_path.joinpath("askos_output.json")
+
+
+@pytest.fixture
+def cli():
+    conftest_path = Path(__file__)
+    data_path = conftest_path.parent.parent
+    return data_path.joinpath("src/linchemin/interfaces/cli.py")
