@@ -83,7 +83,7 @@ def count_dict_nodes(d, counter=0):
 
 def test_iron_source_attribute():
     """ To test that the expected source is correctly assigned to an Iron instance. """
-    graph = json.loads(open("data/ibmrxn_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
     translated_graph = translator('ibm_retro', graph[0], 'iron', out_data_model='monopartite_reactions')
 
     assert 'ibm' in translated_graph.source
@@ -92,7 +92,7 @@ def test_iron_source_attribute():
 
 def test_iron_dot_translation():
     print('')
-    graph = json.loads(open("data/ibmrxn_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
     dot_graph = translator('ibm_retro', graph[2], 'pydot', out_data_model='monopartite_molecules')
 
     assert type(dot_graph) == pydot.Dot
@@ -106,7 +106,7 @@ def test_iron_dot_translation():
 
 def test_translating_into_nx_returns_nx_object():
     """ To test that the expected type of object (NetworkX DiGraph) is correctly generated. """
-    graph = json.loads(open("data/ibmrxn_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
     nx_graph = translator('ibm_retro', graph[1], 'networkx', out_data_model='monopartite_molecules')
     assert type(nx_graph) == nx.classes.digraph.DiGraph
 
@@ -117,25 +117,25 @@ def test_translating_into_nx_returns_nx_object():
 def test_wrong_format_name():
     """ To test that the correct exception is raised when an unavailable input format is requested. """
     with pytest.raises(KeyError) as ke:
-        graph = json.loads(open("data/ibmrxn_retro_output_raw.json").read())
+        graph = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
         translator('wrong_input_format', graph[1], 'iron', out_data_model='bipartite')
     assert "KeyError" in str(ke.type)
 
     with pytest.raises(KeyError) as ke:
-        graph = json.loads(open("data/ibmrxn_retro_output_raw.json").read())
+        graph = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
         translator('ibm_retro', graph[1], 'wrong_output_format', out_data_model='bipartite')
     assert "KeyError" in str(ke.type)
 
 
 def testing_dict_to_iron():
     """ To test that a graph in json format is correctly converted in the expected Iron object (json -> Iron). """
-    all_routes = json.loads(open("data/az_retro_output_raw.json").read())
+    all_routes = json.loads(open("../test_file/az_retro_output_raw.json").read())
     route = all_routes[0]
     prop = {'node_type': 'type', 'node_smiles': 'smiles'}
     iron_route = az_dict_to_iron(route, prop, iron=None, parent=None)
     assert iron_route.i_node_number() == 5
 
-    all_routes_ibm = json.loads(open("data/ibmrxn_retro_output_raw.json").read())
+    all_routes_ibm = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
     route_ibm = all_routes_ibm[0]
     prop = {'node_smiles': 'smiles'}
     iron_route_ibm = ibm_dict_to_iron(route_ibm, prop, iron=None, parent=None)
@@ -145,7 +145,7 @@ def testing_dict_to_iron():
 def test_translating_into_iron_and_into_nx_returns_isomorphic_graphs():
     """ To test that a graph in json format is correctly converted in the expected Networkx object
         (json -> Iron -> Networkx)."""
-    graph = json.loads(open("data/ibmrxn_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
     iron_graph = translator('ibm_retro', graph[1], 'iron', out_data_model='monopartite_molecules')
     nx_graph = translator('ibm_retro', graph[1], 'networkx', out_data_model='monopartite_molecules')
 
@@ -165,7 +165,7 @@ def test_translating_into_iron_and_into_nx_returns_isomorphic_graphs():
 def test_translating_into_iron_and_into_dot_returns_isomorphic_graphs():
     """ To test that a graph in json format is correctly converted in the expected Pydot object
         (json -> Iron -> Dot)."""
-    graph = json.loads(open("data/az_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
     # Translate each route in the input graph into a list of routes in the desired format
     iron_graph = translator('az_retro', graph[2], 'iron', out_data_model='monopartite_molecules')
     dot_graph = translator('az_retro', graph[2], 'pydot', out_data_model='monopartite_molecules')
@@ -190,7 +190,7 @@ def test_none_returned_if_empty_route():
 
 
 def test_syngraph_to_syngraph():
-    graph_az = json.loads(open("data/az_retro_output_raw.json").read())
+    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
     bp_syngraph = translator('az_retro', graph_az[2], 'syngraph', out_data_model='bipartite')
     with pytest.raises(ValueError) as ke:
         translator('syngraph', bp_syngraph, 'syngraph', out_data_model='monopartite_reactions')
@@ -199,7 +199,7 @@ def test_syngraph_to_syngraph():
 
 def test_iron_to_syngraph():
     """ To test the Iron -> SynGraph transformation (mainly tested in the test_syngraph). """
-    graph_ibm = json.loads(open("data/ibmrxn_retro_output_raw.json").read())
+    graph_ibm = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
     syngraph = translator('ibm_retro', graph_ibm[2], 'syngraph', out_data_model='bipartite')
 
     assert type(syngraph) == BipartiteSynGraph
@@ -209,7 +209,7 @@ def test_iron_to_syngraph():
 
 def test_iron_to_mp_syngraph():
     """ To test the Iron -> MonopartiteReaSynGraph transformation (mainly tested in test_syngraph). """
-    graph_az = json.loads(open("data/az_retro_output_raw.json").read())
+    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
     mp_syngraph = translator('az_retro', graph_az[2], 'syngraph', out_data_model='monopartite_reactions')
 
     assert type(mp_syngraph) == MonopartiteReacSynGraph
@@ -222,7 +222,7 @@ def test_iron_to_mp_syngraph():
 
 
 def test_one_node_iron_to_nx():
-    graph_ibm = json.loads(open("data/ibmrxn_retro_output_raw.json").read())
+    graph_ibm = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
     mp_syngraph = translator('ibm_retro', graph_ibm[0], 'syngraph', out_data_model='monopartite_reactions')
 
     one_node_nx = translator('syngraph', mp_syngraph, 'networkx', out_data_model='monopartite_reactions')
@@ -231,7 +231,7 @@ def test_one_node_iron_to_nx():
 
 
 def test_route_depiction():
-    graph_az = json.loads(open("data/az_retro_output_raw.json").read())
+    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
     syngraph = translator('az_retro', graph_az[0], 'syngraph', out_data_model='bipartite')
     translator('syngraph', syngraph, 'pydot_visualization', out_data_model='monopartite_reactions')
 
@@ -254,7 +254,7 @@ def test_available_data_models():
 
 
 def test_translate_into_NOC_document():
-    graph_ibm = json.loads(open("data/ibmrxn_retro_output_raw.json").read())
+    graph_ibm = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
     route_noc_doc = translator('ibm_retro', graph_ibm[0], 'noc', out_data_model='bipartite')
     assert route_noc_doc
     assert type(route_noc_doc) == dict
@@ -272,7 +272,7 @@ def test_in_format():
 
 
 def test_mit_to_iron():
-    graph = json.loads(open("data/askos_output.json").read())
+    graph = json.loads(open("../test_file/askos_output.json").read())
     iron_route = translator('mit_retro', graph[0], 'iron', out_data_model='monopartite_molecules')
     assert iron_route.i_edge_number() == 7
     assert iron_route.i_node_number() == 8

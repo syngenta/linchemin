@@ -6,7 +6,7 @@ import pytest
 
 
 def test_clusterer():
-    graph = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
     syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='monopartite_reactions') for g in graph]
 
     # An Exception is raised if the clustering method identifies all the datapoints as noise.
@@ -48,7 +48,7 @@ def test_clusterer():
 
 
 def test_get_cluster_metrics():
-    graph = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
     syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='monopartite_reactions') for g in graph]
     cluster1, score1 = clusterer(syngraphs, ged_method='nx_optimized_ged',
                                  clustering_method='agglomerative_cluster')

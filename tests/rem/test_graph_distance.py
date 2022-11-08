@@ -14,7 +14,7 @@ from rdkit.Chem import rdChemReactions
 
 def test_similarity_factory():
     # Test similarity with oneself with monopartite syngraphs and factory workflow
-    graph_az = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
     mp_syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='monopartite_reactions') for g in graph_az]
 
     ged_identical = graph_distance_factory(mp_syngraphs[0], mp_syngraphs[0], ged_method='nx_ged')
@@ -45,7 +45,7 @@ def test_similarity_factory():
 
 def test_bipartite_graph():
     # Test similarity with oneself using bipartite syngraphs
-    graph_az = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
     syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='bipartite') for g in graph_az]
 
     ged_identical = graph_distance_factory(syngraphs[0], syngraphs[0], ged_method='nx_ged')
@@ -58,7 +58,7 @@ def test_bipartite_graph():
 
 def test_compute_nodes_fingerprints():
     # Test that compute_nodes_fingerprints returns the correct dictionary
-    graph_ibm = json.loads(open("../cgu/data/ibmrxn_retro_output_raw.json").read())
+    graph_ibm = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
     syngraphs = [translator('ibm_retro', g, 'syngraph', out_data_model='bipartite') for g in graph_ibm]
 
     reaction_fp, molecule_fp = compute_nodes_fingerprints(syngraphs[1], reaction_fingerprints='structure_fp',
@@ -73,7 +73,7 @@ def test_compute_nodes_fingerprints():
 
 def test_build_similarity_matrix():
     # Test the workflow for computing the similarity matrix
-    graph_az = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
     mp_syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='monopartite_reactions') for g in graph_az]
     reaction_fp1, molecule_fp1 = compute_nodes_fingerprints(mp_syngraphs[1], reaction_fingerprints='structure_fp',
                                                             molecular_fingerprint='rdkit')
@@ -86,7 +86,7 @@ def test_build_similarity_matrix():
 
 def test_similarity_matrix():
     # Test similarity with oneself using the similarity matrix workflow
-    graph_az = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
     mp_syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='monopartite_reactions') for g in graph_az]
 
     ged_identical = graph_distance_factory(mp_syngraphs[0], mp_syngraphs[0], ged_method='nx_ged_matrix')
@@ -97,7 +97,7 @@ def test_similarity_matrix():
 
 
 def test_compute_distance_matrix():
-    graph = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
     mp_syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='monopartite_reactions') for g in graph]
     m = compute_distance_matrix(mp_syngraphs, ged_method='nx_ged')
     diag = pd.Series([m.iat[n, n] for n in range(len(m))], index=[m.index, m.columns])
@@ -105,7 +105,7 @@ def test_compute_distance_matrix():
     proof_diag = pd.Series(np.zeros(len(routes)), index=[m.index, m.columns])
     assert diag.all() == proof_diag.all()
 
-    routes = json.loads(open("../cgu/data/ibmrxn_retro_output_raw.json").read())
+    routes = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
     mp_syngraphs = [translator('ibm_retro', r, 'syngraph', out_data_model='monopartite_reactions') for r in routes]
     m2 = compute_distance_matrix(mp_syngraphs, ged_method='nx_optimized_ged')
     diag2 = pd.Series([m2.iat[n, n] for n in range(len(m2))], index=[m2.index, m2.columns])
@@ -122,7 +122,7 @@ def test_compute_distance_matrix():
 
 
 def test_optimized_ged():
-    graph_az = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
     syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='bipartite') for g in graph_az]
     nx_graphs = [translator('syngraph', s, 'networkx', out_data_model='bipartite') for s in syngraphs]
     ged = nx.graph_edit_distance(nx_graphs[0], nx_graphs[1], node_match=lambda x, y: x == y)
@@ -135,7 +135,7 @@ def test_optimized_ged():
 
 
 def test_optimized_ged_workflow():
-    graph_az = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
     syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='bipartite') for g in graph_az]
     ged_bp = graph_distance_factory(syngraphs[0], syngraphs[3], ged_method='nx_optimized_ged')
     ged_bp_std = graph_distance_factory(syngraphs[0], syngraphs[3], ged_method='nx_ged')

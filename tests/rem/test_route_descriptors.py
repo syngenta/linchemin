@@ -10,7 +10,7 @@ import pytest
 def test_unavailable_metrics():
     """ To test that a KeyError is raised if an unavailable metrics is requested. """
     with pytest.raises(Exception) as ke:
-        graph = json.loads(open("../cgu/data/ibmrxn_retro_output_raw.json").read())
+        graph = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
         syngraph = translator('ibm_retro', graph[3], 'syngraph', out_data_model='bipartite')
         descriptor_calculator(syngraph, 'wrong_metrics')
     assert "KeyError" in str(ke.type)
@@ -18,7 +18,7 @@ def test_unavailable_metrics():
 
 def test_find_path():
     """ To test that find_path function returns the expected path. """
-    graph = json.loads(open("../cgu/data/ibmrxn_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
     syngraph = translator('ibm_retro', graph[0], 'syngraph', out_data_model='bipartite')
     root = syngraph.get_roots()
     leaves = syngraph.get_leaves()
@@ -28,7 +28,7 @@ def test_find_path():
 
 def test_longest_sequence():
     """ To test that the LongestSequence object is returned as expected. """
-    graph = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
     syngraph = translator('az_retro', graph[3], 'syngraph', out_data_model='bipartite')
     longest_seq = descriptor_calculator(syngraph, 'longest_seq')
     assert longest_seq == 3
@@ -40,7 +40,7 @@ def test_longest_sequence():
 
 def test_metric_selector_nr_steps():
     """ To test that the NrReactionSteps object is returned as expected. """
-    graph = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
     syngraph = translator('az_retro', graph[4], 'syngraph', out_data_model='bipartite')
     n_steps = descriptor_calculator(syngraph, 'nr_steps')
     assert n_steps == 3
@@ -48,7 +48,7 @@ def test_metric_selector_nr_steps():
 
 def test_metric_selector_paths():
     """ To test that the PathFinder object is returned as expected. """
-    graph = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
     syngraph = translator('az_retro', graph[2], 'syngraph', out_data_model='bipartite')
     paths = descriptor_calculator(syngraph, 'all_paths')
     assert len(paths) == 3
@@ -56,7 +56,7 @@ def test_metric_selector_paths():
 
 def test_metric_selector_branching_factor():
     """ To test that the AvgBranchingFactor object is returned as expected. """
-    graph = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
     syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='bipartite') for g in graph]
 
     tree = merge_syngraph(syngraphs)
@@ -65,7 +65,7 @@ def test_metric_selector_branching_factor():
 
 
 def test_nr_branches():
-    graph = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
     syngraphs = translator('az_retro', graph[2], 'syngraph', out_data_model='bipartite')
     # The expected number of branches is returned
     nr_b = descriptor_calculator(syngraphs, 'nr_branches')
@@ -77,7 +77,7 @@ def test_nr_branches():
 
 
 def test_subset():
-    graph = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
     mp_syngraphs = translator('az_retro', graph[2], 'syngraph', out_data_model='monopartite_reactions')
     # A route is subset of another when: (i) the Syngraph dictionary is subset, (ii) the two routes have the same
     # target (iii) the two routes have different leaves
@@ -105,9 +105,9 @@ def test_subset():
 
 
 def test_find_duplicates():
-    graph1 = json.loads(open("../cgu/data/ibmrxn_retro_output_raw.json").read())
+    graph1 = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
     ibm_routes = [translator('ibm_retro', g, 'syngraph', out_data_model='bipartite') for g in graph1]
-    graph2 = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph2 = json.loads(open("../test_file/az_retro_output_raw.json").read())
     az_routes = [translator('az_retro', g, 'syngraph', out_data_model='bipartite') for g in graph2]
     # No duplicates are found
     d = find_duplicates(ibm_routes, az_routes)
@@ -127,7 +127,7 @@ def test_find_duplicates():
 
 
 def test_get_node_consensus():
-    graph2 = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph2 = json.loads(open("../test_file/az_retro_output_raw.json").read())
     az_routes = [translator('az_retro', g, 'syngraph', out_data_model='bipartite') for g in graph2]
     # Check consensus for bipartite SynGraphs
     nodes_consensus = get_nodes_consensus(az_routes)
@@ -156,7 +156,7 @@ def test_get_available_routes():
 
 
 def test_convergence():
-    graph = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
     az_routes_mp = translator('az_retro', graph[-1], 'syngraph', out_data_model='monopartite_reactions')
     lls = descriptor_calculator(az_routes_mp, 'longest_seq')
     n_steps = descriptor_calculator(az_routes_mp, 'nr_steps')
@@ -165,7 +165,7 @@ def test_convergence():
 
 
 def test_cdscores():
-    graph = json.loads(open("../cgu/data/az_retro_output_raw.json").read())
+    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
     az_routes_mp = translator('az_retro', graph[0], 'syngraph', out_data_model='monopartite_reactions')
     cds = descriptor_calculator(az_routes_mp, 'cdscore')
     assert 0 < cds < 1
@@ -177,7 +177,7 @@ def test_cdscores():
 
 
 def test_branchedness():
-    f = json.loads(open("../cgu/data/ibm_output2.json").read())
+    f = json.loads(open("../test_file/ibm_output2.json").read())
     routes = [translator('ibm_retro', g, 'syngraph', out_data_model='monopartite_reactions') for g in f[:3]]
     assert descriptor_calculator(routes[0], 'branchedness') == 0.0
     assert descriptor_calculator(routes[2], 'branchedness') == 0.5

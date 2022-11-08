@@ -8,7 +8,7 @@ import json
 
 
 def test_translate():
-    path = "../cgu/data/ibm_output2.json"
+    path = "../test_file/ibm_output2.json"
     graph = json.loads(open(path).read())
     output, metadata = facade('translate', input_format='ibm_retro', input_list=graph)
     assert type(output) == list and type(metadata) == dict
@@ -21,7 +21,7 @@ def test_translate():
 
 
 def test_metrics():
-    path = "../cgu/data/ibm_output2.json"
+    path = "../test_file/ibm_output2.json"
     graph = json.loads(open(path).read())
     routes, meta = facade('translate', 'ibm_retro', graph, out_format='syngraph',
                           out_data_model='monopartite_reactions')
@@ -39,7 +39,7 @@ def test_metrics():
 
 
 def test_ged():
-    path = "../cgu/data/az_retro_output_raw.json"
+    path = "../test_file/az_retro_output_raw.json"
     graph = json.loads(open(path).read())
     routes_bp, m = facade('translate', 'az_retro', graph, out_format='syngraph', out_data_model='bipartite')
     d, meta = facade('distance_matrix', routes_bp)
@@ -64,7 +64,7 @@ def test_ged():
 
 
 def test_clustering():
-    path = "../cgu/data/az_retro_output_raw.json"
+    path = "../test_file/az_retro_output_raw.json"
     graph = json.loads(open(path).read())
     # Test with all default parameters
     routes, m = facade('translate', 'az_retro', graph, out_format='syngraph',
@@ -99,7 +99,7 @@ def test_clustering():
 
 
 def test_subset():
-    path = "../cgu/data/az_retro_output_raw.json"
+    path = "../test_file/az_retro_output_raw.json"
     graph = json.loads(open(path).read())
     routes, meta = facade('translate', 'az_retro', graph, out_format='syngraph',
                           out_data_model='monopartite_reactions')
@@ -108,7 +108,7 @@ def test_subset():
 
 
 def test_find_duplicates():
-    path = "../cgu/data/ibm_output2.json"
+    path = "../test_file/ibm_output2.json"
     graph = json.loads(open(path).read())
     routes, meta = facade('translate', 'ibm_retro', graph, out_format='syngraph',
                           out_data_model='monopartite_reactions')
@@ -135,7 +135,7 @@ def test_facade_helper_verbose(capfd):
 
 
 def test_parallelization_read_and_convert(capfd):
-    path = "../cgu/data/ibm_output2.json"
+    path = "../test_file/ibm_output2.json"
     graph = json.loads(open(path).read())
     output, metadata = facade('translate', 'ibm_retro', graph, out_data_model='monopartite_reactions',
                               parallelization=True, n_cpu=8)
@@ -147,7 +147,7 @@ def test_parallelization_read_and_convert(capfd):
 
 
 def test_merging():
-    path = "../cgu/data/ibm_output2.json"
+    path = "../test_file/ibm_output2.json"
     graph = json.loads(open(path).read())
     routes, meta = facade('translate', 'ibm_retro', graph, out_data_model='bipartite')
     tree = facade('merging', routes)
@@ -160,7 +160,7 @@ def test_merging():
 
 
 def test_reaction_extraction():
-    path = "../cgu/data/askos_output.json"
+    path = "../test_file/askos_output.json"
     graph = json.loads(open(path).read())
     routes, meta = facade('translate', 'mit_retro', graph, out_data_model='monopartite_reactions')
     reactions, m = facade('extract_reactions_strings', routes)
