@@ -7,12 +7,12 @@ import json
 import pytest
 
 
-def test_bipartite_syngraph_instance():
+def test_bipartite_syngraph_instance(az_path):
     """ To test that a BipartiteSynGraph instance is correctly generated. """
     syngraph = BipartiteSynGraph()
     assert len(syngraph.graph.keys()) == 0 and len(syngraph.graph.values()) == 0
 
-    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
+    graph = json.loads(open(az_path).read())
     syngraph = translator('az_retro', graph[0], 'syngraph', out_data_model='bipartite')
     assert len(syngraph.graph.keys()) != 0 and len(syngraph.graph.values()) != 0
     assert syngraph.source is not None
@@ -25,9 +25,9 @@ def test_bipartite_syngraph_instance():
     assert syngraph3 != syngraph2
 
 
-def test_add_new_node():
+def test_add_new_node(ibm1_path):
     """ To test that the SynGraph method 'add_node' correctly add new nodes to a SynGraph instance. """
-    graph = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
+    graph = json.loads(open(ibm1_path).read())
     syngraph = translator('ibm_retro', graph[0], 'syngraph', out_data_model='bipartite')
     l1 = len(syngraph.graph)
     new_node = ('new_mol_smiles', ['new>reaction>smiles1', 'new>reaction>smiles2'])
@@ -37,18 +37,11 @@ def test_add_new_node():
     assert l1 != l2
 
 
-def test_add_existing_node():
+def test_add_existing_node(ibm1_path):
     """ To test that if an already existing node is added to a SynGraph instance, the node is not duplicated. """
-    graph = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
+    graph = json.loads(open(ibm1_path).read())
     syngraph1 = translator('ibm_retro', graph[0], 'syngraph', out_data_model='bipartite')
     l1 = len(syngraph1.graph)
-    """
-    
-    reactant = Molecule('CCN', inp_fmt='smiles', identity_property_name='smiles')
-    molecules, roles, rdrxn = process_reaction_string(input_string='CCN>>CCC(=O)NCC', inp_fmt='smiles',
-                                                      identity_property_name='smiles')
-    reaction = ChemicalEquation(molecules=molecules, roles=roles)
-    """
     molecule_constructor = MoleculeConstructor(identity_property_name='smiles')
 
     reactant = molecule_constructor.build_from_molecule_string(molecule_string='CCN',
@@ -66,9 +59,9 @@ def test_add_existing_node():
     assert l1 == l2
 
 
-def test_add_existing_node_with_new_connections():
+def test_add_existing_node_with_new_connections(ibm1_path):
     """ To test that new connections for an existing node are correctly added, without duplicates. """
-    graph = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
+    graph = json.loads(open(ibm1_path).read())
     syngraph = translator('ibm_retro', graph[0], 'syngraph', out_data_model='bipartite')
     l1 = len(syngraph.graph)
 
@@ -91,20 +84,20 @@ def test_add_existing_node_with_new_connections():
     assert 'C1CCOC1.CCOC(=O)CC.CCN>>CCC(=O)NCC' in syngraph[reactant]
 
 
-def test_syngraph_source():
+def test_syngraph_source(az_path):
     """ To test that the source attribute of a SynGraph instance is correctly assigned. """
-    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
+    graph_az = json.loads(open(az_path).read())
     syngraph = translator('az_retro', graph_az[1], 'syngraph', out_data_model='bipartite')
 
     assert 'az' in syngraph.source
 
 
-def test_syngraph_merging():
+def test_syngraph_merging(ibm1_path, az_path):
     """ To test that a list of Syngraph/MonopartiteSynGraph objects is correctly merged. """
-    graph_ibm = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
+    graph_ibm = json.loads(open(ibm1_path).read())
     all_routes_ibm = [translator('ibm_retro', g, 'syngraph', out_data_model='bipartite') for g in graph_ibm]
 
-    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
+    graph_az = json.loads(open(az_path).read())
     all_routes_az = [translator('az_retro', g, 'syngraph', out_data_model='bipartite') for g in graph_az]
 
     synroutes = list(all_routes_ibm)
@@ -141,9 +134,9 @@ def test_syngraph_merging():
     assert "TypeError" in str(te.type)
 
 
-def test_monopartite_syngraph():
+def test_monopartite_syngraph(ibm1_path):
     """ To test that a MonopartiteMolSynGraph object is correctly generated """
-    graph_ibm = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
+    graph_ibm = json.loads(open(ibm1_path).read())
     mp_syngraph = translator('ibm_retro', graph_ibm[5], 'syngraph', out_data_model='monopartite_molecules')
 
     molecule_constructor = MoleculeConstructor(identity_property_name='smiles')
@@ -154,8 +147,8 @@ def test_monopartite_syngraph():
     assert mol2 in mp_syngraph.get_roots()
 
 
-def test_reaction_monopartite():
-    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
+def test_reaction_monopartite(az_path):
+    graph_az = json.loads(open(az_path).read())
     mp_reac_syngraph = translator('az_retro', graph_az[0], 'syngraph', out_data_model='monopartite_reactions')
 
     chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
@@ -167,10 +160,10 @@ def test_reaction_monopartite():
     assert ce_root in mp_reac_syngraph.get_roots()
 
 
-def test_get_reaction_leaves():
+def test_get_reaction_leaves(az_path):
     """ To test the MonopartiteReacSynGraph method 'get_leaves' correctly identifies the leaves (ReactionStep)
             in the graph. """
-    graph = json.loads(open("../test_file/az_retro_output_raw.json").read())
+    graph = json.loads(open(az_path).read())
     syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='bipartite') for g in graph]
     tree = merge_syngraph(syngraphs)
     mol_roots = tree.get_roots()
@@ -189,8 +182,8 @@ def test_get_reaction_leaves():
     assert len(reac_leaves) == 4
 
 
-def test_extract_reactions():
-    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
+def test_extract_reactions(az_path):
+    graph_az = json.loads(open(az_path).read())
     syngraph = translator('az_retro', graph_az[0], 'syngraph', 'monopartite_reactions')
     reactions = extract_reactions_from_syngraph(syngraph)
     assert len(reactions) == 2
@@ -210,7 +203,7 @@ def test_extract_reactions():
     assert "TypeError" in str(te.type)
 
 
-def test_read_dictionary():
+def test_read_dictionary(az_path, ibm1_path):
     # monopartite reactions
     d = [
         {'id': 0, 'reaction_string': 'Cc1cccc(C)c1NCC(=O)O.Nc1ccc(-c2ncon2)cc1>>Cc1cccc(C)c1NCC(=O)Nc1ccc(-c2ncon2)cc1',
@@ -219,12 +212,12 @@ def test_read_dictionary():
                                      '=O)Nc1ccc(-c2ncon2)cc1)C(=O)C1CCS(=O)(=O)CC1',
          'inp_fmt': 'smiles'}]
     syngraph = MonopartiteReacSynGraph(d)
-    graph_az = json.loads(open("../test_file/az_retro_output_raw.json").read())
+    graph_az = json.loads(open(az_path).read())
     assert syngraph == translator('az_retro', graph_az[0], 'syngraph', 'monopartite_reactions')
 
     # bipartite
     d2 = [{'id': 0, 'reaction_string': 'CCC(=O)Cl.CCN>>CCNC(=O)CC', 'inp_fmt': 'smiles'}]
-    graph_ibm = json.loads(open("../test_file/ibmrxn_retro_output_raw.json").read())
+    graph_ibm = json.loads(open(ibm1_path).read())
     syngraph = BipartiteSynGraph(d2)
     assert syngraph == translator('ibm_retro', graph_ibm[3], 'syngraph', 'bipartite')
 
