@@ -4,6 +4,11 @@ from linchemin.cgu.convert import converter
 from collections import defaultdict
 
 
+class MissingAtomMapping(Exception):
+    """ Exception to be raised if a not-mapped reaction is found while building a DisconnectionGraph"""
+    pass
+
+
 class DisconnectionGraph:
     """ Class representing a DisconnectionGraph, a graph object whose nodes are instances of the Disconnection class.
 
@@ -20,14 +25,21 @@ class DisconnectionGraph:
         self.graph = defaultdict(set)
 
         if syngraph is not None:
-            if type(syngraph) not in list(SynGraph.__subclasses__()):
-                raise TypeError("Invalid input type. Only SynGraph objects can be used to build a DisconnectionGraph.")
+            if type(syngraph) not in [MonopartiteReacSynGraph, BipartiteSynGraph]:
+                raise TypeError("Invalid input type. Only MonopartiteReacSynGraph and BipartiteSynGraph objects"
+                                "can be used to build a DisconnectionGraph.")
 
-            if type(syngraph) in [BipartiteSynGraph, MonopartiteMolSynGraph]:
+            if type(syngraph) == BipartiteSynGraph:
                 syngraph = converter(syngrpah, 'monopartite_reactions')
 
             for parent, children in syngraph.graph.items():
+                if parent.disconnection is None:
+                    raise MissingAtomMapping("A not-mapped reaction was found. Building of the Disconnection is not "
+                                             "possible.")
                 parent_disc = parent.disconnection
+                if any(child.disconnection is None for child in children):
+                    raise MissingAtomMapping("A not-mapped reaction was found. Building of the Disconnection is not "
+                                             "possible.")
                 children_disc = [child.disconnection for child in children]
                 self.add_disc_node((parent_disc, children_disc))
 

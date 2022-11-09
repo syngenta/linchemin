@@ -1,4 +1,4 @@
-from linchemin.cgu.discgraph import DisconnectionGraph
+from linchemin.cgu.discgraph import DisconnectionGraph, MissingAtomMapping
 from linchemin.cheminfo.reaction import ChemicalEquationConstructor
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph
 import pytest
@@ -16,5 +16,17 @@ def test_basic_disconnectionGraph():
     syngraph.add_node((chemical_equation, []))
     discgraph = DisconnectionGraph(syngraph)
     assert discgraph
+
+    ce_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    no_mapping_ce = ce_constructor.build_from_reaction_string(
+        reaction_string='CCN.CCOC(=O)CC>>CCNC(=O)CC',
+        inp_fmt='smiles')
+    not_mapped_syngraph = MonopartiteReacSynGraph()
+    not_mapped_syngraph.add_node((no_mapping_ce, []))
+
+    # if a not mapped reaction is present in the input SynGraph, an error is raised
+    with pytest.raises(MissingAtomMapping) as e:
+        DisconnectionGraph(not_mapped_syngraph)
+    assert "MissingAtomMapping" in str(e.type)
 
 
