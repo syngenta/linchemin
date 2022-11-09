@@ -1,5 +1,6 @@
 from linchemin.cgu.syngraph import SynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph, BipartiteSynGraph
 from linchemin.cgu.convert import converter
+from linchemin.cheminfo.disconnection import Disconnection
 
 from collections import defaultdict
 
@@ -46,7 +47,12 @@ class DisconnectionGraph:
     def add_disc_node(self, nodes_tup: tuple):
         """ To add a 'parent' node and its 'children' nodes to a DisconnectionGraph instance.
 
-            Format of the input tuple: (parent_node, [child1, child2, ...])"""
+            Format of the input tuple: (parent_node, [child1, child2, ...])
+            Only disconnections instances are accepted as nodes.
+        """
+        if type(nodes_tup[0]) is not Disconnection or any(type(n) != Disconnection for n in nodes_tup[1]):
+            raise TypeError("Invalid node type. Only Disconnection instances can be used as nodes of a "
+                            "DisconnectionGraph")
         # The nodes are added to the DisconnectionGraph instance
         if nodes_tup[0] not in self.graph:
             # If the source node is not in the DisconnectionGraph instance yet, it is added with its connections

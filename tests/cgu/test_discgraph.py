@@ -29,4 +29,8 @@ def test_basic_disconnectionGraph():
         DisconnectionGraph(not_mapped_syngraph)
     assert "MissingAtomMapping" in str(e.type)
 
+    with pytest.raises(TypeError) as e:
+        discgraph.add_disc_node((no_mapping_ce, []))
+    assert "TypeError" in str(e.type)
+
 
