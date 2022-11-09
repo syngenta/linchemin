@@ -1,5 +1,5 @@
 from linchemin.cgu.syngraph import SynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph, BipartiteSynGraph
-from lincgemin.cgu.convert import converter
+from linchemin.cgu.convert import converter
 
 from collections import defaultdict
 
@@ -20,7 +20,7 @@ class DisconnectionGraph:
         self.graph = defaultdict(set)
 
         if syngraph is not None:
-            if type(graph) not in list(SynGraph.__subclasses__()):
+            if type(syngraph) not in list(SynGraph.__subclasses__()):
                 raise TypeError("Invalid input type. Only SynGraph objects can be used to build a DisconnectionGraph.")
 
             if type(syngraph) in [BipartiteSynGraph, MonopartiteMolSynGraph]:
@@ -43,4 +43,17 @@ class DisconnectionGraph:
             # otherwise, the connections are added to the pre-existing node
             for c in nodes_tup[1]:
                 self.graph[nodes_tup[0]].add(c)
+
+    def __eq__(self, other):
+        """ To check if two DisconnectionGraph instances are the same"""
+        return type(self) == type(other) and self.graph == other.graph
+
+    def __str__(self):
+        text = ''
+        for r, connections in self.graph.items():
+            if connections:
+                text = text + '{} -> {} \n'.format(r, *connections)
+            else:
+                text = text + '{}\n'.format(r)
+        return text
 
