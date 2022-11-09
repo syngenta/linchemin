@@ -15,5 +15,6 @@ def test_basic_disconnectionGraph():
     syngraph = MonopartiteReacSynGraph()
     syngraph.add_node((chemical_equation, []))
     discgraph = DisconnectionGraph(syngraph)
+    assert discgraph
 
 
