@@ -34,3 +34,13 @@ html_theme = 'bizstyle'
 html_static_path = ['static']
 html_logo = "static/linchemin_logo.png"
 
+
+html_sidebars = {
+        '**': [
+                 'localtoc.html',
+                 'relations.html',
+                 'searchbox.html',
+                 'authors.html',
+            ]
+        }
+
