@@ -35,7 +35,7 @@ class Argument:
     action: str = field(default='store')
     default: str = field(default=None)
     choices: List = field(default_factory=list)
-    nargs: str = field(default='*')
+    nargs: str = field(default='?')
     # const:
 
 
@@ -46,9 +46,11 @@ def wrap_facade(parser):
     for argument in arguments:
         if argument.type == list:
             argument.type = str
+            argument.nargs = '*'
         elif argument.type == dict:
             argument.action = keyvalue
             argument.type = str
+            argument.nargs = '*'
 
         parser.add_argument(*argument.name_or_flags, default=argument.default, choices=argument.choices,
                             help=argument.help, dest=argument.dest,
