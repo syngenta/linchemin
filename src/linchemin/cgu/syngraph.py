@@ -6,6 +6,7 @@ import datetime
 from linchemin.cheminfo.reaction import ChemicalEquation, ChemicalEquationConstructor
 from linchemin.cheminfo.molecule import Molecule, MoleculeConstructor
 from linchemin.cgu.iron import Iron
+import linchemin.utilities as utilities
 
 """
 Module containing the implementation of the SynGraph data model and its sub-types: bipartite, monopartite reactions
@@ -57,6 +58,19 @@ class SynGraph(ABC):
                     chemical_eq_constructor.build_from_reaction_string(reaction_string=d['reaction_string'],
                                                                        inp_fmt=d['inp_fmt']))
             self.builder_from_reaction_list(chemical_equations)
+
+    @property
+    def uid(self):
+        tups = []
+        for parent, children in self.graph.items():
+            if not children:
+                # To take into account nodes without edges
+                tups.append((parent.uid, 'x', 0))
+            else:
+                tups.extend((parent.uid, '>', child.uid) for child in children)
+        sorted_tups = sorted(tups, key=lambda x: (x[0], x[-1]))
+        h = str(frozenset(sorted_tups))
+        return utilities.create_hash(h)
 
     def builder_from_iron(self, iron_graph):
         pass

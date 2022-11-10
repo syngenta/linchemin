@@ -225,3 +225,20 @@ def test_read_dictionary(az_path, ibm1_path):
     d3 = [{'id': 0, 'reaction_string': 'CCC(=O)Cl.CCN.ClCCl>>CCNC(=O)CC', 'inp_fmt': 'smiles'}]
     mom_syngraph = MonopartiteMolSynGraph(d3)
     assert mom_syngraph == translator('ibm_retro', graph_ibm[4], 'syngraph', 'monopartite_molecules')
+
+
+def test_hashing(ibm2_path):
+    graph = json.loads(open(ibm2_path).read())
+    syngraph_mpr = translator('ibm_retro', graph[0], 'syngraph', 'monopartite_reactions')
+    # The hash key is created
+    assert syngraph_mpr.uid
+    uid1 = syngraph_mpr.uid
+    chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    ce = chemical_equation_constructor.build_from_reaction_string(
+        reaction_string='Cc1cccc(C)c1NCC(=O)Nc1ccc(-c2ncon2)cc1.O=C('
+                        'O)C1CCS(=O)(=O)CC1>>Cc1cccc(C)c1N(CC(=O)Nc1ccc('
+                        '-c2ncon2)cc1)C(=O)C1CCS(=O)(=O)CC1',
+        inp_fmt='smiles')
+    # If the SynGraph instance changes, the hash key is also modified
+    syngraph_mpr.add_node((ce, []))
+    assert syngraph_mpr.uid != uid1
