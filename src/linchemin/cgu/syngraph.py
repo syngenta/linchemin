@@ -336,13 +336,10 @@ def get_reaction_instance(reactants: list, products: list) -> ChemicalEquation:
         Parameters:
             reactants: a list of smiles corresponding to the reactants of the reaction
             products: a list of smiles corresponding to the products of the reaction
-            iron_graph: the iron instance of reference
 
         Return:
             chemical_equation: an instance of the ChemicalEquation class
     """
-
-    m = {'reactants': reactants, 'reagents': [], 'products': products}
 
     # The ChemicalEquation instance is created
     reaction_string = '>'.join(['.'.join(reactants), '.'.join([]), '.'.join(products)])
