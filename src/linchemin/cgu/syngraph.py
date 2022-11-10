@@ -19,10 +19,6 @@ and monopartite molecules.
         MonopartiteReacSynGraph(SynGraph)
         MonopartiteMolSynGraph(SynGraph)
         
-    Functions:
-        get_reaction_instance(reactants: list, products: list) -> ChemicalEquation
-        merge_syngraph(list_syngraph: list) -> SynGraph:
-        
 """
 
 
@@ -144,8 +140,6 @@ class BipartiteSynGraph(SynGraph):
         """ To build a BipartiteSynGraph instance from an Iron instance """
         connections = [edge.direction.tup for id_e, edge in iron_graph.edges.items()]
         for node1, node2 in connections:
-            all_reactants = [tup[0] for tup in connections if tup[1] == node2]
-            all_products = [tup[1] for tup in connections if tup[0] == node1]
 
             all_reactants = [iron_graph.nodes[tup[0]].properties['node_smiles'] for tup in connections if
                              tup[1] == node2]
