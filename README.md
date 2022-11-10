@@ -9,8 +9,8 @@
 The Linked Chemical Information (LinChemIn) package is a python toolkit that allows chemoinformatics operations on synthetic routes and reaction networks.  
 
 ## Authors and Maintainers
-[Marta Pasquini](mailto:marta.pasquini@sygenta.com)  
-[Marco Stenta](mailto:marco.stenta@sygenta.com)  
+[Marta Pasquini](mailto:marta.pasquini@syngenta.com)  
+[Marco Stenta](mailto:marco.stenta@syngenta.com)  
 
 ## Resources  
 |resource type|link| 
