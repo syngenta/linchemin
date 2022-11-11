@@ -462,6 +462,8 @@ class TranslatorNOC(AbsTranslator):
                 node_dict = node_instance.to_dict()
                 node_document = {'type': node_dict.get('type'), 'uid': node_dict.get('uid'),
                                  'properties': {**{'smiles': node_dict.get('smiles')}, **node_dict.get('hash_map')}}
+                if type(node_instance) == ChemicalEquation and node_instance.disconnection is not None:
+                    node_document['disconnection_uid'] = node_instance.disconnection.uid
                 node_documents.append(node_document)
 
                 if type(node_instance) is ChemicalEquation:

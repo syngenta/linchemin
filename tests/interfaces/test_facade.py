@@ -7,9 +7,8 @@ import pytest
 import json
 
 
-def test_translate():
-    path = "../cgu/data/ibm_output2.json"
-    graph = json.loads(open(path).read())
+def test_translate(ibm2_path):
+    graph = json.loads(open(ibm2_path).read())
     output, metadata = facade('translate', input_format='ibm_retro', input_list=graph)
     assert type(output) == list and type(metadata) == dict
     output, metadata = facade('translate', 'ibm_retro', graph, out_format='syngraph',
@@ -20,9 +19,8 @@ def test_translate():
     output, metadata = facade('translate', input_format='ibm_retro', input_list=empty_l)
 
 
-def test_metrics():
-    path = "../cgu/data/ibm_output2.json"
-    graph = json.loads(open(path).read())
+def test_metrics(ibm2_path):
+    graph = json.loads(open(ibm2_path).read())
     routes, meta = facade('translate', 'ibm_retro', graph, out_format='syngraph',
                           out_data_model='monopartite_reactions')
     descriptors, meta = facade('routes_descriptors', routes)
@@ -38,9 +36,8 @@ def test_metrics():
     assert m['errors'] is not []
 
 
-def test_ged():
-    path = "../cgu/data/az_retro_output_raw.json"
-    graph = json.loads(open(path).read())
+def test_ged(az_path):
+    graph = json.loads(open(az_path).read())
     routes_bp, m = facade('translate', 'az_retro', graph, out_format='syngraph', out_data_model='bipartite')
     d, meta = facade('distance_matrix', routes_bp)
     assert len(d) == 6
@@ -63,9 +60,8 @@ def test_ged():
     assert meta3['errors'] != []
 
 
-def test_clustering():
-    path = "../cgu/data/az_retro_output_raw.json"
-    graph = json.loads(open(path).read())
+def test_clustering(az_path):
+    graph = json.loads(open(az_path).read())
     # Test with all default parameters
     routes, m = facade('translate', 'az_retro', graph, out_format='syngraph',
                        out_data_model='monopartite_reactions')
@@ -98,18 +94,16 @@ def test_clustering():
     assert meta5['errors'] != []
 
 
-def test_subset():
-    path = "../cgu/data/az_retro_output_raw.json"
-    graph = json.loads(open(path).read())
+def test_subset(az_path):
+    graph = json.loads(open(az_path).read())
     routes, meta = facade('translate', 'az_retro', graph, out_format='syngraph',
                           out_data_model='monopartite_reactions')
     subsets = facade('subsets', routes)
     assert type(subsets) == list
 
 
-def test_find_duplicates():
-    path = "../cgu/data/ibm_output2.json"
-    graph = json.loads(open(path).read())
+def test_find_duplicates(ibm2_path):
+    graph = json.loads(open(ibm2_path).read())
     routes, meta = facade('translate', 'ibm_retro', graph, out_format='syngraph',
                           out_data_model='monopartite_reactions')
     duplicates = facade('duplicates', routes)
@@ -134,9 +128,8 @@ def test_facade_helper_verbose(capfd):
     assert 'out_data_model' in out
 
 
-def test_parallelization_read_and_convert(capfd):
-    path = "../cgu/data/ibm_output2.json"
-    graph = json.loads(open(path).read())
+def test_parallelization_read_and_convert(capfd, ibm2_path):
+    graph = json.loads(open(ibm2_path).read())
     output, metadata = facade('translate', 'ibm_retro', graph, out_data_model='monopartite_reactions',
                               parallelization=True, n_cpu=8)
     assert type(output) == list
@@ -146,9 +139,8 @@ def test_parallelization_read_and_convert(capfd):
     assert 'parallelization' in out
 
 
-def test_merging():
-    path = "../cgu/data/ibm_output2.json"
-    graph = json.loads(open(path).read())
+def test_merging(ibm2_path):
+    graph = json.loads(open(ibm2_path).read())
     routes, meta = facade('translate', 'ibm_retro', graph, out_data_model='bipartite')
     tree = facade('merging', routes)
     assert type(tree) == BipartiteSynGraph
@@ -159,9 +151,8 @@ def test_merging():
     assert type(tree_mp) == MonopartiteReacSynGraph
 
 
-def test_reaction_extraction():
-    path = "../cgu/data/askos_output.json"
-    graph = json.loads(open(path).read())
+def test_reaction_extraction(mit_path):
+    graph = json.loads(open(mit_path).read())
     routes, meta = facade('translate', 'mit_retro', graph, out_data_model='monopartite_reactions')
     reactions, m = facade('extract_reactions_strings', routes)
     assert type(reactions) == list

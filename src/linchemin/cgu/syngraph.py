@@ -6,6 +6,7 @@ import datetime
 from linchemin.cheminfo.reaction import ChemicalEquation, ChemicalEquationConstructor
 from linchemin.cheminfo.molecule import Molecule, MoleculeConstructor
 from linchemin.cgu.iron import Iron
+import linchemin.utilities as utilities
 
 """
 Module containing the implementation of the SynGraph data model and its sub-types: bipartite, monopartite reactions
@@ -19,10 +20,6 @@ and monopartite molecules.
         MonopartiteReacSynGraph(SynGraph)
         MonopartiteMolSynGraph(SynGraph)
         
-    Functions:
-        get_reaction_instance(reactants: list, products: list) -> ChemicalEquation
-        merge_syngraph(list_syngraph: list) -> SynGraph:
-        
 """
 
 
@@ -33,6 +30,8 @@ class SynGraph(ABC):
                 graph: a dictionary of sets
 
                 source: a string containing the sources of the graph
+
+                uid: a string uniquely identifying the SynGraph instance based on the underlying graph
     """
 
     def __init__(self, initiator=None):
@@ -61,6 +60,25 @@ class SynGraph(ABC):
                     chemical_eq_constructor.build_from_reaction_string(reaction_string=d['reaction_string'],
                                                                        inp_fmt=d['inp_fmt']))
             self.builder_from_reaction_list(chemical_equations)
+
+    @property
+    def uid(self):
+        tups = []
+        for parent, children in self.graph.items():
+            if not children:
+                # To take into account isolated nodes
+                tups.append((parent.uid, 'x', 0))
+            else:
+                tups.extend((parent.uid, '>', child.uid) for child in children)
+        sorted_tups = sorted(tups, key=lambda x: (x[0], x[-1]))
+        h = utilities.create_hash(str(frozenset(sorted_tups)))
+        if type(self) == BipartiteSynGraph:
+            h = ''.join(['BP', str(h)])
+        elif type(self) == MonopartiteReacSynGraph:
+            h = ''.join(['MPR', str(h)])
+        elif type(self) == MonopartiteMolSynGraph:
+            h = ''.join(['MPM', str(h)])
+        return h
 
     def builder_from_iron(self, iron_graph):
         pass
@@ -144,8 +162,6 @@ class BipartiteSynGraph(SynGraph):
         """ To build a BipartiteSynGraph instance from an Iron instance """
         connections = [edge.direction.tup for id_e, edge in iron_graph.edges.items()]
         for node1, node2 in connections:
-            all_reactants = [tup[0] for tup in connections if tup[1] == node2]
-            all_products = [tup[1] for tup in connections if tup[0] == node1]
 
             all_reactants = [iron_graph.nodes[tup[0]].properties['node_smiles'] for tup in connections if
                              tup[1] == node2]
@@ -328,13 +344,10 @@ def get_reaction_instance(reactants: list, products: list) -> ChemicalEquation:
         Parameters:
             reactants: a list of smiles corresponding to the reactants of the reaction
             products: a list of smiles corresponding to the products of the reaction
-            iron_graph: the iron instance of reference
 
         Return:
             chemical_equation: an instance of the ChemicalEquation class
     """
-
-    m = {'reactants': reactants, 'reagents': [], 'products': products}
 
     # The ChemicalEquation instance is created
     reaction_string = '>'.join(['.'.join(reactants), '.'.join([]), '.'.join(products)])
@@ -379,14 +392,14 @@ class ReactionsExtractor(ABC):
     """ Abstract class for extracting a list of dictionary of reaction strings from a SynGraph object """
 
     @abstractmethod
-    def extract(self, syngraph) -> dict:
+    def extract(self, syngraph) -> list:
         pass
 
 
 class ReactionsExtractorFromBipartite(ReactionsExtractor):
     """ ReactionsExtractor subclass to handle BipartiteSynGraph objects """
 
-    def extract(self, syngraph: BipartiteSynGraph) -> dict:
+    def extract(self, syngraph: BipartiteSynGraph) -> list:
         unique_reactions = set()
         for parent, children in syngraph.graph.items():
             if type(parent) == ChemicalEquation:
@@ -395,28 +408,22 @@ class ReactionsExtractorFromBipartite(ReactionsExtractor):
                 if type(child) == ChemicalEquation:
                     unique_reactions.add(child)
         sorted_reactions = sorted([reaction.smiles for reaction in unique_reactions])
-        reactions = []
-        for n, reaction in enumerate(sorted_reactions):
-            reactions.append({'id': n, 'reaction_string': reaction, 'inp_fmt': 'smiles'})
-
-        return reactions
+        return [{'id': n, 'reaction_string': reaction, 'inp_fmt': 'smiles'} for n, reaction in
+                enumerate(sorted_reactions)]
 
 
 class ReactionsExtractorFromMonopartiteReaction(ReactionsExtractor):
     """ ReactionsExtractor subclass to handle MonopartiteReacSynGraph objects """
 
-    def extract(self, syngraph: MonopartiteReacSynGraph) -> dict:
+    def extract(self, syngraph: MonopartiteReacSynGraph) -> list:
         unique_reactions = set()
         for parent, children in syngraph.graph.items():
             unique_reactions.add(parent)
             for child in children:
                 unique_reactions.add(child)
         sorted_reactions = sorted([reaction.smiles for reaction in unique_reactions])
-        reactions = []
-        for n, reaction in enumerate(sorted_reactions):
-            reactions.append({'id': n, 'reaction_string': reaction, 'inp_fmt': 'smiles'})
-
-        return reactions
+        return [{'id': n, 'reaction_string': reaction, 'inp_fmt': 'smiles'} for n, reaction in
+                enumerate(sorted_reactions)]
 
 
 class ReactionsExtractorFromMonopartiteMolecules(ReactionsExtractor):
@@ -435,11 +442,8 @@ class ReactionsExtractorFromMonopartiteMolecules(ReactionsExtractor):
                     inp_fmt='smiles')
                 unique_reactions.add(chemical_equation)
         sorted_reactions = sorted([reaction.smiles for reaction in unique_reactions])
-        reactions = []
-        for n, reaction in enumerate(sorted_reactions):
-            reactions.append({'id': n, 'reaction_string': reaction, 'inp_fmt': 'smiles'})
-
-        return reactions
+        return [{'id': n, 'reaction_string': reaction, 'inp_fmt': 'smiles'} for n, reaction in
+                enumerate(sorted_reactions)]
 
 
 class ExtractorFactory:

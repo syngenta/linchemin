@@ -23,7 +23,7 @@ exclude_patterns = ['build', 'Thumbs.db', '.DS_Store']
 
 autosummary_generate = True
 
-version = "1.0.0"
+version = "1.0.1"
 # The full version, including dev info
 release = version.replace("_", "")
 
@@ -33,4 +33,14 @@ release = version.replace("_", "")
 html_theme = 'bizstyle'
 html_static_path = ['static']
 html_logo = "static/linchemin_logo.png"
+
+
+html_sidebars = {
+        '**': [
+                 'localtoc.html',
+                 'relations.html',
+                 'searchbox.html',
+                 'authors.html',
+            ]
+        }
 
