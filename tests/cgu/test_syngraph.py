@@ -242,3 +242,11 @@ def test_hashing(ibm2_path):
     # If the SynGraph instance changes, the hash key is also modified
     syngraph_mpr.add_node((ce, []))
     assert syngraph_mpr.uid != uid1
+    #prefixes of the uid indicate the type of SynGraph
+    assert syngraph_mpr.uid[:3] == 'MPR'
+
+    syngraph_mpm = translator('ibm_retro', graph[0], 'syngraph', 'monopartite_molecules')
+    assert syngraph_mpm.uid[:3] == 'MPM'
+
+    syngraph_mpm = translator('ibm_retro', graph[0], 'syngraph', 'bipartite')
+    assert syngraph_mpm.uid[:2] == 'BP'

@@ -31,7 +31,7 @@ class SynGraph(ABC):
 
                 source: a string containing the sources of the graph
 
-                uid: unique identifier based on the underlying graph
+                uid: a string uniquely identifying the SynGraph instance based on the underlying graph
     """
 
     def __init__(self, initiator=None):
@@ -66,13 +66,19 @@ class SynGraph(ABC):
         tups = []
         for parent, children in self.graph.items():
             if not children:
-                # To take into account nodes without edges
+                # To take into account isolated nodes
                 tups.append((parent.uid, 'x', 0))
             else:
                 tups.extend((parent.uid, '>', child.uid) for child in children)
         sorted_tups = sorted(tups, key=lambda x: (x[0], x[-1]))
-        h = str(frozenset(sorted_tups))
-        return utilities.create_hash(h)
+        h = utilities.create_hash(str(frozenset(sorted_tups)))
+        if type(self) == BipartiteSynGraph:
+            h = ''.join(['BP', str(h)])
+        elif type(self) == MonopartiteReacSynGraph:
+            h = ''.join(['MPR', str(h)])
+        elif type(self) == MonopartiteMolSynGraph:
+            h = ''.join(['MPM', str(h)])
+        return h
 
     def builder_from_iron(self, iron_graph):
         pass
