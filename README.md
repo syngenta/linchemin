@@ -6,7 +6,7 @@
 [![Downloads](https://static.pepy.tech/personalized-badge/linchemin?period=month&units=international_system&left_color=black&right_color=orange&left_text=downloads/mont)](https://pepy.tech/project/linchemin) [![Downloads](https://static.pepy.tech/personalized-badge/linchemin?period=total&units=international_system&left_color=black&right_color=orange&left_text=downloads)](https://pepy.tech/project/linchemin)
 [![Contributions](https://img.shields.io/badge/contributions-welcome-blue)](https://github.com/syngenta/linchemin/blob/main/CONTRIBUTING.md)
 
-<img src="./docs/source/static/linchemin_logo.png" alt="logo" width="800">
+<img src="./docs/source/static/linchemin_logo.png" alt="logo" width="313">
 
 ## LinChemIn (Linked Chemical Information)  
 
