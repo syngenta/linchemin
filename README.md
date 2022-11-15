@@ -3,6 +3,10 @@
 [![Pypi version](https://img.shields.io/pypi/v/linchemin.svg)](https://pypi.python.org/pypi/linchemin)  
 [![Documentation Status](https://readthedocs.org/projects/linchemin/badge/?version=latest)](https://linchemin.readthedocs.io/en/latest/?badge=latest)  
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)  
+[![Downloads](https://static.pepy.tech/personalized-badge/linchemin?period=month&units=international_system&left_color=black&right_color=orange&left_text=downloads/mont)](https://pepy.tech/project/linchemin) [![Downloads](https://static.pepy.tech/personalized-badge/linchemin?period=total&units=international_system&left_color=black&right_color=orange&left_text=downloads)](https://pepy.tech/project/linchemin)
+[![Contributions](https://img.shields.io/badge/contributions-welcome-blue)](https://github.com/syngenta/linchemin/blob/main/CONTRIBUTING.md)
+
+<img src="./docs/source/static/linchemin_logo.png" alt="logo" width="800">
 
 ## LinChemIn (Linked Chemical Information)  
 
