@@ -2,8 +2,7 @@ from linchemin.interfaces.facade import facade, facade_helper
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph
 from rdkit.Chem import rdChemReactions
 import pandas as pd
-import os
-import pytest
+import unittest
 import json
 
 
@@ -15,8 +14,10 @@ def test_translate(ibm2_path):
                               out_data_model='monopartite_reactions')
     assert type(output[0]) == MonopartiteReacSynGraph
 
-    empty_l = []
-    output, metadata = facade('translate', input_format='ibm_retro', input_list=empty_l)
+    graph.extend([{}])
+    with unittest.TestCase().assertLogs('linchemin.cgu.translate', level='WARNING') as cm:
+        facade('translate', input_format='ibm_retro', input_list=graph)
+    unittest.TestCase().assertIn('While translating from IBM', cm.records[0].getMessage())
 
 
 def test_metrics(ibm2_path):

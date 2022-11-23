@@ -1,5 +1,4 @@
-from linchemin.rem.clustering import (clusterer, SingleRouteClustering, get_available_clustering,
-                                      get_clustered_routes_metrics)
+from linchemin.rem.clustering import (clusterer, get_available_clustering, get_clustered_routes_metrics, ClusteringError)
 from linchemin.cgu.translate import translator
 import json
 import pytest
@@ -11,19 +10,19 @@ def test_clusterer(az_path):
 
     # An Exception is raised if the clustering method identifies all the datapoints as noise.
     # E.g., if the dataset is composed of less than 15 routes, hdbscan classifies all points as noise.
-    with pytest.raises(Exception) as ke:
+    with pytest.raises(ClusteringError) as ke:
         clusterer(syngraphs, ged_method='nx_optimized_ged',
                   clustering_method='hdbscan',
                   ged_params={'reaction_fp': 'structure_fp',
                               })
-    assert "Exception" in str(ke.type)
+    assert "OnlyNoiseClustering" in str(ke.type)
 
-    # A KeyError is raised if an unavailable clustering method is selected
-    with pytest.raises(KeyError) as ke:
+    # An error is raised if an unavailable clustering method is selected
+    with pytest.raises(ClusteringError) as ke:
         clusterer(syngraphs, ged_method='nx_ged', clustering_method='some_clustering')
-    assert "KeyError" in str(ke.type)
+    assert "UnavailableClusteringAlgorithm" in str(ke.type)
 
-    with pytest.raises(SingleRouteClustering) as ke:
+    with pytest.raises(ClusteringError) as ke:
         clusterer([syngraphs[0]], ged_method='nx_optimized_ged',
                   clustering_method='hdbscan',
                   ged_params={'reaction_fp': 'structure_fp',

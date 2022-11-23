@@ -6,38 +6,28 @@ import pandas as pd
 import multiprocessing as mp
 # local imports
 from linchemin.cgu.translate import (translator, get_available_formats, get_available_data_models, get_output_formats,
-                                     get_input_formats)
+                                     get_input_formats, TranslationError)
 from linchemin.rem.route_descriptors import (descriptor_calculator, is_subset, find_duplicates,
-                                             get_available_descriptors, NoneInput)
-from linchemin.rem.clustering import (clusterer, get_clustered_routes_metrics,
-                                      get_available_clustering, SingleRouteClustering, NoClustering)
+                                             get_available_descriptors, DescriptorError)
+from linchemin.rem.clustering import (clusterer, get_clustered_routes_metrics, get_available_clustering,
+                                      ClusteringError)
 from linchemin.rem.graph_distance import (get_available_ged_algorithms, get_ged_default_parameters,
-                                          compute_distance_matrix, get_ged_parameters)
+                                          compute_distance_matrix, get_ged_parameters, GraphDistanceError)
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph, SynGraph, merge_syngraph, extract_reactions_from_syngraph
 from linchemin.cgu.convert import converter
 
 """
 Module containing high level functionalities/"user stories" to work in stream; it provides a simplified interface for the user.
 The functionalities are implemented as methods of the Functionality class.
-
-    AbstractClasses::
-        Facade
-        
-    Classes:
-        FacadeFactory
-        
-        TranslateFacade(Facade)
-        # ConvertAndWriteFacade(Facade)
-        RoutesMetricsFacade(Facade)
-        GedFacade(Facade)
-        ClusteringFacade
-        SubsetsFacade(Facade)
-        DuplicatesFacade(Facade)
-    
-    Functions
-        facade
-        facade_helper
 """
+
+class FacadeError(Exception):
+    """ Base class for exceptions leading to unsuccessful execution of facade functionalities"""
+    pass
+
+class UnavailableFunctionality(FacadeError):
+    """ Raised if the selected functionality is not among the available ones """
+    pass
 
 DEFAULT_FACADE = {
     'translate': {'value': {'data_format': 'syngraph',
@@ -110,23 +100,32 @@ class TranslateFacade(Facade):
                 meta: a dictionary storing information about the original file and the CASP tool that produced the routes
         """
 
-        # Removing empty routes in the input list
-        checked_routes = [r for r in input_list if r != {}]
+        try:
+            if parallelization:
+                pool = mp.Pool(n_cpu)
+                converted_routes = pool.starmap(translator, [(input_format, route, out_format,
+                                                        out_data_model) for route in input_list])
 
-        if parallelization:
-            pool = mp.Pool(n_cpu)
-            converted_routes = pool.starmap(translator, [(input_format, route, out_format,
-                                                          out_data_model) for route in checked_routes])
-        else:
-            converted_routes = [translator(input_format, route, out_format, out_data_model) for route in
-                                checked_routes]
-        out_routes = [r for r in converted_routes if r is not None]
-        invalid_routes = len(input_list) - len(out_routes)
-        meta = {'nr_routes_in_input_list': len(input_list),
-                'input_format': input_format,
-                'nr_output_routes': len(out_routes),
-                'invalid_routes': invalid_routes}
-        return out_routes, meta
+            else:
+
+                converted_routes = [translator(input_format, route, out_format, out_data_model) for route in
+                                    input_list]
+            out_routes = [r for r in converted_routes if r is not None]
+            invalid_routes = len(input_list) - len(out_routes)
+            meta = {'nr_routes_in_input_list': len(input_list),
+                    'input_format': input_format,
+                    'nr_output_routes': len(out_routes),
+                    'invalid_routes': invalid_routes}
+
+        except TranslationError as te:
+            exceptions.append(te)
+            out_routes = []
+            meta = {'nr_routes_in_input_list': len(input_list),
+                    'input_format': input_format,
+                    'nr_output_routes': 0,
+                    'invalid_routes': 0}
+        finally:
+            return out_routes, meta
 
     def get_available_options(self) -> dict:
         """
@@ -218,21 +217,16 @@ class RoutesDescriptorsFacade(Facade):
         exceptions = []
         checked_routes = [r for r in routes if r is not None]
         invalid_routes = len(routes) - len(checked_routes)
+        output['route_id'] = [route.uid for route in checked_routes]
 
         try:
-            output['route_id'] = [route.source for route in checked_routes]
-
             for m in descriptors:
-                values = [descriptor_calculator(route, m) for route in checked_routes]
-                output[m] = values
+                output[m] = [descriptor_calculator(route, m) for route in checked_routes]
 
-            meta = {'descriptors': descriptors, 'invalid_routes': invalid_routes, 'errors': exceptions}
-
-            return output, meta
-
-        except KeyError as ke:
-            print(ke)
+        except DescriptorError as ke:
             exceptions.append(ke)
+
+        finally:
             meta = {'descriptors': descriptors, 'invalid_routes': invalid_routes, 'errors': exceptions}
             return output, meta
 
@@ -304,27 +298,17 @@ class GedFacade(Facade):
                     'graph_type': 'monopartite' if type(routes[0]) == MonopartiteReacSynGraph else 'bipartite',
                     'invalid_routes': len(routes) - len(checked_routes),
                     'errors': exceptions}
-            return dist_matrix, meta
 
-        except KeyError as ke:
-            print('The computation of the distance matrix was not successful')
+        except GraphDistanceError as ke:
             exceptions.append(ke)
             meta = {'ged_algorithm': ged_method, 'ged_params': ged_params,
                     'graph_type': 'monopartite' if type(routes[0]) == MonopartiteReacSynGraph else 'bipartite',
                     'invalid_routes': len(routes) - len(checked_routes),
                     'errors': exceptions}
             dist_matrix = pd.DataFrame()
+        finally:
             return dist_matrix, meta
 
-        except SingleRouteClustering as se:
-            print('The computation of the distance matrix was not successful: less than 2 routes were found.')
-            exceptions.append(se)
-            meta = {'ged_algorithm': ged_method, 'ged_params': ged_params,
-                    'graph_type': 'monopartite' if type(routes[0]) == MonopartiteReacSynGraph else 'bipartite',
-                    'invalid_routes': len(routes) - len(checked_routes),
-                    'errors': exceptions}
-            dist_matrix = pd.DataFrame()
-            return dist_matrix, meta
 
     def get_available_options(self) -> dict:
         """
@@ -434,48 +418,26 @@ class ClusteringFacade:
                     'ged_algorithm': ged_method, 'ged_parameters': ged_params,
                     'invalid_routes': len(routes) - len(checked_routes),
                     'errors': exceptions}
-            if not compute_metrics:
-                return results, meta
 
-            metrics = get_clustered_routes_metrics(routes, results[0])
-            return results, metrics, meta
+            if compute_metrics:
+                metrics = get_clustered_routes_metrics(routes, results[0])
 
-        except SingleRouteClustering as sre:
-            print('The clustering was not successful: only one route was found.')
+
+        except ClusteringError as sre:
             exceptions.append(sre)
             meta = {'graph_type': 'monopartite' if type(checked_routes[0]) == MonopartiteReacSynGraph else 'bipartite',
                     'clustering_algorithm': clustering_method, 'clustering_params': kwargs,
                     'ged_algorithm': ged_method, 'ged_parameters': ged_params,
                     'invalid_routes': len(routes) - len(checked_routes), 'errors': exceptions}
-            if compute_metrics:
-                return None, pd.DataFrame(), meta
-            else:
-                return None, meta
+            results = None
+            metrics = pd.DataFrame()
 
-        except NoClustering as nc:
-            print('Clustering was not successful')
-            exceptions.append(nc)
-            meta = {'graph_type': 'monopartite' if type(checked_routes[0]) == MonopartiteReacSynGraph else 'bipartite',
-                    'clustering_algorithm': clustering_method, 'clustering_params': kwargs,
-                    'ged_algorithm': ged_method, 'ged_parameters': ged_params,
-                    'invalid_routes': len(routes) - len(checked_routes), 'errors': exceptions}
+        finally:
             if compute_metrics:
-                return None, pd.DataFrame(), meta
+                return results, metrics, meta
             else:
-                return None, meta
+                return results, meta
 
-        except KeyError as ke:
-            print('The clustering was not successful.')
-            exceptions.append(ke)
-            meta = {'graph_type': 'monopartite' if type(checked_routes[0]) == MonopartiteReacSynGraph else 'bipartite',
-                    'clustering_algorithm': clustering_method, 'clustering_params': kwargs,
-                    'ged_algorithm': ged_method, 'ged_parameters': ged_params,
-                    'invalid_routes': len(routes) - len(checked_routes), 'errors': exceptions}
-
-            if compute_metrics:
-                return None, pd.DataFrame(), meta
-            else:
-                return None, meta
 
     def get_available_options(self) -> dict:
         """
@@ -566,7 +528,7 @@ class SubsetsFacade(Facade):
         """
         subsets = []
         for route1 in routes:
-            subsets.extend([route1.source[0], route2.source[0]] for route2 in routes if is_subset(route1, route2))
+            subsets.extend([route1.uid[0], route2.uid[0]] for route2 in routes if is_subset(route1, route2))
 
         return subsets
 
@@ -686,6 +648,8 @@ class ReactionExtractionFacade(Facade):
                     routes: list of SynGraph instances
 
             Returns:
+                output: a list of dictionaries
+                meta: a dictionary storing information about the the run
 
         """
         checked_routes = [r for r in routes if r != {}]
@@ -695,15 +659,13 @@ class ReactionExtractionFacade(Facade):
         try:
             for route in checked_routes:
                 reactions = extract_reactions_from_syngraph(route)
-                output.append({route.source: reactions})
+                output.append({route.uid: reactions})
 
             invalid_routes = len(routes) - len(checked_routes)
 
             meta = {'nr_routes_in_input_list': len(routes),
                     'invalid_routes': invalid_routes,
                     'errors': exceptions}
-
-            return output, meta
 
         except TypeError as ke:
             print('Found route in wrong format: only SynGraph object are accepted.')
@@ -713,6 +675,7 @@ class ReactionExtractionFacade(Facade):
                     'invalid_routes': invalid_routes,
                     'errors': exceptions}
 
+        finally:
             return output, meta
 
     def get_available_options(self) -> dict:
@@ -757,7 +720,7 @@ class FacadeFactory:
     def select_functionality(self, functionality: str, *args, **kwargs):
         """ Takes a string indicating a functionality and its arguments and performs the functionality """
         if functionality not in self.functionalities:
-            raise KeyError(f"'{functionality}' is not a valid functionality."
+            raise UnavailableFunctionality(f"'{functionality}' is not a valid functionality."
                            f"Available functionalities are: {self.functionalities.keys()}")
 
         performer = self.functionalities[functionality]['value']

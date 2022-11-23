@@ -5,6 +5,7 @@ from linchemin.rem.route_descriptors import get_available_descriptors
 from linchemin.rem.graph_distance import (get_available_ged_algorithms, get_ged_default_parameters, get_ged_parameters)
 from linchemin.rem.clustering import get_available_clustering
 from linchemin.cgu.syngraph import SynGraph
+from linchemin.utilities import file_logger, console_logger
 
 from abc import ABC, abstractmethod
 import pandas as pd
@@ -15,6 +16,8 @@ Module containing out-of-the-box "workflow", consisting of a sequence of facade 
 The functionalities to be actually activated are selected by the user by setting the arguments of the function
 'process_routes'.
 """
+logger = console_logger(__name__)
+
 
 DEFAULT_WORKFLOW = {
     'functionalities': None,
@@ -218,7 +221,8 @@ class WorkflowStarter(WorkflowHandler):
         for file, casp in params['input'].items():
             routes = lio.read_json(file)
             if casp not in self.casps:
-                raise KeyError(f"{casp} is not a valid casp name. Available casps are: {list(self.casps.keys())}")
+                logger.error(f"{casp} is not a valid casp name. Available casps are: {list(self.casps.keys())}")
+                raise KeyError
 
             syngraph_routes, meta = facade('translate', input_format=self.casps[casp], input_list=routes,
                                            out_data_model=params['out_data_model'],
@@ -226,9 +230,9 @@ class WorkflowStarter(WorkflowHandler):
                                            n_cpu=params['n_cpu'])
             all_routes += syngraph_routes
             output.log['_'.join(['translation', file])] = meta
-
-        if len(all_routes) < 1:
-            raise (ValueError('No valid routes were found'))
+            if len(all_routes) < 1:
+                logger.warning('No valid routes were found. Workflow interrupted.')
+                return None
 
         output.routes_list = all_routes
 
@@ -259,8 +263,9 @@ class Executor(WorkflowHandler):
 
             for request in requests:
                 if request not in self.steps_map:
-                    raise KeyError(f'"{request}" is not a valid functionality. Available functionalities are: '
+                    logger.error(f'"{request}" is not a valid functionality. Available functionalities are: '
                                    f'{list(self.steps_map.keys())}')
+                    raise KeyError
                 output = self.steps_map[request]['value']().perform_step(params, syngraph_routes, output)
 
         return Finisher().execute(syngraph_routes, params, output)
@@ -415,8 +420,9 @@ class SyngraphWriterFactory:
 
     def select_writer(self, syngraphs: list, out_data_model: str, output_format: str, file_name: str):
         if output_format not in self.file_formats:
-            raise KeyError(f"{output_format} is not a valid format. "
+            logger.error(f"{output_format} is not a valid format. "
                            f"Available formats are {list(self.file_formats.keys())}")
+            raise KeyError
         writer = self.file_formats[output_format]
         writer().write_file(syngraphs, out_data_model, output_format, file_name)
 

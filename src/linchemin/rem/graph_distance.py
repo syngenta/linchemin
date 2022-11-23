@@ -2,6 +2,7 @@ from linchemin.cgu.translate import translator
 from linchemin.cheminfo.reaction import ChemicalEquation, Molecule
 from linchemin.cgu.syngraph import SynGraph, MonopartiteReacSynGraph, BipartiteSynGraph
 import linchemin.cheminfo.functions as cif
+from linchemin.utilities import console_logger
 
 import abc
 import networkx as nx
@@ -12,42 +13,27 @@ import multiprocessing as mp
 
 """
 Module containing classes and functions to compute the similarity between pairs of routes.
-
-    AbstractClasses:
-        Ged
-        
-    Classes:
-        GedFactory
-         
-        GedNx(Ged)
-        GedNxPrecomputedMatrix(Ged)
-        GedOptNx(Ged)
-
-    Functions:
-        graph_distance_factory(syngraph1, syngraph2, ged_method: str, reaction_fp,
-                               reaction_fp_params, reaction_similarity_name, molecular_fp,
-                               molecular_fp_params, molecular_fp_count_vect, 
-                               molecular_similarity_name)
-                       
-        # Functions to compute the cost of node substitution
-        node_subst_cost_matrix(node1, node2, reaction_similarity_matrix, molecule_similarity_matrix)
-                   
-        node_subst_cost(node1, node2, reaction_fingerprints, reaction_fp_params, reaction_similarity_name,
-                    molecular_fingerprint, molecular_fp_params, molecular_fp_count_vect, molecular_similarity_name)
-        
-        # Supporting functions
-        compute_nodes_fingerprints(syngraph, reaction_fingerprints, molecular_fingerprint, reaction_fp_params=None,
-                               molecular_fp_params=None, molecular_fp_count_vect=False)
-                               
-        build_similarity_matrix(d_fingerprints1, d_fingerprints2, similarity_name='tanimoto')
-        
-        compute_distance_matrix(syngraphs: list, ged_method: str, ged_params=None)
-        
-        get_available_ged_algorithms():
-
-    Global variables:
-        DEFAULT
 """
+
+logger = console_logger(__name__)
+
+class GraphDistanceError(Exception):
+    """ Base class for exceptions leading to unsuccessful distance calculation."""
+    pass
+
+class UnavailableGED(GraphDistanceError):
+    """ Raised if the selected method to compute the graph distance is not among the available ones. """
+    pass
+
+class MismatchingGraph(GraphDistanceError):
+    """ Raised if the input graphs are of different types """
+    pass
+
+class TooFewRoutes(GraphDistanceError):
+    """ Raised if fewer than 2 routes are passed when computing the distance matrix """
+    pass
+
+
 DEFAULT_GED = {
     'reaction_fp': {'value': 'structure_fp', 'info': 'Structural reaction fingerprints as defined in RDKit',
                     'general_info': 'Chemical reaction fingerprints to be used'},
@@ -158,8 +144,9 @@ class GedOptNx(Ged):
                                                       node_subst_cost=node_subst_cost_partial)
 
         else:
-            raise TypeError(f'Graph1 has type = {type(syngraph1)} \nGraph2 has type = {type(syngraph2)}. '
+            logger.error(f'Graph1 has type = {type(syngraph1)} \nGraph2 has type = {type(syngraph2)}. '
                             f'The GED cannot be computed between graph of different types.')
+            raise MismatchingGraph
 
         for g in opt_ged:
             min_g = g
@@ -228,8 +215,9 @@ class GedNxPrecomputedMatrix(Ged):
                                          roots=(root_g1[0], root_g2[0]))
 
         else:
-            raise TypeError(f'Graph1 has type = {type(syngraph1)} \nGraph2 has type = {type(syngraph2)}. '
-                            f'The GED cannot be computed between graph of different types.')
+            logger.error(f'Graph1 has type = {type(syngraph1)} \nGraph2 has type = {type(syngraph2)}. '
+                         f'The GED cannot be computed between graph of different types.')
+            raise MismatchingGraph
 
         return ged
 
@@ -278,8 +266,9 @@ class GedNx(Ged):
                                          roots=(root_g1[0], root_g2[0]))
 
         else:
-            raise TypeError(f'Graph1 has type = {type(syngraph1)} \nGraph2 has type = {type(syngraph2)}. '
-                            f'The GED cannot be computed between graph of different types.')
+            logger.error(f'Graph1 has type = {type(syngraph1)} \nGraph2 has type = {type(syngraph2)}. '
+                         f'The GED cannot be computed between graph of different types.')
+            raise MismatchingGraph
 
         return ged
 
@@ -307,7 +296,8 @@ class GedFactory:
                    molecular_fp, molecular_fp_params, molecular_fp_count_vect,
                    molecular_similarity_name):
         if ged_method not in self.available_ged:
-            raise KeyError(f"'{ged_method}' is invalid. Available algorithms are: {self.available_ged.keys()}")
+            logger.error(f"'{ged_method}' is invalid. Available algorithms are: {self.available_ged.keys()}")
+            raise UnavailableGED
 
         selector = self.available_ged[ged_method]['value']
         return selector().compute_ged(syngraph1, syngraph2, reaction_fp, reaction_fp_params,
@@ -509,7 +499,8 @@ def compute_distance_matrix(syngraphs: list, ged_method: str, ged_params=None, p
                 The distance matrix, with dimensions (n routes x n routes), with the graph distances
     """
     if len(syngraphs) < 2:
-        raise (SingleRouteClustering('Less than 2 routes were found: clustering not possible'))
+        logger.error('Less than 2 routes were found: it is not possible to compute the distance matrix')
+        raise TooFewRoutes
 
     routes = range(len(syngraphs))
     matrix = pd.DataFrame(columns=routes, index=routes)

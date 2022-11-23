@@ -3,6 +3,9 @@ import operator
 import itertools
 from dataclasses import dataclass, field
 from typing import List
+import logging
+import logging.handlers
+import sys
 
 
 def list_of_dict_groupby(data_input: List[dict], keys: List):
@@ -37,3 +40,25 @@ def camel_to_snake(camel_case_string: str) -> str:
         else:
             res.append(c)
     return ''.join(res)
+
+
+def console_logger(name):
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
+
+def file_logger(name):
+
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler('run.log', 'w')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
+
+
