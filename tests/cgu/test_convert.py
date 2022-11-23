@@ -30,7 +30,7 @@ def test_bp_to_mpr(az_path):
     graphs = json.loads(open(az_path).read())
     bp_syngraph = translator('az_retro', graphs[0], 'syngraph', out_data_model='bipartite')
     mp_syngraph = converter(bp_syngraph, 'monopartite_reactions')
-    mp_syngraph_t = translator('az_retro', graphs[0], 'mp_syngraph', out_data_model='monopartite_reactions')
+    mp_syngraph_t = translator('az_retro', graphs[0], 'syngraph', out_data_model='monopartite_reactions')
     assert mp_syngraph == mp_syngraph_t
 
 
@@ -38,16 +38,16 @@ def test_bp_to_mpm(az_path):
     graphs = json.loads(open(az_path).read())
     bp_syngraphs = translator('az_retro', graphs[0], 'syngraph', out_data_model='bipartite')
     mp_syngraph = converter(bp_syngraphs, 'monopartite_molecules')
-    mp_syngraph_t = translator('az_retro', graphs[0], 'mp_mol_syngraph', out_data_model='monopartite_molecules')
+    mp_syngraph_t = translator('az_retro', graphs[0], 'syngraph', out_data_model='monopartite_molecules')
     assert mp_syngraph == mp_syngraph_t
 
 
 def test_mpr_to_mpm(az_path):
     graphs = json.loads(open(az_path).read())
-    mpr_syngraphs = translator('az_retro', graphs[0], 'mp_syngraph', out_data_model='monopartite_reactions')
+    mpr_syngraphs = translator('az_retro', graphs[0], 'syngraph', out_data_model='monopartite_reactions')
     mpm_syngraph = converter(mpr_syngraphs, 'monopartite_molecules')
 
-    mpm_syngraphs_t = translator('az_retro', graphs[0], 'mp_mol_syngraph', out_data_model='monopartite_molecules')
+    mpm_syngraphs_t = translator('az_retro', graphs[0], 'syngraph', out_data_model='monopartite_molecules')
     assert mpm_syngraph == mpm_syngraphs_t
 
 

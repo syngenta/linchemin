@@ -2,39 +2,35 @@ from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph, S
 from linchemin.cgu.convert import converter
 from linchemin.cheminfo.reaction import ChemicalEquation
 from linchemin.rem.node_metrics import node_score_calculator
+from linchemin.utilities import console_logger
 import abc
 from collections import defaultdict
 
 """
-Module containing functions and classes for computing SynGraph metrics.
-
-    AbstractClasses:
-        MetricsCalculator
-        
-    Classes:
-        MetricsCalculatorFactory
-        
-        NrBranches(MetricsCalculator)
-        Branchedness(MetricsCalculator)
-        LongestSequence(MetricsCalculator)
-        NrReactionSteps(MetricsCalculator)
-        PathFinder(MetricsCalculator)
-        Convergence(MetricsCalculator)
-        AvgBranchingFactor(MetricsCalculator)
-        CDScore(MetricsCalculator)
-        
-    Functions:
-        metrics_calculator(graph: SynGraph, metric_type: str)
-        get_available_metrics()
-        find_path(graph: SynGraph, leaf: str, root: str, path: list=[]) -> list
-        is_subset(syngraph1, syngraph2) -> bool
-        find_duplicates(syngraphs1: list, syngraphs2: list)
-        get_nodes_consensus(syngraphs: list) -> dict
+Module containing functions and classes for computing SynGraph descriptors
         
 """
 
-class NoneInput(Exception):
+logger = console_logger(__name__)
+
+class DescriptorError(Exception):
+    """ Base class for exceptions leading to unsuccessful descriptor calculation. """
+    pass
+
+class UnavailableDescriptor(DescriptorError):
+    """ Raised if the selected descriptor is not among the available ones. """
+    pass
+
+class WrongGraphType(DescriptorError):
+    """ Raised if the input gaph object is not of the required type. """
+    pass
+
+class InvalidInput(DescriptorError):
     """ Raised if the input route is None"""
+    pass
+
+class MismatchingGraphType(DescriptorError):
+    """ Raised when graph of the same type are expected. """
     pass
 
 class DescriptorCalculator(metaclass=abc.ABCMeta):
@@ -62,14 +58,17 @@ class NrBranches(DescriptorCalculator):
             node. 0 corresponds to a linear route. """
 
         if graph is None:
-            raise NoneInput('The input route is None.')
+            logger.error('The input route is None.')
+            raise InvalidInput
 
         if type(graph) == BipartiteSynGraph:
             mp_graph = converter(graph, 'monopartite_reactions')
         elif type(graph) == MonopartiteReacSynGraph:
             mp_graph = graph
         else:
-            raise TypeError
+            logger.error(
+                f'{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted.')
+            raise WrongGraphType
 
         branching_nodes = set()
         for reac, connections in mp_graph.graph.items():
@@ -93,7 +92,9 @@ class Branchedness(DescriptorCalculator):
         elif type(graph) == MonopartiteReacSynGraph:
             mp_graph = graph
         else:
-            raise TypeError('Invalid graph type. Accepted types are BipartiteSynGraph and MonopartiteReacSynGraph')
+            logger.error(
+                f'{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted.')
+            raise WrongGraphType
 
         branching_nodes = set()
         for reac, connections in mp_graph.graph.items():
@@ -127,7 +128,9 @@ class LongestSequence(DescriptorCalculator):
         elif type(graph) == MonopartiteReacSynGraph:
             mp_graph = graph
         else:
-            raise TypeError('Invalid graph type. Accepted types are BipartiteSynGraph and MonopartiteReacSynGraph')
+            logger.error(
+                f'{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted.')
+            raise WrongGraphType
 
         root = mp_graph.get_roots()
         leaves = mp_graph.get_leaves()
@@ -150,7 +153,9 @@ class NrReactionSteps(DescriptorCalculator):
         elif type(graph) == MonopartiteReacSynGraph:
             mp_graph = graph
         else:
-            raise TypeError('Invalid graph type. Accepted types are BipartiteSynGraph and MonopartiteReacSynGraph')
+            logger.error(
+                f'{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted.')
+            raise WrongGraphType
 
         return len(mp_graph.graph)
 
@@ -162,7 +167,9 @@ class PathFinder(DescriptorCalculator):
         """ Takes a SynGraph/MonopartiteSynGraph and returns all the paths between the SynRoot and the SynLeaves
             (only ReactionStep nodes). """
         if type(graph) not in [BipartiteSynGraph, MonopartiteReacSynGraph]:
-            raise TypeError('Invalid graph type. Accepted types are BipartiteSynGraph and MonopartiteReacSynGraph')
+            logger.error(
+                f'{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted.')
+            raise WrongGraphType
 
         root = graph.get_roots()
         leaves = graph.get_leaves()
@@ -200,7 +207,9 @@ class AvgBranchingFactor(DescriptorCalculator):
         elif type(graph) == MonopartiteReacSynGraph:
             mp_graph = graph
         else:
-            raise TypeError('Invalid graph type. Accepted types are BipartiteSynGraph and MonopartiteReacSynGraph')
+            logger.error(
+                f'{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted.')
+            raise WrongGraphType
 
         root_reactions = mp_graph.get_roots()
         nr_non_root_nodes = len(mp_graph.graph) - len(root_reactions)
@@ -224,7 +233,9 @@ class CDScore(DescriptorCalculator):
         elif type(graph) == MonopartiteReacSynGraph:
             mp_graph = graph
         else:
-            raise TypeError('Invalid graph type. Accepted types are BipartiteSynGraph and MonopartiteReacSynGraph')
+            logger.error(
+                f'{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted.')
+            raise WrongGraphType
 
         # Collect all unique reaction invovled in the route
         unique_reactions = set()
@@ -272,7 +283,8 @@ class DescriptorsCalculatorFactory:
     def select_route_descriptor(self, graph, descriptor: str):
         """ Takes a string indicating a descriptor and a SynGraph and returns the value of the descriptor """
         if descriptor not in self.route_descriptors:
-            raise KeyError(f"'{descriptor}' is not a valid descriptor.")
+            logger.error(f"'{descriptor}' is not a valid descriptor.")
+            raise UnavailableDescriptor
 
         calculator = self.route_descriptors[descriptor]['value']
         return calculator().compute_descriptor(graph)
@@ -300,7 +312,7 @@ def get_available_descriptors():
 
 
 def find_path(graph: SynGraph, leaf: str, root: str, path: list = None) -> list:
-    """ Returns the path between a SynLeaf (Molecule nodes) and the SynRoot (Molecule node) in a SynGraph.
+    """ Returns the path between two nodes in a SynGraph.
 
             Parameters:
                 graph: a SynGraph
@@ -358,7 +370,8 @@ def find_duplicates(syngraphs1: list, syngraphs2: list):
                 if there are no duplicates, nothing is returned and a message appears
     """
     if type(syngraphs1[0]) != type(syngraphs2[0]):
-        raise Exception('The two input lists should contain graphs of the same type')
+        logger.error('The two input lists should contain graphs of the same type')
+        raise MismatchingGraphType
 
     duplicates = []
     for g1 in syngraphs1:

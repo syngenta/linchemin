@@ -1,37 +1,38 @@
 from linchemin.rem.graph_distance import SingleRouteClustering, compute_distance_matrix
 from linchemin.rem.route_descriptors import descriptor_calculator
+from linchemin.utilities import console_logger
+
 import pandas as pd
 import numpy as np
 import abc
-
 import hdbscan
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 
 """
 Module containing classes and functions to compute the clustering of routes based on the distance matrix.
-
-    AbstractClasses:
-        ClusterCalculator
-        
-    Classes:
-        HdbscanClusterCalculator(ClusterCalculator)
-        AgglomerativeClusterCalculator(ClusterCalculator)
-        
-    Functions:
-        clusterer(syngraphs: list, ged_method: str, clustering_method: str, ged_params=None, save_dist_matrix=False, **kwargs)
-        
-        
-        compute_silhouette_score(dist_matrix, clusterer_labels)
-        optimize_agglomerative_cluster(dist_matrix, linkage:str)
-        
-        get_clustered_routes_metrics(syngraphs:list, clustering_output)
-        
-        get_available_clustering
 """
 
+logger = console_logger(__name__)
 
-class NoClustering(Exception):
+class ClusteringError(Exception):
+    """ Base class for exceptions leading to unsuccessful clustering. """
+    pass
+
+class OnlyNoiseClustering(ClusteringError):
+    """ Raised if only noise was found while clustering"""
+    pass
+
+class NoClustering(ClusteringError):
+    """ Raised if the clustering was not successful """
+    pass
+
+class UnavailableClusteringAlgorithm(ClusteringError):
+    """ Raised if the selected clustering algorithm is not among the available ones """
+    pass
+
+class SingleRouteClustering(ClusteringError):
+    """ Raised if less than 2 routes were given as input """
     pass
 
 
@@ -65,11 +66,13 @@ class HdbscanClusterCalculator(ClusterCalculator):
             dist_matrix.to_numpy(dtype=float))
 
         if clustering is None:
-            raise NoClustering('Clustering was not successful')
+            logger.error('The clustering algorithm did not return any result.')
+            raise NoClustering
 
         if 0 not in clustering.labels_:
             # hdbscan: with less than 15 datapoints, only noise is found
-            raise (Exception('Bad clustering. Only noise was found'))
+            logger.error('Hdbscan found only noise. This can occur if less than 15 routes were given')
+            raise OnlyNoiseClustering
         s_score = compute_silhouette_score(dist_matrix, clustering.labels_)
         print('The Silhouette score is {:.3f}'.format(round(s_score, 3)))
         return (clustering, s_score, dist_matrix) if save_dist_matrix is True else (clustering, s_score)
@@ -84,10 +87,12 @@ class AgglomerativeClusterCalculator(ClusterCalculator):
         clustering, s_score, best_n_cluster = optimize_agglomerative_cluster(dist_matrix, linkage)
 
         if clustering is None:
-            raise NoClustering('Clustering was not successful')
+            logger.error('The clustering algorithm did not return any result.')
+            raise NoClustering
 
         if 0 not in clustering.labels_:
-            raise (Exception('Bad clustering: only noise was found'))
+            logger.error('The algorithm found only noise.')
+            raise OnlyNoiseClustering
         print(f'The number of clusters with the best Silhouette score is {best_n_cluster}')
 
         print('The Silhouette score is {:.3f}'.format(round(s_score, 3)))
@@ -113,8 +118,9 @@ class ClusterFactory:
     def select_clustering_algorithms(self, syngraphs: list, ged_method: str, clustering_method: str, ged_params=None,
                                      save_dist_matrix=False, parallelization=False, n_cpu=None, **kwargs):
         if clustering_method not in self.available_clustering_algorithms:
-            raise KeyError(f"Invalid clustering algorithm. Available algorithms are:"
+            logger.error(f"Invalid clustering algorithm. Available algorithms are:"
                            f"{self.available_clustering_algorithms.keys()}")
+            raise UnavailableClusteringAlgorithm
 
         selector = self.available_clustering_algorithms[clustering_method]['value']
         dist_matrix = compute_distance_matrix(syngraphs, ged_method, ged_params, parallelization, n_cpu)
@@ -150,7 +156,8 @@ def clusterer(syngraphs: list, ged_method: str, clustering_method: str, ged_para
                 The clustering algorithm output, the silhouette score and the distance matrix (save_dist_matrix=True)
     """
     if len(syngraphs) < 2:
-        raise (SingleRouteClustering('Less than 2 routes were found: clustering not possible'))
+        logger.error('Less than 2 routes were found: clustering not possible')
+        raise SingleRouteClustering
 
     clustering_calculator = ClusterFactory()
     return clustering_calculator.select_clustering_algorithms(syngraphs, ged_method, clustering_method, ged_params,

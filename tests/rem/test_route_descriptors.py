@@ -1,6 +1,6 @@
 from linchemin.cgu.convert import converter
-from linchemin.rem.route_descriptors import find_path, descriptor_calculator, is_subset, find_duplicates, \
-    get_nodes_consensus, get_available_descriptors
+from linchemin.rem.route_descriptors import (find_path, descriptor_calculator, is_subset, find_duplicates,
+                                             get_nodes_consensus, get_available_descriptors, DescriptorError)
 from linchemin.cgu.syngraph import SynGraph, merge_syngraph, MonopartiteReacSynGraph
 import json
 from linchemin.cgu.translate import translator
@@ -9,11 +9,11 @@ import pytest
 
 def test_unavailable_metrics(ibm1_path):
     """ To test that a KeyError is raised if an unavailable metrics is requested. """
-    with pytest.raises(Exception) as ke:
+    with pytest.raises(DescriptorError) as ke:
         graph = json.loads(open(ibm1_path).read())
         syngraph = translator('ibm_retro', graph[3], 'syngraph', out_data_model='bipartite')
         descriptor_calculator(syngraph, 'wrong_metrics')
-    assert "KeyError" in str(ke.type)
+    assert "UnavailableDescriptor" in str(ke.type)
 
 
 def test_find_path(ibm1_path):
@@ -70,10 +70,10 @@ def test_nr_branches(az_path):
     # The expected number of branches is returned
     nr_b = descriptor_calculator(syngraphs, 'nr_branches')
     assert nr_b == 0
-    with pytest.raises(Exception) as e:
+    with pytest.raises(DescriptorError) as e:
         graph = None
         descriptor_calculator(graph, 'nr_branches')
-    assert "NoneInput" in str(e.type)
+    assert "InvalidInput" in str(e.type)
 
 
 def test_subset(az_path):
@@ -120,10 +120,10 @@ def test_find_duplicates(ibm1_path, az_path):
     assert len(d2) == 1
 
     # Exception raised when the two provided syngraphs have different types (MonopartiteSynGraph and SynGraph)
-    with pytest.raises(Exception) as ke:
+    with pytest.raises(DescriptorError) as ke:
         ibm_routes_mp = [translator('ibm_retro', g, 'syngraph', out_data_model='monopartite_reactions') for g in graph1]
         find_duplicates(ibm_routes_mp, az_routes)
-    assert "Exception" in str(ke.type)
+    assert "MismatchingGraphType" in str(ke.type)
 
 
 def test_get_node_consensus(az_path):
@@ -170,10 +170,10 @@ def test_cdscores(az_path):
     cds = descriptor_calculator(az_routes_mp, 'cdscore')
     assert 0 < cds < 1
 
-    with pytest.raises(TypeError) as te:
+    with pytest.raises(DescriptorError) as te:
         route = translator('az_retro', graph[0], 'iron', out_data_model='monopartite_reactions')
         descriptor_calculator(route, 'cdscore')
-    assert "TypeError" in str(te.type)
+    assert "WrongGraphType" in str(te.type)
 
 
 def test_branchedness(ibm2_path):
