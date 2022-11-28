@@ -28,6 +28,7 @@ dependencies = [
         "networkx",
         "pandas",
         "numpy",
+        "pydantic",
         "hdbscan",
         "scikit-learn",
         "joblib==1.1.0"
@@ -35,7 +36,7 @@ dependencies = [
 # TODO: newer versions of joblib create problems with hdbscan https://github.com/scikit-learn-contrib/hdbscan/issues/565
 
 [project.optional-dependencies]
-development = [
+dev = [
         "bumpver",
         "pytest-cov",
         "pytest",
