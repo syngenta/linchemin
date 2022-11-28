@@ -39,6 +39,6 @@ The Linked Chemical Information (LinChemIn) package is a python toolkit that all
 ## Install for development  
 >git clone https://github.com/syngenta/linchemin  
 >cd linchemin  
->pip install -e .[development]    
+>pip install -e .[dev]    
 
 Testing is based on pytest  
