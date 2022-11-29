@@ -1,8 +1,8 @@
-from linchemin.services.rxnmapper import service
+from linchemin.services.namerxn import service
 
 
 def test_endpoint_metadata():
-    rxnmapper_service = service.RxnMapperService(base_url='http://127.0.0.1:8002/')
+    rxnmapper_service = service.NamerxnService(base_url='http://127.0.0.1:8004/')
     print("\n metadata")
     endpoint = rxnmapper_service.endpoint_map.get('metadata')
     inp_example = endpoint.input_example
@@ -16,7 +16,7 @@ def test_endpoint_metadata():
 
 
 def test_endpoint_run_batch():
-    rxnmapper_service = service.RxnMapperService(base_url='http://127.0.0.1:8002/')
+    rxnmapper_service = service.NamerxnService(base_url='http://127.0.0.1:8004/')
     print("\n run_batch")
     endpoint = rxnmapper_service.endpoint_map.get('run_batch')
     inp_example = endpoint.input_example
