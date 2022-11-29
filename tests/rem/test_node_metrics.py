@@ -38,7 +38,7 @@ def test_reaction_mapping():
     map_dictionaries = {
         'map1': {1: 1, 2: 2, 3: 3, 4: 5, 5: 7, 6: 8, 7: 10},
         'map2': {1: 2, 2: 6, 3: 3, 4: 4, 5: 11, 6: 12},
-        'map3': {1: 12, 2: 3, 3: 6, 4: 11, 5: 4, 6: 12},
+        'map3': {1: 2, 2: 3, 3: 6, 4: 11, 5: 4, 6: 12},
         'map4': {1: 1, 2: 7, 3: 8},
         'map5': {1: 2, 2: 4, 3: 5, 4: 6, 5: 8, 6: 9},
         'map6': {1: 3, 2: 5, 3: 6, 4: 9, 5: 10},
@@ -60,6 +60,5 @@ def test_reaction_mapping():
     assert reaction_mapping(map_dictionaries['map5'], map_dictionaries['map6'], ids_transferred_atoms=[]) == [2, 3, 4]
     # unmapped atoms (map index = 0) are ignored
     assert reaction_mapping(map_dictionaries['map7'], map_dictionaries['map8']) == [2]
-
 
 

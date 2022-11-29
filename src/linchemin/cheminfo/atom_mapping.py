@@ -1,16 +1,19 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
+from linchemin.services.rxnmapper import service
+
 """
 Module containing classes and functions for the pipeline of atom-2-atom mapping of chemical equations
 """
+
 
 @dataclass
 class MappingOutput:
     """ Class to store the results of an atom-to-atom mapping.
 
         Attributes:
-            mapped_reactions: a list of dictionaries with the sucessfully mapped reactions
+            mapped_reactions: a list of dictionaries with the successfully mapped reactions
 
             unmapped_reactions: a list of dictionaries with the reactions that could not be mapped
 
@@ -24,12 +27,11 @@ class MappingOutput:
     pipeline_success_rate: dict = field(default_factory=dict)
 
     @property
-    def success_rate(self) -> dict:
+    def success_rate(self) -> float | int:
         if self.mapped_reactions:
             return len(self.mapped_reactions) / (len(self.mapped_reactions) + len(self.unmapped_reactions))
         else:
-            return 0
-
+            return 0.0
 
 
 # Mappers factory
@@ -38,7 +40,7 @@ class Mapper(ABC):
     """ Abstract class for the atom mappers """
 
     @abstractmethod
-    def map_chemical_equations(self, reactions_list: list[dict]):
+    def map_chemical_equations(self, reactions_list: list[dict]) -> MappingOutput:
         pass
 
 
@@ -49,6 +51,7 @@ class NameRxnMapper(Mapper):
     def map_chemical_equations(self, reactions_list: list[dict]):
         print('NameRxn mapper is called')
         out = MappingOutput()
+        out.unmapped_reactions = reactions_list
         # response = namerxn_sdk_wrapper(reactions_list)
         # if the mapper is not available, raise an error MapperUnavailableError.
         # out.mapped_reactions = response['success_list]
@@ -63,6 +66,7 @@ class ChematicaMapper(Mapper):
     def map_chemical_equations(self, reactions_list: list[dict]):
         print('Chematica mapper is called')
         out = MappingOutput()
+        out.unmapped_reactions = reactions_list
         # response = namerxn_sdk_wrapper(reactions_list)
         # if the mapper is not available, raise an error MapperUnavailableError.
         # out.mapped_reactions = response['success_list]
@@ -70,17 +74,24 @@ class ChematicaMapper(Mapper):
         return out
 
 
-class IbmRxnMapper(Mapper):
+class RxnMapper(Mapper):
     """ Class for the IbmRxn atom mapper """
     info = 'Atom mapper developed by IBM'
 
     def map_chemical_equations(self, reactions_list: list[dict]):
         print('RxnMapper mapper is called')
         out = MappingOutput()
-        # response = namerxn_sdk_wrapper(reactions_list)
+        rxnmapper_service = service.RxnMapperService(base_url='http://127.0.0.1:8002/')
+        input_dict = {'classification_code': 'namerxn',
+                      'inp_fmt': 'smiles',
+                      'out_fmt': 'smiles',
+                      'mapping_style': 'matching',
+                      'query_data': reactions_list}
+        endpoint = rxnmapper_service.endpoint_map.get('run_batch')
+        out_request = endpoint.submit(request_input=input_dict)
         # if the mapper is not available, raise an error MapperUnavailableError.
-        # out.mapped_reactions = response['success_list]
-        # out.unmapped_reactions = response['failure_list']
+        out.mapped_reactions = out_request['output']['successes_list']
+        out.unmapped_reactions = out_request['output']['failure_list']
         return out
 
 
@@ -89,8 +100,8 @@ class MapperFactory:
                            'info': NameRxnMapper.info},
                'chematica': {'value': ChematicaMapper,
                              'info': ChematicaMapper.info},
-               'rxnmapper': {'value': IbmRxnMapper,
-                             'info': IbmRxnMapper.info}
+               'rxnmapper': {'value': RxnMapper,
+                             'info': RxnMapper.info}
                }
 
     def call_mapper(self, mapper_name, reactions_list):
@@ -121,14 +132,14 @@ class MappingStep(ABC):
     """ Abstract handler for the concrete handlers of consecutive atom mappers """
 
     @abstractmethod
-    def mapping(self):
+    def mapping(self, out: MappingOutput):
         pass
 
 
 class FirstMapping(MappingStep):
     """ Concrete handler to call the first mapper """
 
-    def mapping(self, out):
+    def mapping(self, out: MappingOutput):
         mapper = 'namerxn'
         # try:
         mapper_output = perform_atom_mapping(mapper, out.unmapped_reactions)
@@ -146,7 +157,7 @@ class FirstMapping(MappingStep):
 class SecondMapping(MappingStep):
     """ Concrete handler to call the second mapper """
 
-    def mapping(self, out):
+    def mapping(self, out: MappingOutput):
         mapper = 'chematica'
         # try:
         mapper_output = perform_atom_mapping(mapper, out.unmapped_reactions)
@@ -186,11 +197,12 @@ class MappingBuilder:
         return FirstMapping().mapping(out)
 
 
-def pipeline_atom_mapping(reactions_list: list[dict]=None):
+def pipeline_atom_mapping(reactions_list: list[dict] = None):
     """ Facade function to start the atom-to-atom mapping pipeline.
 
         Parameters:
-             reactions_list: a list of dictionaries containing the reaction strings to be mapped and their id
+             reactions_list: a list of dictionaries containing the reaction strings to be mapped and their id in the
+                             form [{'query_id': n, 'output_string': reaction_string}]
 
         Returns:
             out: a MappingOutput instance

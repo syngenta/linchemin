@@ -187,7 +187,7 @@ def test_extract_reactions(az_path):
     syngraph = translator('az_retro', graph_az[0], 'syngraph', 'monopartite_reactions')
     reactions = extract_reactions_from_syngraph(syngraph)
     assert len(reactions) == 2
-    assert reactions[1]['reaction_string'] == 'Cc1cccc(C)c1NCC(=O)O.Nc1ccc(-c2ncon2)cc1>>Cc1cccc(C)c1NCC(=O)Nc1ccc(' \
+    assert reactions[1]['input_string'] == 'Cc1cccc(C)c1NCC(=O)O.Nc1ccc(-c2ncon2)cc1>>Cc1cccc(C)c1NCC(=O)Nc1ccc(' \
                                               '-c2ncon2)cc1'
 
     syngraph = translator('az_retro', graph_az[0], 'syngraph', out_data_model='bipartite')
@@ -206,23 +206,21 @@ def test_extract_reactions(az_path):
 def test_read_dictionary(az_path, ibm1_path):
     # monopartite reactions
     d = [
-        {'id': 0, 'reaction_string': 'Cc1cccc(C)c1NCC(=O)O.Nc1ccc(-c2ncon2)cc1>>Cc1cccc(C)c1NCC(=O)Nc1ccc(-c2ncon2)cc1',
-         'inp_fmt': 'smiles'},
-        {'id': 1, 'reaction_string': 'Cc1cccc(C)c1NCC(=O)Nc1ccc(-c2ncon2)cc1.O=C(O)C1CCS(=O)(=O)CC1>>Cc1cccc(C)c1N(CC('
-                                     '=O)Nc1ccc(-c2ncon2)cc1)C(=O)C1CCS(=O)(=O)CC1',
-         'inp_fmt': 'smiles'}]
+        {'query_id': 0, 'output_string': 'Cc1cccc(C)c1NCC(=O)O.Nc1ccc(-c2ncon2)cc1>>Cc1cccc(C)c1NCC(=O)Nc1ccc(-c2ncon2)cc1'},
+        {'query_id': 1, 'output_string': 'Cc1cccc(C)c1NCC(=O)Nc1ccc(-c2ncon2)cc1.O=C(O)C1CCS(=O)(=O)CC1>>Cc1cccc(C)c1N(CC('
+                                     '=O)Nc1ccc(-c2ncon2)cc1)C(=O)C1CCS(=O)(=O)CC1'}]
     syngraph = MonopartiteReacSynGraph(d)
     graph_az = json.loads(open(az_path).read())
     assert syngraph == translator('az_retro', graph_az[0], 'syngraph', 'monopartite_reactions')
 
     # bipartite
-    d2 = [{'id': 0, 'reaction_string': 'CCC(=O)Cl.CCN>>CCNC(=O)CC', 'inp_fmt': 'smiles'}]
+    d2 = [{'query_id': 0, 'output_string': 'CCC(=O)Cl.CCN>>CCNC(=O)CC'}]
     graph_ibm = json.loads(open(ibm1_path).read())
     syngraph = BipartiteSynGraph(d2)
     assert syngraph == translator('ibm_retro', graph_ibm[3], 'syngraph', 'bipartite')
 
     # monopartite molecules
-    d3 = [{'id': 0, 'reaction_string': 'CCC(=O)Cl.CCN.ClCCl>>CCNC(=O)CC', 'inp_fmt': 'smiles'}]
+    d3 = [{'query_id': 0, 'output_string': 'CCC(=O)Cl.CCN.ClCCl>>CCNC(=O)CC'}]
     mom_syngraph = MonopartiteMolSynGraph(d3)
     assert mom_syngraph == translator('ibm_retro', graph_ibm[4], 'syngraph', 'monopartite_molecules')
 
