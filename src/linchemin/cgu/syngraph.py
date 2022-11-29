@@ -41,7 +41,7 @@ class SynGraph(ABC):
                     It can be:
                         (i) an Iron instance
                         (ii) a list of dictionaries of reaction strings in the form
-                            [{'id': reaction_id, 'reaction_string': reaction_smiles, 'inp_fmt': 'smiles}]
+                            [{'query_id': n, 'output_string': reaction}]
 
                     If no arguments are passed, an empty graph is initialized.
 
@@ -55,10 +55,10 @@ class SynGraph(ABC):
         if initiator is not None and isinstance(initiator, list):
             chemical_equations = []
             for d in initiator:
-                chemical_eq_constructor = ChemicalEquationConstructor(identity_property_name=d['inp_fmt'])
+                chemical_eq_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
                 chemical_equations.append(
-                    chemical_eq_constructor.build_from_reaction_string(reaction_string=d['reaction_string'],
-                                                                       inp_fmt=d['inp_fmt']))
+                    chemical_eq_constructor.build_from_reaction_string(reaction_string=d['output_string'],
+                                                                       inp_fmt='smiles'))
             self.builder_from_reaction_list(chemical_equations)
 
     @property
@@ -158,6 +158,8 @@ class BipartiteSynGraph(SynGraph):
         for root in roots:
             self.add_node((root, []))
 
+        self.set_source(str(self.uid))
+
     def builder_from_iron(self, iron_graph):
         """ To build a BipartiteSynGraph instance from an Iron instance """
         connections = [edge.direction.tup for id_e, edge in iron_graph.edges.items()]
@@ -218,6 +220,7 @@ class MonopartiteReacSynGraph(SynGraph):
                 next_ch_equations.extend(c for m in c.roles['reactants'] if m in ch_equation.roles['products'])
 
             self.add_node((ch_equation, next_ch_equations))
+        self.set_source(str(self.uid))
 
     def builder_from_iron(self, iron_graph):
         """ To build a MonopartiteReacSynGraph from an Iron instance. """
@@ -297,6 +300,8 @@ class MonopartiteMolSynGraph(SynGraph):
 
         for root in roots:
             self.add_node((root, []))
+
+        self.set_source(str(self.uid))
 
     def builder_from_iron(self, iron_graph):
         connections = [edge.direction.tup for id_e, edge in iron_graph.edges.items()]
@@ -408,7 +413,7 @@ class ReactionsExtractorFromBipartite(ReactionsExtractor):
                 if type(child) == ChemicalEquation:
                     unique_reactions.add(child)
         sorted_reactions = sorted([reaction.smiles for reaction in unique_reactions])
-        return [{'id': n, 'reaction_string': reaction, 'inp_fmt': 'smiles'} for n, reaction in
+        return [{'query_id': n, 'input_string': reaction} for n, reaction in
                 enumerate(sorted_reactions)]
 
 
@@ -422,7 +427,7 @@ class ReactionsExtractorFromMonopartiteReaction(ReactionsExtractor):
             for child in children:
                 unique_reactions.add(child)
         sorted_reactions = sorted([reaction.smiles for reaction in unique_reactions])
-        return [{'id': n, 'reaction_string': reaction, 'inp_fmt': 'smiles'} for n, reaction in
+        return [{'query_id': n, 'input_string': reaction} for n, reaction in
                 enumerate(sorted_reactions)]
 
 
@@ -442,7 +447,7 @@ class ReactionsExtractorFromMonopartiteMolecules(ReactionsExtractor):
                     inp_fmt='smiles')
                 unique_reactions.add(chemical_equation)
         sorted_reactions = sorted([reaction.smiles for reaction in unique_reactions])
-        return [{'id': n, 'reaction_string': reaction, 'inp_fmt': 'smiles'} for n, reaction in
+        return [{'query_id': n, 'input_string': reaction} for n, reaction in
                 enumerate(sorted_reactions)]
 
 
@@ -468,7 +473,7 @@ def extract_reactions_from_syngraph(syngraph: SynGraph) -> list:
 
         Returns:
             reactions: a list of dictionary in the form
-                       [{'id': reaction_id, 'reaction_string': reaction_smiles, 'inp_fmt': 'smiles}]
+                       [{'query_id': n, 'input_string': reaction}]
     """
     factory = ExtractorFactory()
 
