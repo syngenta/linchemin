@@ -143,9 +143,9 @@ class BipartiteSynGraph(SynGraph):
     def builder_from_reaction_list(self, chemical_equations: list[ChemicalEquation]):
         """ To build a BipartiteSynGraph instance from a list of ChemicalEquation objects"""
         for ch_equation in chemical_equations:
-            products = [prod for h, prod in ch_equation.molecules.items() if h in ch_equation.roles['products']]
+            products = [prod for h, prod in ch_equation.catalog.items() if h in ch_equation.role_map['products']]
             self.add_node((ch_equation, products))
-            reactants = [reac for h, reac in ch_equation.molecules.items() if h in ch_equation.roles['reactants']]
+            reactants = [reac for h, reac in ch_equation.catalog.items() if h in ch_equation.role_map['reactants']]
 
             for reactant in reactants:
                 self.add_node((reactant, [ch_equation]))
@@ -217,7 +217,7 @@ class MonopartiteReacSynGraph(SynGraph):
         for ch_equation in chemical_equations:
             next_ch_equations = []
             for c in chemical_equations:
-                next_ch_equations.extend(c for m in c.roles['reactants'] if m in ch_equation.roles['products'])
+                next_ch_equations.extend(c for m in c.role_map['reactants'] if m in ch_equation.role_map['products'])
 
             self.add_node((ch_equation, next_ch_equations))
         self.set_source(str(self.uid))
@@ -267,7 +267,7 @@ class MonopartiteReacSynGraph(SynGraph):
         roots = []
         root_reactions = [tup[0] for tup in self if tup[1] == set()]
         for reaction in root_reactions:
-            roots = roots + [mol for h, mol in reaction.molecules.items() if h in reaction.roles['products']]
+            roots = roots + [mol for h, mol in reaction.catalog.items() if h in reaction.role_map['products']]
 
         return roots
 
@@ -277,7 +277,7 @@ class MonopartiteReacSynGraph(SynGraph):
         for reac in self.graph:
 
             if reac not in self.graph.values():
-                leaves = leaves + [mol for h, mol in reac.molecules.items() if h in reac.roles['reactants']]
+                leaves = leaves + [mol for h, mol in reac.catalog.items() if h in reac.role_map['reactants']]
 
         return leaves
 
@@ -288,8 +288,8 @@ class MonopartiteMolSynGraph(SynGraph):
     def builder_from_reaction_list(self, chemical_equations: list):
         for ch_equation in chemical_equations:
 
-            products = [prod for h, prod in ch_equation.molecules.items() if h in ch_equation.roles['products']]
-            reactants = [reac for h, reac in ch_equation.molecules.items() if h in ch_equation.roles['reactants']]
+            products = [prod for h, prod in ch_equation.catalog.items() if h in ch_equation.role_map['products']]
+            reactants = [reac for h, reac in ch_equation.catalog.items() if h in ch_equation.role_map['reactants']]
             for reactant in reactants:
                 self.add_node((reactant, products))
 

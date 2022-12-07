@@ -102,8 +102,8 @@ class MonopartiteReactionsToMonopartiteMolecules(Converter):
         mp_mol_syngraph = MonopartiteMolSynGraph()
 
         for parent, children in graph.graph.items():
-            mol_reactants = [mol for h, mol in parent.molecules.items() if h in parent.roles['reactants']]
-            mol_products = [mol for h, mol in parent.molecules.items() if h in parent.roles['products']]
+            mol_reactants = [mol for h, mol in parent.catalog.items() if h in parent.role_map['reactants']]
+            mol_products = [mol for h, mol in parent.catalog.items() if h in parent.role_map['products']]
 
             for reactant in mol_reactants:
                 for product in mol_products:
@@ -111,8 +111,8 @@ class MonopartiteReactionsToMonopartiteMolecules(Converter):
 
             if children:
                 for child in children:
-                    mol_reactants = [mol for h, mol in child.molecules.items() if h in parent.roles['reactants']]
-                    mol_products = [mol for h, mol in child.molecules.items() if h in parent.roles['products']]
+                    mol_reactants = [mol for h, mol in child.catalog.items() if h in parent.role_map['reactants']]
+                    mol_products = [mol for h, mol in child.catalog.items() if h in parent.role_map['products']]
 
                     for reactant in mol_reactants:
                         for product in mol_products:
@@ -135,8 +135,8 @@ class MonopartiteReactionsToBipartite(Converter):
         bp_graph = BipartiteSynGraph()
 
         for parent, children in graph.graph.items():
-            mol_reactants = [mol for h, mol in parent.molecules.items() if h in parent.roles['reactants']]
-            mol_products = [mol for h, mol in parent.molecules.items() if h in parent.roles['products']]
+            mol_reactants = [mol for h, mol in parent.catalog.items() if h in parent.role_map['reactants']]
+            mol_products = [mol for h, mol in parent.catalog.items() if h in parent.role_map['products']]
 
             for reactant in mol_reactants:
                 bp_graph.add_node((reactant, [parent]))
@@ -145,8 +145,8 @@ class MonopartiteReactionsToBipartite(Converter):
 
             if children:
                 for child in children:
-                    mol_reactants = [mol for h, mol in child.molecules.items() if h in child.roles['reactants']]
-                    mol_products = [mol for h, mol in child.molecules.items() if h in child.roles['products']]
+                    mol_reactants = [mol for h, mol in child.catalog.items() if h in child.role_map['reactants']]
+                    mol_products = [mol for h, mol in child.catalog.items() if h in child.role_map['products']]
 
                     for reactant in mol_reactants:
                         bp_graph.add_node((reactant, [child]))
