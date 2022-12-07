@@ -174,7 +174,8 @@ def test_chemical_equation_builder():
 
 
 def test_chemical_equation_attributes_are_available():
-    smiles = '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15]>C(Cl)Cl.C(=O)(C(=O)Cl)Cl>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]'
+    smiles = '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15].C(Cl)Cl.C(=O)(C(=O)Cl)Cl>>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]'
+    expected_smiles = 'O[C:2](=[O:1])[c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12.[N-:13]=[N+:14]=[N-:15]>ClCCl.O=C(Cl)C(=O)Cl>[O:1]=[C:2]([c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12)[N:13]=[N+:14]=[N-:15]'
     # initialize the constructor
     chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
@@ -184,6 +185,7 @@ def test_chemical_equation_attributes_are_available():
     template = chemical_equation.template
     assert disconnection
     assert template
+    assert chemical_equation.smiles == expected_smiles
 
 
 def test_chemical_equation_attributes_are_not_available():

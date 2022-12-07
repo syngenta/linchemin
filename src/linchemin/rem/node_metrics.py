@@ -39,8 +39,8 @@ class CDNodeScore(NodeScore):
             raise TypeError("CDscore can be computed only on ChemicalEquation instances.")
 
         # Retrieve list of products and reactants of the input reaction
-        products = [prod.rdmol for h, prod in reaction.molecules.items() if h in reaction.roles['products']]
-        reactants = [reac.rdmol for h, reac in reaction.molecules.items() if h in reaction.roles['reactants']]
+        products = [prod.rdmol for h, prod in reaction.catalog.items() if h in reaction.role_map['products']]
+        reactants = [reac.rdmol for h, reac in reaction.catalog.items() if h in reaction.role_map['reactants']]
 
         if len(reactants) == 1:
             return 1

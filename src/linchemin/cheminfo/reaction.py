@@ -31,30 +31,28 @@ class ChemicalEquation:
             smiles: the smiles string associated with the ChemicalEquation instance
 
     """
-    def __init__(self, catalog: Dict[int, Molecule], role_map: dict, stoichiometry_coefficients: dict):
+    def __init__(self, catalog: Dict[int, Molecule], role_map: dict, stoichiometry_coefficients: dict, mapping):
         self.catalog = catalog
-
         self.role_map = role_map
         self.stoichiometry_coefficients = stoichiometry_coefficients
-
-        ################
-        self.roles = role_map  # TODO: remove me and chase down in cgu
-        self.molecules = catalog  # TODO: remove me and chase down in cgu
-        ################
-
+        self.mapping = mapping
         self.hash_map = self.calculate_hash_values()
         self.uid = self.hash_map.get('r_r_p')  # TODO: review
         self.rdrxn = self.build_rdrxn()
         self.smiles = cif.rdrxn_to_string(rdrxn=self.rdrxn, out_fmt='smiles', use_atom_mapping=True)
+        # If the ChemicalEquation is mapped, the disconnection and template are built; otherwise they are set to None
+        if self.mapping:
+            # add disconnection
+            dc = DisconnectionConstructor(identity_property_name='smiles')
+            self.disconnection = dc.build_from_rdrxn(rdrxn=self.build_rdrxn(use_atom_mapping=True))
 
-        # add disconnection
-        dc = DisconnectionConstructor(identity_property_name='smiles')
-        self.disconnection = dc.build_from_rdrxn(rdrxn=self.build_rdrxn(use_atom_mapping=True))
-
-        # add template
-        tc = TemplateConstructor()
-        # self.template = tc.build_from_rdrxn(rdrxn=self.build_rdrxn(use_atom_mapping=True))
-        self.template = tc.build_from_reaction_string(reaction_string=self.smiles, inp_fmt='smiles')
+            # add template
+            tc = TemplateConstructor()
+            # self.template = tc.build_from_rdrxn(rdrxn=self.build_rdrxn(use_atom_mapping=True))
+            self.template = tc.build_from_reaction_string(reaction_string=self.smiles, inp_fmt='smiles')
+        else:
+            self.disconnection = None
+            self.template = None
 
     def __hash__(self) -> int:
         return self.uid
@@ -142,16 +140,18 @@ class ChemicalEquationConstructor:
     def unpack_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
         """ To compute ChemicalEquation attributes from the associated rdkit ChemicalReaction object """
         constructor = MoleculeConstructor(identity_property_name=self.identity_property_name)
-        catalog, role_map, stoichiometry_coefficients = \
-            cif.unpack_rdrxn(rdrxn=rdrxn, identity_property_name=self.identity_property_name, constructor=constructor)
-        return catalog, stoichiometry_coefficients, role_map
+        # catalog, role_map, stoichiometry_coefficients, mapping = \
+        #     cif.unpack_rdrxn(rdrxn=rdrxn, identity_property_name=self.identity_property_name, constructor=constructor)
+        attributes = cif.unpack_rdrxn(rdrxn=rdrxn, identity_property_name=self.identity_property_name,
+                                      constructor=constructor)
+        return attributes.catalog, attributes.stoichiometry_coefficients, attributes.role_map, attributes.mapping
 
     def build_from_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction) -> ChemicalEquation:
         """ To build a ChemicalEquation instance from an rdkit ChemicalReaction object """
-        catalog, stoichiometry_coefficients, role_map = self.unpack_rdrxn(rdrxn=rdrxn)
+        catalog, stoichiometry_coefficients, role_map, mapping = self.unpack_rdrxn(rdrxn=rdrxn)
 
         return ChemicalEquation(catalog=catalog, role_map=role_map,
-                                stoichiometry_coefficients=stoichiometry_coefficients)
+                                stoichiometry_coefficients=stoichiometry_coefficients, mapping=mapping)
 
     def build_from_reaction_string(self, reaction_string: str, inp_fmt: str) -> ChemicalEquation:
         """ To build a ChemicalEquation instance from a reaction string """

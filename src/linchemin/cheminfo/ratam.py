@@ -8,8 +8,10 @@ import pprint
 
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
+from linchemin.cheminfo.molecule import Molecule
 
 print(rdkit.__version__)
+logger = utilities.console_logger(__name__)
 
 rxn1 = rdChemReactions.ReactionFromRxnBlock('''$RXN
 
@@ -136,11 +138,73 @@ $MOL
 M  END
 ''')
 
+AtomTransformation = namedtuple('AtomTransformation', ['product_uid', 'reactant_uid', 'prod_atom_id', 'react_atom_id',
+                                                       'map_num'])
 
 
-class Mp:
-    def __init__(self, rdrxn_inp: rdChemReactions.ChemicalReaction):
-        pass
+class ChemicalEquationMapping:
+    """ Class to store ChemicalEquation atom mapping information.
+
+        Attributes:
+            full_map_info: a dictionary in the form {mol_uid: {atom_idx: map_num'}} containing the full
+                           information about the ChemicalEquation atom mapping
+
+            atom_transformations: a list of AtomTransformation namedtuples
+    """
+
+    def __init__(self, reaction_mols: dict):
+        self.atom_transformations = None
+        self.full_map_info = {}
+        for m in reaction_mols['reactants_reagents'] + reaction_mols['products']:
+            self.full_map_info[m.uid] = {}
+            for a in m.rdmol_mapped.GetAtoms():
+                if isinstance(a.GetAtomMapNum(), int):
+                    self.full_map_info[m.uid][a.GetIdx()] = a.GetAtomMapNum()
+                else:
+                    self.full_map_info[m.uid][a.GetIdx()] = -1
+
+        self.get_atom_transformations(reaction_mols)
+
+    def get_atom_transformations(self, reaction_mols: dict):
+        """ To create the list of AtomTransformations from a catalog of mapped Molecule objects """
+        atom_transformations = []
+        for product in reaction_mols['products']:
+            prod_map = self.full_map_info[product.uid]
+            for reactant in reaction_mols['reactants_reagents']:
+                reactant_map = self.full_map_info[reactant.uid]
+                if matching_map_num := [map_num for map_num in reactant_map.values() if map_num in prod_map.values()
+                                                                                        and map_num not in [0, -1]]:
+                    atom_transformations.extend(build_atom_transformations(matching_map_num, prod_map,
+                                                                           product.uid, reactant_map,
+                                                                           reactant.uid))
+        self.atom_transformations = atom_transformations
+
+
+def build_atom_transformations(matching_map_num, prod_map, product_uid, reactant_map, reactant_uid):
+    """ To build the list of AtomTransformation objects for each pair of product-reactant with matching map number"""
+    ats = []
+    for map_num in matching_map_num:
+        p_aids = [aid for aid, map in prod_map.items() if map == map_num]
+        r_aids = [aid for aid, map in reactant_map.items() if map == map_num]
+        ats.extend([AtomTransformation(product_uid, reactant_uid, p_aid, r_aid, map_num)
+                    for p_aid in p_aids
+                    for r_aid in r_aids])
+    return ats
+
+
+def new_role_reassignment(reaction_mols: dict, cem: ChemicalEquationMapping, desired_product: Molecule):
+    """ To reassign the roles of reactants and reagents based on the mapping on the desired product """
+    if desired_product not in reaction_mols['products']:
+        logger.error('The selected product is not among the reaction products.')
+        return None
+    desired_product_transformations = [at for at in cem.atom_transformations if at.product_uid == desired_product.uid]
+    true_reactants_uid = {at.reactant_uid for at in desired_product_transformations}
+    true_reagents = {r.uid for r in reaction_mols['reactants_reagents'] if r.uid not in true_reactants_uid}
+    true_reactants = {r.uid for r in reaction_mols['reactants_reagents'] if r.uid in true_reactants_uid}
+    products = [m.uid for m in reaction_mols['products']]
+    return {'reactants': sorted(list(true_reactants)),
+            'reagents': sorted(list(true_reagents)),
+            'products': sorted(products)}
 
 
 def map_atoms(rdmol_reaction_catalog):

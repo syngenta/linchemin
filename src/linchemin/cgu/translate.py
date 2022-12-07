@@ -479,15 +479,15 @@ class TranslatorNOC(AbsTranslator):
 
                 if type(node_instance) is ChemicalEquation:
                     # append role edges
-                    for item in node_instance.roles.get('reactants'):
+                    for item in node_instance.role_map.get('reactants'):
                         edge_doc = {'type': 'REACTANT', 'source': item, 'destination': node_instance.uid,
                                     'properties': {}}
                         edge_documents.append(edge_doc)
-                    for item in node_instance.roles.get('reagents'):
+                    for item in node_instance.role_map.get('reagents'):
                         edge_doc = {'type': 'REAGENT', 'source': item, 'destination': node_instance.uid,
                                     'properties': {}}
                         edge_documents.append(edge_doc)
-                    for item in node_instance.roles.get('products'):
+                    for item in node_instance.role_map.get('products'):
                         edge_doc = {'type': 'PRODUCT', 'source': node_instance.uid, 'destination': item,
                                     'properties': {}}
                         edge_documents.append(edge_doc)

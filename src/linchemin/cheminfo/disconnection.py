@@ -89,8 +89,8 @@ class DisconnectionConstructor:
     def build_from_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction, desired_product_idx: int = 0) -> \
             Union[Disconnection, None]:
 
-        if len(rdrxn.GetReactants()) == 0 or len(rdrxn.GetProducts()) == 0: #TODO replace with a diagnosis at the CE level
-            return None
+        # if len(rdrxn.GetReactants()) == 0 or len(rdrxn.GetProducts()) == 0: #TODO replace with a diagnosis at the CE level
+        #     return None
 
         rxn_reactive_center = RXNReactiveCenter(rdrxn=rdrxn)
 

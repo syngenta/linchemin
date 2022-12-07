@@ -148,9 +148,11 @@ class TemplateConstructor:
 
     def unpack_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
         constructor = PatternConstructor(identity_property_name=self.identity_property_name)
-        catalog, role_map, stoichiometry_coefficients = \
-            cif.unpack_rdrxn(rdrxn=rdrxn, identity_property_name=self.identity_property_name, constructor=constructor)
-        return catalog, stoichiometry_coefficients, role_map
+        # catalog, role_map, stoichiometry_coefficients, mapping = \
+        #     cif.unpack_rdrxn(rdrxn=rdrxn, identity_property_name=self.identity_property_name, constructor=constructor)
+        attributes = cif.unpack_rdrxn(rdrxn=rdrxn, identity_property_name=self.identity_property_name,
+                                      constructor=constructor)
+        return attributes.catalog, attributes.stoichiometry_coefficients, attributes.role_map
 
     def build_from_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction) -> Union[Template, None]:
         reaction_string = cif.rdChemReactions.ReactionToSmarts(rdrxn)
