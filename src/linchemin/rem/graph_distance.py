@@ -1,7 +1,9 @@
 from linchemin.cgu.translate import translator
 from linchemin.cheminfo.reaction import ChemicalEquation, Molecule
 from linchemin.cgu.syngraph import SynGraph, MonopartiteReacSynGraph, BipartiteSynGraph
-import linchemin.cheminfo.functions as cif
+from linchemin.cheminfo.chemical_similarity import (compute_reaction_fingerprint, compute_similarity,
+                                                    compute_mol_fingerprint)
+# import linchemin.cheminfo.functions as cif
 from linchemin.utilities import console_logger
 
 import abc
@@ -17,17 +19,21 @@ Module containing classes and functions to compute the similarity between pairs 
 
 logger = console_logger(__name__)
 
+
 class GraphDistanceError(Exception):
     """ Base class for exceptions leading to unsuccessful distance calculation."""
     pass
+
 
 class UnavailableGED(GraphDistanceError):
     """ Raised if the selected method to compute the graph distance is not among the available ones. """
     pass
 
+
 class MismatchingGraph(GraphDistanceError):
     """ Raised if the input graphs are of different types """
     pass
+
 
 class TooFewRoutes(GraphDistanceError):
     """ Raised if fewer than 2 routes are passed when computing the distance matrix """
@@ -145,7 +151,7 @@ class GedOptNx(Ged):
 
         else:
             logger.error(f'Graph1 has type = {type(syngraph1)} \nGraph2 has type = {type(syngraph2)}. '
-                            f'The GED cannot be computed between graph of different types.')
+                         f'The GED cannot be computed between graph of different types.')
             raise MismatchingGraph
 
         for g in opt_ged:
@@ -387,20 +393,20 @@ def node_subst_cost(node1, node2, reaction_fingerprints, reaction_fp_params, rea
             and type(node2['attributes']['properties']['node_class']) == ChemicalEquation:
         rdrxn1 = node1['attributes']['properties']['node_class'].rdrxn
         rdrxn2 = node2['attributes']['properties']['node_class'].rdrxn
-        fp1 = cif.compute_reaction_fingerprint(rdrxn1, fp_name=reaction_fingerprints, params=reaction_fp_params)
-        fp2 = cif.compute_reaction_fingerprint(rdrxn2, fp_name=reaction_fingerprints, params=reaction_fp_params)
-        tanimoto = cif.compute_similarity(fp1, fp2, similarity_name=reaction_similarity_name)
+        fp1 = compute_reaction_fingerprint(rdrxn1, fp_name=reaction_fingerprints, params=reaction_fp_params)
+        fp2 = compute_reaction_fingerprint(rdrxn2, fp_name=reaction_fingerprints, params=reaction_fp_params)
+        tanimoto = compute_similarity(fp1, fp2, similarity_name=reaction_similarity_name)
         return 1.0 - tanimoto
 
     elif type(node1['attributes']['properties']['node_class']) == Molecule and \
             type(node2['attributes']['properties']['node_class']) == Molecule:
         rdmol1 = node1['attributes']['properties']['node_class'].rdmol
         rdmol2 = node2['attributes']['properties']['node_class'].rdmol
-        fp1 = cif.compute_mol_fingerprint(rdmol1, fp_name=molecular_fingerprint, parameters=molecular_fp_params,
-                                          count_fp_vector=molecular_fp_count_vect)
-        fp2 = cif.compute_mol_fingerprint(rdmol2, fp_name=molecular_fingerprint, parameters=molecular_fp_params,
-                                          count_fp_vector=molecular_fp_count_vect)
-        tanimoto = cif.compute_similarity(fp1, fp2, similarity_name=molecular_similarity_name)
+        fp1 = compute_mol_fingerprint(rdmol1, fp_name=molecular_fingerprint, parameters=molecular_fp_params,
+                                      count_fp_vector=molecular_fp_count_vect)
+        fp2 = compute_mol_fingerprint(rdmol2, fp_name=molecular_fingerprint, parameters=molecular_fp_params,
+                                      count_fp_vector=molecular_fp_count_vect)
+        tanimoto = compute_similarity(fp1, fp2, similarity_name=molecular_similarity_name)
         return 1.0 - tanimoto
 
     else:
@@ -431,22 +437,22 @@ def compute_nodes_fingerprints(syngraph, reaction_fingerprints, molecular_finger
     for r, connections in syngraph.graph.items():
         if type(r) == ChemicalEquation:
             if r.uid not in reaction_nodes_fingerprints:
-                reaction_nodes_fingerprints[r.uid] = cif.compute_reaction_fingerprint(r.rdrxn,
+                reaction_nodes_fingerprints[r.uid] = compute_reaction_fingerprint(r.rdrxn,
                                                                                       fp_name=reaction_fingerprints,
                                                                                       params=reaction_fp_params)
         elif r.uid not in molecule_node_fingerprints:
-            molecule_node_fingerprints[r.uid] = cif.compute_mol_fingerprint(r.rdmol, fp_name=molecular_fingerprint,
+            molecule_node_fingerprints[r.uid] = compute_mol_fingerprint(r.rdmol, fp_name=molecular_fingerprint,
                                                                             parameters=molecular_fp_params,
                                                                             count_fp_vector=molecular_fp_count_vect)
 
         for c in connections:
             if type(c) == ChemicalEquation:
                 if c.uid not in reaction_nodes_fingerprints:
-                    reaction_nodes_fingerprints[c.uid] = cif.compute_reaction_fingerprint(c.rdrxn,
+                    reaction_nodes_fingerprints[c.uid] = compute_reaction_fingerprint(c.rdrxn,
                                                                                           fp_name=reaction_fingerprints,
                                                                                           params=reaction_fp_params)
             elif c.uid not in molecule_node_fingerprints:
-                molecule_node_fingerprints[c.uid] = cif.compute_mol_fingerprint(c.rdmol,
+                molecule_node_fingerprints[c.uid] = compute_mol_fingerprint(c.rdmol,
                                                                                 fp_name=molecular_fingerprint,
                                                                                 parameters=molecular_fp_params,
                                                                                 count_fp_vector=molecular_fp_count_vect)
@@ -473,7 +479,7 @@ def build_similarity_matrix(d_fingerprints1, d_fingerprints2, similarity_name='t
     for h1, fp1 in d_fingerprints1.items():
         for h2, fp2 in d_fingerprints2.items():
             if matrix.loc[h2, h1] == 0:
-                sim = cif.compute_similarity(fp1, fp2, similarity_name=similarity_name)
+                sim = compute_similarity(fp1, fp2, similarity_name=similarity_name)
                 matrix.loc[h2, h1] = sim
     return matrix
 

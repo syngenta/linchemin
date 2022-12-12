@@ -177,76 +177,69 @@ def draw_mol(smiles: str, filename: str):
 
 
 ####################################################################################################
-# Reaction / Chemical Equation
-# Reaction fingerprint factory
-
-class ReactionFingerprint(ABC):
-    """ Definition of the abstract class for reaction fingerprints """
-
-    @abstractmethod
-    def compute_reac_fingerprint(self, rdrxn, params):
-        pass
+# utilities functions for creating fingerprints
+def get_empty_reaction_fp_parameter_dict():
+    return rdChemReactions.ReactionFingerprintParams()
 
 
-class DiffReactionFingerprint(ReactionFingerprint):
-    def compute_reac_fingerprint(self, rdrxn, params):
-        # Setting the parameters of the reaction fingerprint; if they are not specified, the default parameters as
-        # specified in the link below are used:
-        # https://github.com/rdkit/rdkit/blob/master/Code/GraphMol/ChemReactions/ReactionFingerprints.cpp#L123
-        if params is None:
-            params = {}
-        fp_params = rdChemReactions.ReactionFingerprintParams()
-        fp_params.includeAgents = params.get('includeAgents', True)
-        fp_params.fpSize = params.get('fpSize', 2048)
-        fp_params.nonAgentWeight = params.get('nonAgentWeight', 10)
-        fp_params.agentWeight = params.get('agentWeight', 1)
-        fp_params.bitRatioAgents = params.get('bitRatioAgents', 0.0)
-        fp_params.fpType = params.get('fpType', rdChemReactions.FingerprintType.AtomPairFP)
-
-        return rdChemReactions.CreateDifferenceFingerprintForReaction(rdrxn, ReactionFingerPrintParams=fp_params)
+def create_difference_reaction_fp(rdrxn, fp_params):
+    return rdChemReactions.CreateDifferenceFingerprintForReaction(rdrxn, ReactionFingerPrintParams=fp_params)
 
 
-class StructReactionFingerprint(ReactionFingerprint):
-    def compute_reac_fingerprint(self, rdrxn, params):
-        # Setting the parameters of the reaction fingerprint; if they are not specified, the default parameters as
-        # specified in the link below are used:
-        # https://github.com/rdkit/rdkit/blob/master/Code/GraphMol/ChemReactions/ReactionFingerprints.cpp#L123
-        if params is None:
-            params = {}
-        fp_params = rdChemReactions.ReactionFingerprintParams()
-        fp_params.includeAgents = params.get('includeAgents', True)
-        fp_params.fpSize = params.get('fpSize', 4096)
-        fp_params.nonAgentWeight = params.get('nonAgentWeight', 1)
-        fp_params.agentWeight = params.get('agentWeight', 1)
-        fp_params.bitRatioAgents = params.get('bitRatioAgents', 0.2)
-        fp_params.fpType = params.get('fpType', rdChemReactions.FingerprintType.PatternFP)
-
-        return rdChemReactions.CreateStructuralFingerprintForReaction(rdrxn, ReactionFingerPrintParams=fp_params)
+def create_structure_reaction_fp(rdrxn, fp_params):
+    return rdChemReactions.CreateStructuralFingerprintForReaction(rdrxn, ReactionFingerPrintParams=fp_params)
 
 
-def compute_reaction_fingerprint(rdrxn, fp_name: str, params=None):
-    """ To compute the reaction fingerprint with the selected method and the optional parameters.
+def get_atom_pair_fp():
+    return rdChemReactions.FingerprintType.AtomPairFP
 
-        Parameters:
-            rdrxn: an rdkit rdChemReactions.ChemicalReaction instance
-            fp_name: a string representing the selected type of fingerprint to be used
-            params: an optional dictionary to change the default parameters
 
-        Returns:
-            fp: the fingerprint of the reaction
-    """
-    # control the behavior of fingerprint generation via the parameters
-    #  https://www.rdkit.org/docs/source/rdkit.Chem.rdChemReactions.html#rdkit.Chem.rdChemReactions.ReactionFingerprintParams
+def get_pattern_fp():
+    return rdChemReactions.FingerprintType.PatternFP
 
-    fingerprint_map = {'structure_fp': StructReactionFingerprint(),
-                       'difference_fp': DiffReactionFingerprint()
-                       }
 
-    if fp_name in fingerprint_map:
-        return fingerprint_map.get(fp_name).compute_reac_fingerprint(rdrxn, params)
-    else:
-        raise KeyError(
-            f'Invalid fingerprint type: {fp_name} is not available.\nAvailable options are: {fingerprint_map.keys()}')
+def generate_rdkit_fp(params):
+    return rdFingerprintGenerator.GetRDKitFPGenerator(
+        minPath=params.get('minPath', 1),
+        maxPath=params.get('maxPath', 7),
+        countSimulation=params.get('countSimulation', False),
+        numBitsPerFeature=params.get('numBitsPerFeature', 2),
+        fpSize=params.get('fpSize', 2048))
+
+
+def generate_morgan_fp(params):
+    return rdFingerprintGenerator.GetMorganGenerator(
+        radius=params.get('radius', 3),
+        useCountSimulation=params.get('countSimulation', False),
+        includeChirality=params.get('includeChirality', False),
+        useBondTypes=params.get('useBondTypes', True),
+        countBounds=params.get('countBounds', None),
+        fpSize=params.get('fpSize', 2048))
+
+
+def generate_topological_fp(params):
+    return rdFingerprintGenerator.GetTopologicalTorsionGenerator(
+        includeChirality=params.get('includeChirality', False),
+        torsionAtomCount=params.get('torsionAtomCount', 4),
+        countSimulation=params.get('countSimulation', True),
+        countBounds=params.get('countBounds', None),
+        fpSize=params.get('fpSize', 2048))
+
+
+def get_tanimoto_similarity(fp1, fp2):
+    return DataStructs.TanimotoSimilarity(fp1, fp2)
+
+
+def get_kulczynski_similarity(fp1, fp2):
+    return DataStructs.KulczynskiSimilarity(fp1, fp2)
+
+
+def get_dice_similarity(fp1, fp2):
+    return DataStructs.DiceSimilarity(fp1, fp2)
+
+
+def get_mcconnaughey_similarity(fp1, fp2):
+    return DataStructs.McConnaugheySimilarity(fp1, fp2)
 
 
 def rdrxn_from_string(input_string: str, inp_fmt: str) -> rdChemReactions.ChemicalReaction:
@@ -594,111 +587,6 @@ def rdrxn_role_reassignment(rdrxn: rdChemReactions.ChemicalReaction,
         else:
             rxn_mol_catalog.get('reactants').append(rdmol)
     return rdrxn_from_rxn_mol_catalog(rxn_mol_catalog=rxn_mol_catalog)
-
-
-def compute_similarity(fp1, fp2, similarity_name: str) -> float:
-    """
-    Computes the chemical similarity between the input pair of fingerprints using the selected similarity algorithm
-
-    Parameters:
-        fp1, fp2: pair of molecular or reaction fingerprints
-        similarity_name: string indicating the selected similarity algorithm
-
-    Returns:
-        a float, output of the similarity algorithm
-    """
-    similarity_map = {'tanimoto': DataStructs.TanimotoSimilarity,
-                      'kulczynski': DataStructs.KulczynskiSimilarity,
-                      'dice': DataStructs.DiceSimilarity,
-                      'mcconnaughey': DataStructs.McConnaugheySimilarity}
-
-    metric = similarity_map.get(similarity_name)
-    # The syntax below is not compatible with count vectors fingerprints generated by GetCountFingerprint and with the
-    # difference fingerprints for reactions
-    # similarity = DataStructs.FingerprintSimilarity(fp1, fp2, metric=metric)
-    return metric(fp1, fp2)
-
-
-# Molecular fingerprints factory
-class MolFingerprint(ABC):
-    """ Definition of the abstract class for molecular fingerprints """
-
-    @abstractmethod
-    def compute_molecular_fingerprint(self, rdmol: Mol, parameters, count_fp_vector):
-        pass
-
-
-class RDKitMolFingerprint(MolFingerprint):
-    def compute_molecular_fingerprint(self, rdmol: Mol, params, count_fp_vector):
-        if params is None:
-            params = {}
-        fpgen = rdFingerprintGenerator.GetRDKitFPGenerator(
-            minPath=params.get('minPath', 1),
-            maxPath=params.get('maxPath', 7),
-            countSimulation=params.get('countSimulation', False),
-            numBitsPerFeature=params.get('numBitsPerFeature', 2),
-            fpSize=params.get('fpSize', 2048))
-        fp_builder = select_fp_vector(fpgen, count_fp_vector)
-        return fp_builder(rdmol)
-
-
-class MorganMolFingerprint(MolFingerprint):
-    def compute_molecular_fingerprint(self, rdmol: Mol, params, count_fp_vector):
-        if params is None:
-            params = {}
-        fpgen = rdFingerprintGenerator.GetMorganGenerator(
-            radius=params.get('radius', 3),
-            useCountSimulation=params.get('countSimulation', False),
-            includeChirality=params.get('includeChirality', False),
-            useBondTypes=params.get('useBondTypes', True),
-            countBounds=params.get('countBounds', None),
-            fpSize=params.get('fpSize', 2048))
-        fp_builder = select_fp_vector(fpgen, count_fp_vector)
-        return fp_builder(rdmol)
-
-
-class TopologicalMolFingerprint(MolFingerprint):
-    def compute_molecular_fingerprint(self, rdmol: Mol, params, count_fp_vector):
-        if params is None:
-            params = {}
-        fpgen = rdFingerprintGenerator.GetTopologicalTorsionGenerator(
-            includeChirality=params.get('includeChirality', False),
-            torsionAtomCount=params.get('torsionAtomCount', 4),
-            countSimulation=params.get('countSimulation', True),
-            countBounds=params.get('countBounds', None),
-            fpSize=params.get('fpSize', 2048))
-
-        fp_builder = select_fp_vector(fpgen, count_fp_vector)
-        return fp_builder(rdmol)
-
-
-def compute_mol_fingerprint(rdmol: Mol, fp_name: str, parameters=None, count_fp_vector=False):
-    """ Takes an rdmol object, the fingerprint type, an optional dictionary to change the default
-        parameters and a boolean and returns the selected fingerprint of the given rdmol.
-
-        Parameters:
-            rdmol: a molecule as rdkit object
-            fp_name: a string representing the name of the fingerprint generator
-            parameters: an optional dictionary
-            count_fp_vector: an option boolean indicating whether the 'GetCountFingerprint' should be used
-
-        Returns:
-            fp: the fingerprint of the molecule
-    """
-    fp_generators_map = {'rdkit': RDKitMolFingerprint(),
-                         'morgan': MorganMolFingerprint(),
-                         'topological': TopologicalMolFingerprint()
-                         }
-    if fp_name in fp_generators_map:
-        return fp_generators_map.get(fp_name).compute_molecular_fingerprint(rdmol, parameters, count_fp_vector)
-
-    else:
-        raise KeyError(
-            f'Invalid fingerprint type: {fp_name} is not available.\nAvailable options are: {fp_generators_map.keys()}')
-
-
-def select_fp_vector(fpgen, count_fp_vector):
-    return fpgen.GetCountFingerprint if count_fp_vector else fpgen.GetFingerprint
 
 
 def draw_reaction(smiles: str, filename: str):
