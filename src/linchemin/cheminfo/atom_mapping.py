@@ -11,6 +11,7 @@ Module containing classes and functions for the pipeline of atom-2-atom mapping 
 
 logger = console_logger(__name__)
 
+
 class UnavailableMapper(KeyError):
     """ Raised if the selected mapper is not among the available ones."""
     pass

@@ -1,5 +1,5 @@
 from linchemin.rem.node_metrics import node_score_calculator, reaction_mapping
-from linchemin.cheminfo.reaction import ChemicalEquation, ChemicalEquationConstructor
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 import pytest
 
 

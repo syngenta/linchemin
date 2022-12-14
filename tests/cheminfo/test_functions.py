@@ -7,7 +7,7 @@ from linchemin.cheminfo.functions import canonicalize_rdmol, get_canonical_order
     rdrxn_to_string, rdrxn_from_string, rdmol_to_bstr, bstr_to_rdmol, \
     rdrxn_from_string, draw_mol, \
     compute_oxidation_numbers, calculate_molecular_hash_values, rdrxn_role_reassignment, rdrxn_to_rxn_mol_catalog, \
-    remove_rdmol_atom_mapping
+    remove_rdmol_atom_mapping, rdchiral_extract_template
 
 
 def test_build_rdrxn_from_smiles():
@@ -142,6 +142,31 @@ def test_canonicalize_rdmol():
     m2_can_canonical_order = get_canonical_order(m2_can)
     assert (m1_can_canonical_order == m2_can_canonical_order)
 
+
+def test_run_rdchiral_wrapper_on_list_of_reactions():
+    list_input = [{'reaction_id': 1,
+                   'reaction_string': '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]',
+                   'inp_fmt': 'smiles',
+                   },
+                  {'reaction_id': 1,
+                   'reaction_string': '[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]>>[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]',
+                   'inp_fmt': 'smiles',
+                   }
+                  ]
+
+    list_output = [rdchiral_extract_template(**item) for item in list_input]
+    expected_list_output = [
+        {'products': '[C;D1;H3:1]-[C;H0;D3;+0:2](=[O;D1;H0:3])-[NH;D2;+0:6]-[C;D1;H3:5].[OH2;D0;+0:4]',
+         'reactants': '[C;D1;H3:1]-[C;H0;D3;+0:2](=[O;D1;H0:3])-[OH;D1;+0:4].[C;D1;H3:5]-[NH2;D1;+0:6]',
+         'reaction_smarts': '[C;D1;H3:1]-[C;H0;D3;+0:2](=[O;D1;H0:3])-[NH;D2;+0:6]-[C;D1;H3:5].[OH2;D0;+0:4]>>[C;D1;H3:1]-[C;H0;D3;+0:2](=[O;D1;H0:3])-[OH;D1;+0:4].[C;D1;H3:5]-[NH2;D1;+0:6]',
+         'intra_only': False, 'dimer_only': False, 'reaction_id': 1, 'necessary_reagent': ''},
+        {'products': '[C;D1;H3:1]-[C;H0;D3;+0:2](=[O;D1;H0:3])-[OH;D1;+0:6].[C;D1;H3:5]-[NH2;D1;+0:4]',
+         'reactants': '[C;D1;H3:1]-[C;H0;D3;+0:2](=[O;D1;H0:3])-[NH;D2;+0:4]-[C;D1;H3:5].[OH2;D0;+0:6]',
+         'reaction_smarts': '[C;D1;H3:1]-[C;H0;D3;+0:2](=[O;D1;H0:3])-[OH;D1;+0:6].[C;D1;H3:5]-[NH2;D1;+0:4]>>[C;D1;H3:1]-[C;H0;D3;+0:2](=[O;D1;H0:3])-[NH;D2;+0:4]-[C;D1;H3:5].[OH2;D0;+0:6]',
+         'intra_only': False, 'dimer_only': False, 'reaction_id': 1, 'necessary_reagent': ''}]
+
+    for a, b in zip(list_output, expected_list_output):
+        assert a == b
 
 def test_unpack_rdrxn():
     print('IMPLEMENT: test_unpack_rdrxn')  # TODO

@@ -1,5 +1,5 @@
 from linchemin.cgu.discgraph import DisconnectionGraph, MissingAtomMapping
-from linchemin.cheminfo.reaction import ChemicalEquationConstructor
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph
 import pytest
 

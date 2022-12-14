@@ -1,5 +1,5 @@
 import linchemin.cheminfo.functions as cif
-from linchemin.cheminfo.disconnection import Disconnection, DisconnectionConstructor
+from linchemin.cheminfo.constructors import DisconnectionConstructor
 from linchemin.IO import io as lio
 import linchemin.cheminfo.depiction as cid
 
@@ -106,13 +106,13 @@ def test_depiction():
         # print(f"\n{item.get('name')} {disconnection.__dict__}")
 
 
-def xtest():
+def test_xtest():
     # smiles= '[CH3:6][CH:7]=[CH2:8].[CH3:1][C:2](=[CH2:3])[CH:4]=[CH2:5]>>[CH3:6][CH:7]1[CH2:8][CH2:5][CH:4]=[C:2]([CH2:3]1)[CH3:1]'
     smiles = '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15]>C(Cl)Cl.C(=O)(C(=O)Cl)Cl>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]'
 
     import linchemin.cheminfo.depiction as cid
     from linchemin.IO import io as lio
-    from linchemin.cheminfo.reaction import ChemicalEquation, ChemicalEquationConstructor
+    from linchemin.cheminfo.constructors import ChemicalEquationConstructor
     chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
                                                                                  inp_fmt='smiles')
@@ -129,4 +129,4 @@ def xtest():
         new_bonds=disconnection.new_bonds,
         modified_bonds=disconnection.modified_bonds,
         rdmol=disconnection.rdmol)
-    #lio.write_rdkit_depict(data=depiction_data, file_path=f"x_disconnection.png")
+    # lio.write_rdkit_depict(data=depiction_data, file_path=f"x_disconnection.png")

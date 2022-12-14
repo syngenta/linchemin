@@ -44,7 +44,8 @@ def test_namerxn_service(ibm1_path):
         assert parent.disconnection is not None
         assert parent.template is not None
     # With test file ibm2_path, even if the reactions are all mapped, some disconnections remain None;
-    # the code below is used to debug
+    # the code below is used to debug -> The issue is due to deprotection reaction, where the new bond is with an H
+    # and not detected by the current system
     #     print('***')
     #     print(parent.smiles)
     #     print(parent.disconnection)

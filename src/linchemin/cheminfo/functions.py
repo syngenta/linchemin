@@ -11,10 +11,11 @@ from rdkit.Chem.rdchem import Mol, Atom
 from rdkit.Chem.Draw import DrawingOptions, rdMolDraw2D
 from rdkit.Chem.rdMolHash import HashFunction, MolHash
 from rdkit import RDLogger
+import linchemin.utilities as utilities
+from rdchiral import template_extractor
 
-from linchemin.cheminfo.ratam import ChemicalEquationMapping, new_role_reassignment
-
-RDLogger.DisableLog('rdApp.*')
+# RDLogger.DisableLog('rdApp.*')
+logger = utilities.console_logger(__name__)
 
 
 # RDMOLECULE
@@ -178,25 +179,6 @@ def draw_mol(smiles: str, filename: str):
 
 ####################################################################################################
 # utilities functions for creating fingerprints
-def get_empty_reaction_fp_parameter_dict():
-    return rdChemReactions.ReactionFingerprintParams()
-
-
-def create_difference_reaction_fp(rdrxn, fp_params):
-    return rdChemReactions.CreateDifferenceFingerprintForReaction(rdrxn, ReactionFingerPrintParams=fp_params)
-
-
-def create_structure_reaction_fp(rdrxn, fp_params):
-    return rdChemReactions.CreateStructuralFingerprintForReaction(rdrxn, ReactionFingerPrintParams=fp_params)
-
-
-def get_atom_pair_fp():
-    return rdChemReactions.FingerprintType.AtomPairFP
-
-
-def get_pattern_fp():
-    return rdChemReactions.FingerprintType.PatternFP
-
 
 def generate_rdkit_fp(params):
     return rdFingerprintGenerator.GetRDKitFPGenerator(
@@ -226,22 +208,7 @@ def generate_topological_fp(params):
         fpSize=params.get('fpSize', 2048))
 
 
-def get_tanimoto_similarity(fp1, fp2):
-    return DataStructs.TanimotoSimilarity(fp1, fp2)
-
-
-def get_kulczynski_similarity(fp1, fp2):
-    return DataStructs.KulczynskiSimilarity(fp1, fp2)
-
-
-def get_dice_similarity(fp1, fp2):
-    return DataStructs.DiceSimilarity(fp1, fp2)
-
-
-def get_mcconnaughey_similarity(fp1, fp2):
-    return DataStructs.McConnaugheySimilarity(fp1, fp2)
-
-
+# RDRXN
 def rdrxn_from_string(input_string: str, inp_fmt: str) -> rdChemReactions.ChemicalReaction:
     format_function_map = {'smiles': partial(Chem.rdChemReactions.ReactionFromSmarts, useSmiles=True),
                            'smarts': partial(Chem.rdChemReactions.ReactionFromSmarts, useSmiles=False),
@@ -306,141 +273,174 @@ def select_desired_product(mol_catalog: dict):
     return mol_catalog['products'][0]
 
 
-def unpack_rdrxn(rdrxn: rdChemReactions.ChemicalReaction, identity_property_name, constructor):
-    reaction_rdmols = rdrxn_to_rxn_mol_catalog(rdrxn=rdrxn)
-    if is_mapped(reaction_rdmols):
-        builder_type = 'mapped'
-        # return unpack_mapped_rdrxn(reaction_rdmols, constructor)
-    else:
-        builder_type = 'unmapped'
-        # return unpack_unmapped_rdrxn(reaction_rdmols, constructor)
-    reaction_mols = rdmol_catalog_to_molecule_catalog(reaction_rdmols, constructor)
-    builder = AttributeBuilder()
-    builder.set_builder(builder_type)
-    return builder.get_attributes(reaction_mols)
-
-
-class ChemicalEquationAttributes:
-    def __init__(self):
-        self.catalog = None
-        self.role_map = None
-        self.stoichiometry_coefficients = None
-        self.mapping = None
-        self.disconnection = None
-        self.template = None
-
-    def set_catalog(self, catalog):
-        self.catalog = catalog
-
-    def set_role_map(self, role_map):
-        self.role_map = role_map
-
-    def set_stoichiometry_coefficients(self, stoichiometry_coefficients):
-        self.stoichiometry_coefficients = stoichiometry_coefficients
-
-    def set_mapping(self, mapping):
-        self.mapping = mapping
-
-    def set_disconnection(self, disconnection):
-        self.disconnection = disconnection
-
-    def set_template(self, template):
-        self.template = template
-
-
-class ChemicalEquationAttributesGenerator(ABC):
-    """ Abstract class for ChemicalEquationAttributesGenerator """
-
-    def get_basic_attributes(self, reaction_mols: dict):
-        pass
-
-    @abstractmethod
-    def generate_template(self, *args):
-        pass
-
-    @abstractmethod
-    def generate_disconnection(self, *args):
-        pass
-
-
-class UnmappedChemicalEquationAttributesGenerator(ChemicalEquationAttributesGenerator):
-
-    def get_basic_attributes(self, reaction_mols: dict):
-        mapping = None
-        role_map = {role: sorted([m.uid for m in set(mols)]) for role, mols in reaction_mols.items()}
-        all_molecules = reaction_mols['reactants'] + reaction_mols['reagents'] + reaction_mols['products']
-        catalog = {m.uid: m for m in set(all_molecules)}
-        stoichiometry_coefficients = {}
-
-        for role, mol_uid_list in role_map.items():
-            mols = [m for m in all_molecules if m.uid in mol_uid_list]
-            stoichiometry_coefficients_tmp = {m.uid: mols.count(m) for m in set(mols) if m.uid in mol_uid_list}
-            stoichiometry_coefficients[role] = stoichiometry_coefficients_tmp
-
-        return catalog, role_map, stoichiometry_coefficients, mapping
-
-    def generate_template(self):
+def new_role_reassignment(reaction_mols: dict, cem, desired_product):
+    """ To reassign the roles of reactants and reagents based on the mapping on the desired product """
+    if desired_product not in reaction_mols['products']:
+        logger.error('The selected product is not among the reaction products.')
         return None
-
-    def generate_disconnection(self):
-        return None
-
-
-class MappedChemicalEquationAttributesGenerator(ChemicalEquationAttributesGenerator):
-
-    def get_basic_attributes(self, reaction_mols: dict):
-        new_reaction_mols = {'reactants_reagents': reaction_mols['reactants'] + reaction_mols['reagents'],
-                             'products': reaction_mols['products']}
-        mapping = self.generate_mapping(new_reaction_mols)
-
-        desired_product = select_desired_product(reaction_mols)
-        role_map = new_role_reassignment(new_reaction_mols, mapping, desired_product)
-
-        all_molecules = reaction_mols['reactants'] + reaction_mols['reagents'] + reaction_mols['products']
-        catalog = {m.uid: m for m in set(all_molecules)}
-        stoichiometry_coefficients = {}
-
-        for role, mol_uid_list in role_map.items():
-            mols = [m for m in all_molecules if m.uid in mol_uid_list]
-            stoichiometry_coefficients_tmp = {m.uid: mols.count(m) for m in set(mols) if m.uid in mol_uid_list}
-            stoichiometry_coefficients[role] = stoichiometry_coefficients_tmp
-
-        return catalog, role_map, stoichiometry_coefficients, mapping
-
-    def generate_mapping(self, new_reaction_mols: dict):
-        return ChemicalEquationMapping(new_reaction_mols)
-
-    def generate_template(self):
-        return None
-
-    def generate_disconnection(self):
-        return None
+    desired_product_transformations = [at for at in cem.atom_transformations if at.product_uid == desired_product.uid]
+    true_reactants_uid = {at.reactant_uid for at in desired_product_transformations}
+    true_reagents = {r.uid for r in reaction_mols['reactants_reagents'] if r.uid not in true_reactants_uid}
+    true_reactants = {r.uid for r in reaction_mols['reactants_reagents'] if r.uid in true_reactants_uid}
+    products = [m.uid for m in reaction_mols['products']]
+    reagents = check_reagents(cem.full_map_info, true_reagents)
+    return {'reactants': sorted(list(true_reactants)),
+            'reagents': sorted(list(reagents)),
+            'products': sorted(products)}
 
 
-class AttributeBuilder:
-    builders = {'mapped': MappedChemicalEquationAttributesGenerator(),
-                'unmapped': UnmappedChemicalEquationAttributesGenerator()}
-    __builder = None
+def check_reagents(full_map_info, reagents):
+    """ To check if some molecules appear both mapped and unmapped and put the unmapped ones among the reagents"""
+    for uid, map_list in full_map_info.items():
+        for d in map_list:
+            map_nums = list(d.values())
+            if not map_nums or all(map_nums) == 0 or all(map_nums) == -1:
+                reagents.add(uid)
+    return reagents
 
-    def set_builder(self, builder_type: str):
-        self.__builder = self.builders[builder_type]
 
-    def get_attributes(self, reaction_mols):
-        attributes = ChemicalEquationAttributes()
+def rdchiral_extract_template(reaction_string: str, inp_fmt: str, reaction_id: int = None):
+    if inp_fmt != 'smiles':
+        raise NotImplementedError
+    mapped_smiles_split = reaction_string.split('>')
+    rdchiral_input = {'_id': reaction_id,
+                      'reactants': mapped_smiles_split[0],
+                      'agents': mapped_smiles_split[1],
+                      'products': mapped_smiles_split[2]}
+    return template_extractor.extract_from_reaction(reaction=rdchiral_input)
 
-        catalog, role_map, stoichiometry_coefficients, mapping = self.__builder.get_basic_attributes(reaction_mols)
-        attributes.set_catalog(catalog)
-        attributes.set_role_map(role_map)
-        attributes.set_stoichiometry_coefficients(stoichiometry_coefficients)
-        attributes.set_mapping(mapping)
 
-        template = self.__builder.generate_template()
-        attributes.set_template(template)
-
-        disconnection = self.__builder.generate_disconnection()
-        attributes.set_disconnection(disconnection)
-
-        return attributes
+# def unpack_rdrxn(rdrxn: rdChemReactions.ChemicalReaction, identity_property_name, constructor):
+#     """ Initializes the correct builder of the ChemicalEquation attributes based on the presence of the atom mapping """
+#     reaction_rdmols = rdrxn_to_rxn_mol_catalog(rdrxn=rdrxn)
+#     builder_type = 'mapped' if is_mapped(reaction_rdmols) else 'unmapped'
+#     reaction_mols = rdmol_catalog_to_molecule_catalog(reaction_rdmols, constructor)
+#     builder = AttributeBuilder()
+#     builder.set_builder(builder_type)
+#     return builder.get_attributes(reaction_mols)
+#
+#
+# class ChemicalEquationAttributes:
+#     def __init__(self):
+#         self.catalog = None
+#         self.role_map = None
+#         self.stoichiometry_coefficients = None
+#         self.mapping = None
+#         self.disconnection = None
+#         self.template = None
+#
+#     def set_catalog(self, catalog):
+#         self.catalog = catalog
+#
+#     def set_role_map(self, role_map):
+#         self.role_map = role_map
+#
+#     def set_stoichiometry_coefficients(self, stoichiometry_coefficients):
+#         self.stoichiometry_coefficients = stoichiometry_coefficients
+#
+#     def set_mapping(self, mapping):
+#         self.mapping = mapping
+#
+#     def set_disconnection(self, disconnection):
+#         self.disconnection = disconnection
+#
+#     def set_template(self, template):
+#         self.template = template
+#
+#
+# class ChemicalEquationAttributesGenerator(ABC):
+#     """ Abstract class for ChemicalEquationAttributesGenerator """
+#
+#     def get_basic_attributes(self, reaction_mols: dict):
+#         pass
+#
+#     @abstractmethod
+#     def generate_template(self, *args):
+#         pass
+#
+#     @abstractmethod
+#     def generate_disconnection(self, *args):
+#         pass
+#
+#
+# class UnmappedChemicalEquationAttributesGenerator(ChemicalEquationAttributesGenerator):
+#
+#     def get_basic_attributes(self, reaction_mols: dict):
+#         mapping = None
+#         role_map = {role: sorted([m.uid for m in set(mols)]) for role, mols in reaction_mols.items()}
+#         all_molecules = reaction_mols['reactants'] + reaction_mols['reagents'] + reaction_mols['products']
+#         catalog = {m.uid: m for m in set(all_molecules)}
+#         stoichiometry_coefficients = {}
+#
+#         for role, mol_uid_list in role_map.items():
+#             mols = [m for m in all_molecules if m.uid in mol_uid_list]
+#             stoichiometry_coefficients_tmp = {m.uid: mols.count(m) for m in set(mols) if m.uid in mol_uid_list}
+#             stoichiometry_coefficients[role] = stoichiometry_coefficients_tmp
+#
+#         return catalog, role_map, stoichiometry_coefficients, mapping
+#
+#     def generate_template(self):
+#         return None
+#
+#     def generate_disconnection(self):
+#         return None
+#
+#
+# class MappedChemicalEquationAttributesGenerator(ChemicalEquationAttributesGenerator):
+#
+#     def get_basic_attributes(self, reaction_mols: dict):
+#         new_reaction_mols = {'reactants_reagents': reaction_mols['reactants'] + reaction_mols['reagents'],
+#                              'products': reaction_mols['products']}
+#         mapping = self.generate_mapping(new_reaction_mols)
+#
+#         desired_product = select_desired_product(reaction_mols)
+#         role_map = new_role_reassignment(new_reaction_mols, mapping, desired_product)
+#
+#         all_molecules = reaction_mols['reactants'] + reaction_mols['reagents'] + reaction_mols['products']
+#         catalog = {m.uid: m for m in set(all_molecules)}
+#         stoichiometry_coefficients = {}
+#
+#         for role, mol_uid_list in role_map.items():
+#             mols = [m for m in all_molecules if m.uid in mol_uid_list]
+#             stoichiometry_coefficients_tmp = {m.uid: mols.count(m) for m in set(mols) if m.uid in mol_uid_list}
+#             stoichiometry_coefficients[role] = stoichiometry_coefficients_tmp
+#
+#         return catalog, role_map, stoichiometry_coefficients, mapping
+#
+#     def generate_mapping(self, new_reaction_mols: dict):
+#         return ChemicalEquationMapping(new_reaction_mols)
+#
+#     def generate_template(self):
+#         return None
+#
+#     def generate_disconnection(self):
+#         return None
+#
+#
+# class AttributeBuilder:
+#     builders = {'mapped': MappedChemicalEquationAttributesGenerator(),
+#                 'unmapped': UnmappedChemicalEquationAttributesGenerator()}
+#     __builder = None
+#
+#     def set_builder(self, builder_type: str):
+#         self.__builder = self.builders[builder_type]
+#
+#     def get_attributes(self, reaction_mols):
+#         attributes = ChemicalEquationAttributes()
+#
+#         catalog, role_map, stoichiometry_coefficients, mapping = self.__builder.get_basic_attributes(reaction_mols)
+#         attributes.set_catalog(catalog)
+#         attributes.set_role_map(role_map)
+#         attributes.set_stoichiometry_coefficients(stoichiometry_coefficients)
+#         attributes.set_mapping(mapping)
+#
+#         template = self.__builder.generate_template()
+#         attributes.set_template(template)
+#
+#         disconnection = self.__builder.generate_disconnection()
+#         attributes.set_disconnection(disconnection)
+#
+#         return attributes
 
 
 """

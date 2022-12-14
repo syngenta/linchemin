@@ -11,6 +11,13 @@ import linchemin.utilities as utilities
 from linchemin.cheminfo.molecule import Molecule
 
 print(rdkit.__version__)
+
+
+class BadMapping(ValueError):
+    """ To be raised if an atom number is used more than once, indicating that the atom mapping is invalid"""
+    pass
+
+
 logger = utilities.console_logger(__name__)
 
 rxn1 = rdChemReactions.ReactionFromRxnBlock('''$RXN
@@ -155,28 +162,50 @@ class ChemicalEquationMapping:
     def __init__(self, reaction_mols: dict):
         self.atom_transformations = None
         self.full_map_info = {}
-        for m in reaction_mols['reactants_reagents'] + reaction_mols['products']:
-            self.full_map_info[m.uid] = {}
-            for a in m.rdmol_mapped.GetAtoms():
-                if isinstance(a.GetAtomMapNum(), int):
-                    self.full_map_info[m.uid][a.GetIdx()] = a.GetAtomMapNum()
-                else:
-                    self.full_map_info[m.uid][a.GetIdx()] = -1
-
+        all_molecules = reaction_mols['reactants_reagents'] + reaction_mols['products']
+        for mol in all_molecules:
+            self.full_map_info[mol.uid] = []
+            m_appearances = [m for m in all_molecules if m == mol]
+            for m in m_appearances:
+                mapping = {}
+                for a in m.rdmol_mapped.GetAtoms():
+                    if isinstance(a.GetAtomMapNum(), int):
+                        mapping[a.GetIdx()] = a.GetAtomMapNum()
+                    else:
+                        mapping[a.GetIdx()] = -1
+                self.full_map_info[mol.uid].append(mapping)
+        self.mapping_sanity_check()
         self.get_atom_transformations(reaction_mols)
+
+    def mapping_sanity_check(self):
+        """ Mapping sanity check: if a map number appears more than 2 times, it means that it is used more than once
+            and thus the mapping is invalid and an error is raised
+        """
+        map_nums = []
+        for map_list in self.full_map_info.values():
+            for d in map_list:
+                new_nums = list(d.values())
+                map_nums.extend(iter(new_nums))
+        for n in map_nums:
+            if map_nums.count(n) > 2 and n not in [0, -1]:
+                logger.error('Invalid mapping! The same map number is used more than once')
+                raise BadMapping
 
     def get_atom_transformations(self, reaction_mols: dict):
         """ To create the list of AtomTransformations from a catalog of mapped Molecule objects """
-        atom_transformations = []
+        atom_transformations = set()
         for product in reaction_mols['products']:
-            prod_map = self.full_map_info[product.uid]
-            for reactant in reaction_mols['reactants_reagents']:
-                reactant_map = self.full_map_info[reactant.uid]
-                if matching_map_num := [map_num for map_num in reactant_map.values() if map_num in prod_map.values()
-                                                                                        and map_num not in [0, -1]]:
-                    atom_transformations.extend(build_atom_transformations(matching_map_num, prod_map,
-                                                                           product.uid, reactant_map,
-                                                                           reactant.uid))
+            prod_maps = self.full_map_info[product.uid]
+            for prod_map in prod_maps:
+                for reactant in reaction_mols['reactants_reagents']:
+                    reactant_maps = self.full_map_info[reactant.uid]
+                    for reactant_map in reactant_maps:
+                        if matching_map_num := [map_num for map_num in reactant_map.values() if
+                                                map_num in prod_map.values()
+                                                and map_num not in [0, -1]]:
+                            atom_transformations.update(build_atom_transformations(matching_map_num, prod_map,
+                                                                                   product.uid, reactant_map,
+                                                                                   reactant.uid))
         self.atom_transformations = atom_transformations
 
 
@@ -202,9 +231,20 @@ def new_role_reassignment(reaction_mols: dict, cem: ChemicalEquationMapping, des
     true_reagents = {r.uid for r in reaction_mols['reactants_reagents'] if r.uid not in true_reactants_uid}
     true_reactants = {r.uid for r in reaction_mols['reactants_reagents'] if r.uid in true_reactants_uid}
     products = [m.uid for m in reaction_mols['products']]
+    reagents = check_reagents(cem.full_map_info, true_reagents)
     return {'reactants': sorted(list(true_reactants)),
-            'reagents': sorted(list(true_reagents)),
+            'reagents': sorted(list(reagents)),
             'products': sorted(products)}
+
+
+def check_reagents(full_map_info, reagents):
+    """ To check if some molecules appear both mapped and unmapped and put the unmapped ones among the reagents"""
+    for uid, map_list in full_map_info.items():
+        for d in map_list:
+            map_nums = list(d.values())
+            if not map_nums or all(map_nums) == 0 or all(map_nums) == -1:
+                reagents.add(uid)
+    return reagents
 
 
 def map_atoms(rdmol_reaction_catalog):

@@ -1,6 +1,6 @@
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph, SynGraph
 from linchemin.cgu.convert import converter
-from linchemin.cheminfo.reaction import ChemicalEquation
+from linchemin.cheminfo.models import ChemicalEquation
 from linchemin.rem.node_metrics import node_score_calculator
 from linchemin.utilities import console_logger
 import abc
@@ -13,25 +13,31 @@ Module containing functions and classes for computing SynGraph descriptors
 
 logger = console_logger(__name__)
 
+
 class DescriptorError(Exception):
     """ Base class for exceptions leading to unsuccessful descriptor calculation. """
     pass
+
 
 class UnavailableDescriptor(DescriptorError):
     """ Raised if the selected descriptor is not among the available ones. """
     pass
 
+
 class WrongGraphType(DescriptorError):
     """ Raised if the input gaph object is not of the required type. """
     pass
+
 
 class InvalidInput(DescriptorError):
     """ Raised if the input route is None"""
     pass
 
+
 class MismatchingGraphType(DescriptorError):
     """ Raised when graph of the same type are expected. """
     pass
+
 
 class DescriptorCalculator(metaclass=abc.ABCMeta):
     """ Abstract class for DescriptorCalculator. """
