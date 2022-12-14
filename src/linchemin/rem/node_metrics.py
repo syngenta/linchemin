@@ -1,4 +1,4 @@
-from linchemin.cheminfo.reaction import ChemicalEquation
+from linchemin.cheminfo.models import ChemicalEquation
 import abc
 
 """

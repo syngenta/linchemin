@@ -2,7 +2,7 @@ from linchemin.cgu.iron import Iron, Node, Edge, Direction
 from linchemin.cgu.translate import (translator, ibm_dict_to_iron, get_available_formats, az_dict_to_iron,
                                      get_available_data_models, get_output_formats, get_input_formats, TranslationError)
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
-from linchemin.cheminfo.reaction import ChemicalEquation
+from linchemin.cheminfo.models import ChemicalEquation
 import json
 import pydot
 import networkx as nx

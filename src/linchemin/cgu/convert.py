@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from linchemin.cgu.syngraph import SynGraph, BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
-from linchemin.cheminfo.reaction import ChemicalEquation
-from linchemin.cheminfo.molecule import Molecule
+from linchemin.cheminfo.models import Molecule, ChemicalEquation
 
 """
 Module containing all the functions to convert from and into different SynGraph data models:

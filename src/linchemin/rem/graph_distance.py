@@ -1,9 +1,8 @@
 from linchemin.cgu.translate import translator
-from linchemin.cheminfo.reaction import ChemicalEquation, Molecule
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.cgu.syngraph import SynGraph, MonopartiteReacSynGraph, BipartiteSynGraph
 from linchemin.cheminfo.chemical_similarity import (compute_reaction_fingerprint, compute_similarity,
                                                     compute_mol_fingerprint)
-# import linchemin.cheminfo.functions as cif
 from linchemin.utilities import console_logger
 
 import abc
@@ -438,24 +437,24 @@ def compute_nodes_fingerprints(syngraph, reaction_fingerprints, molecular_finger
         if type(r) == ChemicalEquation:
             if r.uid not in reaction_nodes_fingerprints:
                 reaction_nodes_fingerprints[r.uid] = compute_reaction_fingerprint(r.rdrxn,
-                                                                                      fp_name=reaction_fingerprints,
-                                                                                      params=reaction_fp_params)
+                                                                                  fp_name=reaction_fingerprints,
+                                                                                  params=reaction_fp_params)
         elif r.uid not in molecule_node_fingerprints:
             molecule_node_fingerprints[r.uid] = compute_mol_fingerprint(r.rdmol, fp_name=molecular_fingerprint,
-                                                                            parameters=molecular_fp_params,
-                                                                            count_fp_vector=molecular_fp_count_vect)
+                                                                        parameters=molecular_fp_params,
+                                                                        count_fp_vector=molecular_fp_count_vect)
 
         for c in connections:
             if type(c) == ChemicalEquation:
                 if c.uid not in reaction_nodes_fingerprints:
                     reaction_nodes_fingerprints[c.uid] = compute_reaction_fingerprint(c.rdrxn,
-                                                                                          fp_name=reaction_fingerprints,
-                                                                                          params=reaction_fp_params)
+                                                                                      fp_name=reaction_fingerprints,
+                                                                                      params=reaction_fp_params)
             elif c.uid not in molecule_node_fingerprints:
                 molecule_node_fingerprints[c.uid] = compute_mol_fingerprint(c.rdmol,
-                                                                                fp_name=molecular_fingerprint,
-                                                                                parameters=molecular_fp_params,
-                                                                                count_fp_vector=molecular_fp_count_vect)
+                                                                            fp_name=molecular_fingerprint,
+                                                                            parameters=molecular_fp_params,
+                                                                            count_fp_vector=molecular_fp_count_vect)
     return reaction_nodes_fingerprints, molecule_node_fingerprints
 
 

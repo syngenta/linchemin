@@ -21,13 +21,16 @@ Module containing high level functionalities/"user stories" to work in stream; i
 The functionalities are implemented as methods of the Functionality class.
 """
 
+
 class FacadeError(Exception):
     """ Base class for exceptions leading to unsuccessful execution of facade functionalities"""
     pass
 
+
 class UnavailableFunctionality(FacadeError):
     """ Raised if the selected functionality is not among the available ones """
     pass
+
 
 DEFAULT_FACADE = {
     'translate': {'value': {'data_format': 'syngraph',
@@ -99,12 +102,12 @@ class TranslateFacade(Facade):
                 output: a list whose elements are the converted routes
                 meta: a dictionary storing information about the original file and the CASP tool that produced the routes
         """
-
+        exceptions = []
         try:
             if parallelization:
                 pool = mp.Pool(n_cpu)
                 converted_routes = pool.starmap(translator, [(input_format, route, out_format,
-                                                        out_data_model) for route in input_list])
+                                                              out_data_model) for route in input_list])
 
             else:
 
@@ -309,7 +312,6 @@ class GedFacade(Facade):
         finally:
             return dist_matrix, meta
 
-
     def get_available_options(self) -> dict:
         """
             Returns the available options for GED calculations.
@@ -437,7 +439,6 @@ class ClusteringFacade:
                 return results, metrics, meta
             else:
                 return results, meta
-
 
     def get_available_options(self) -> dict:
         """
@@ -721,7 +722,7 @@ class FacadeFactory:
         """ Takes a string indicating a functionality and its arguments and performs the functionality """
         if functionality not in self.functionalities:
             raise UnavailableFunctionality(f"'{functionality}' is not a valid functionality."
-                           f"Available functionalities are: {self.functionalities.keys()}")
+                                           f"Available functionalities are: {self.functionalities.keys()}")
 
         performer = self.functionalities[functionality]['value']
         return performer().perform_functionality(*args, **kwargs)

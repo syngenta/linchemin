@@ -1,8 +1,7 @@
 from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph, merge_syngraph,
                                     extract_reactions_from_syngraph)
 from linchemin.cgu.translate import translator
-from linchemin.cheminfo.reaction import ChemicalEquation, ChemicalEquationConstructor
-from linchemin.cheminfo.molecule import Molecule, MoleculeConstructor
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor, MoleculeConstructor
 import json
 import pytest
 

@@ -3,8 +3,8 @@ from collections import defaultdict
 from abc import ABC, abstractmethod
 import datetime
 # Local import
-from linchemin.cheminfo.reaction import ChemicalEquation, ChemicalEquationConstructor
-from linchemin.cheminfo.molecule import Molecule, MoleculeConstructor
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor, MoleculeConstructor
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.cgu.iron import Iron
 import linchemin.utilities as utilities
 

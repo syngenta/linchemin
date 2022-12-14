@@ -1,6 +1,8 @@
 from linchemin.cheminfo.functions import rdrxn_from_string
-from linchemin.cheminfo.ratam import ChemicalEquationMapping, new_role_reassignment
+from linchemin.cheminfo.ratam import ChemicalEquationMapping, new_role_reassignment, BadMapping
 from linchemin.cheminfo.molecule import MoleculeConstructor
+
+import pytest
 
 
 def test_chemical_equation_mapping():
@@ -16,9 +18,14 @@ def test_chemical_equation_mapping():
                       'reagents': [],
                       'products': ['CNC(C)=O', 'O']}},
         {'name': 'rnx_3',
-         'smiles': '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>CO>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]',
+         'smiles': '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>CN>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]',
          'expected': {'reactants': ['CC(=O)O', 'CN'],
-                      'reagents': ['CO'],
+                      'reagents': ['CN'],
+                      'products': ['CNC(C)=O', 'O']}},
+        {'name': 'rnx_4',
+         'smiles': '[CH3:1][C:2]([OH:1])=[O:4].[CH3:6][NH2:5]>CN>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:1]',
+         'expected': {'reactants': ['CC(=O)O', 'CN'],
+                      'reagents': ['CN'],
                       'products': ['CNC(C)=O', 'O']}},
     ]
     mol_constructor = MoleculeConstructor(identity_property_name='smiles')
@@ -38,15 +45,23 @@ def test_chemical_equation_mapping():
             set_tmp = set(list_tmp)
             _tmp = {m.uid: m for m in set_tmp}
             catalog = {**catalog, **_tmp}
-        cem = ChemicalEquationMapping(reaction_mols)
-        assert cem
-        assert cem.atom_transformations
-        map_numbers = {m for k, v in cem.full_map_info.items() for m in v.values() if m not in [0, -1]}
-        # check if an AtomTransformation exists for each map number
-        assert len(map_numbers) == len(cem.atom_transformations)
+        if item['name'] == 'rnx_4':
+            with pytest.raises(BadMapping) as ke:
+                ChemicalEquationMapping(reaction_mols)
+            assert "BadMapping" in str(ke.type)
+        else:
+            cem = ChemicalEquationMapping(reaction_mols)
+            assert cem
+            assert cem.atom_transformations
+            map_numbers = set()
+            for k, v in cem.full_map_info.items():
+                map_numbers.update(m for d in v for m in d.values() if m not in [0, -1])
 
-        new_roles = new_role_reassignment(reaction_mols, cem, desired_product=products[0])
-        for role, mols in new_roles.items():
-            smiles_list = [m.smiles for uid, m in catalog.items() if uid in mols]
-            assert item['expected'][role] == smiles_list
+            # check if an AtomTransformation exists for each map number
+            assert len(map_numbers) == len(cem.atom_transformations)
+
+            new_roles = new_role_reassignment(reaction_mols, cem, desired_product=products[0])
+            for role, mols in new_roles.items():
+                smiles_list = [m.smiles for uid, m in catalog.items() if uid in mols]
+                assert item['expected'][role] == smiles_list
 

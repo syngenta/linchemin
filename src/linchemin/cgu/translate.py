@@ -1,7 +1,7 @@
 from linchemin.cgu.iron import Iron, Edge, Node, Direction
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph, SynGraph
 from linchemin.cheminfo import functions as cf
-from linchemin.cheminfo.reaction import ChemicalEquation
+from linchemin.cheminfo.models import ChemicalEquation
 from linchemin.cgu.convert import converter
 from linchemin.utilities import console_logger
 import pydot
@@ -10,12 +10,12 @@ import os
 from abc import ABC, abstractmethod
 import datetime
 
-
 """
 Module containing functions and classes to transform a graph from an input format to a different output format.
 """
 
 logger = console_logger(__name__)
+
 
 class TranslationError(Exception):
     """ Base class for exceptions leading to unsuccessful translation."""
@@ -26,20 +26,25 @@ class EmptyRoute(TranslationError):
     """ Raised if an empty route is found """
     pass
 
+
 class InvalidRoute(TranslationError):
     """ Raised if the route does not contain at least two molecules connected by an edge"""
+
 
 class UnavailableInputFormat(TranslationError):
     """ Raised if the selected input format is not among the available ones"""
     pass
 
+
 class UnavailableOutputFormat(TranslationError):
     """ Raised if the selected output format is not among the available ones """
     pass
 
+
 class UnavailableTranslation(TranslationError):
     """ Raised if the required translation cannot be performed """
     pass
+
 
 class AbsTranslator(ABC):
     """ Abstract class for format translators.
@@ -94,10 +99,10 @@ class TranslatorMonopartiteReacSynGraph(AbsTranslator):
         try:
             if iron_route is None:
                 raise EmptyRoute
-            syngraph = MonopartiteReacSynGraph(iron_route)
-            return syngraph
+            return MonopartiteReacSynGraph(iron_route)
         except EmptyRoute:
-            logger.warning('While translating from Iron to monopartite-reactions SynGraph object an empty route was found: "None" returned')
+            logger.warning(
+                'While translating from Iron to monopartite-reactions SynGraph object an empty route was found: "None" returned')
             return None
 
     def to_iron(self, mp_syngraph: MonopartiteReacSynGraph) -> Iron:
@@ -137,10 +142,11 @@ class TranslatorMonopartiteReacSynGraph(AbsTranslator):
                              labels=[])
                     iron.add_edge(str(id_e), e)
                     id_e += 1
-                iron.source = mp_syngraph.source
+            iron.source = mp_syngraph.source
             return iron
         except EmptyRoute:
-            logger.warning('While translating from a monopartite-reactions SynGraph to Iron an empty route was found: "None" returned')
+            logger.warning(
+                'While translating from a monopartite-reactions SynGraph to Iron an empty route was found: "None" returned')
             return None
 
 
@@ -157,7 +163,8 @@ class TranslatorBipartiteSynGraph(AbsTranslator):
             syngraph = BipartiteSynGraph(iron_route)
             return syngraph
         except EmptyRoute:
-            logger.warning('While translating from Iron to bipartite SynGraph object an empty route was found: "None" returned')
+            logger.warning(
+                'While translating from Iron to bipartite SynGraph object an empty route was found: "None" returned')
             return None
 
     def to_iron(self, syngraph: BipartiteSynGraph) -> Iron:
@@ -202,7 +209,8 @@ class TranslatorBipartiteSynGraph(AbsTranslator):
             iron.source = syngraph.source
             return iron
         except EmptyRoute:
-            logger.warning('While translating from a bipartite SynGraph to Iron an empty route was found: "None" returned')
+            logger.warning(
+                'While translating from a bipartite SynGraph to Iron an empty route was found: "None" returned')
             return None
 
 
@@ -219,7 +227,8 @@ class TranslatorMonopartiteMolSynGraph(AbsTranslator):
             syngraph = MonopartiteMolSynGraph(iron_route)
             return syngraph
         except EmptyRoute:
-            logger.warning('While translating from Iron to a monopartite-molecules SynGraph object an empty route was found: "None" returned')
+            logger.warning(
+                'While translating from Iron to a monopartite-molecules SynGraph object an empty route was found: "None" returned')
             return None
 
     def to_iron(self, mp_syngraph: MonopartiteMolSynGraph) -> Iron:
@@ -262,7 +271,8 @@ class TranslatorMonopartiteMolSynGraph(AbsTranslator):
             iron.source = mp_syngraph.source
             return iron
         except EmptyRoute:
-            logger.warning('While translating from a monopartite-molecules SynGraph to Iron an empty route was found: "None" returned')
+            logger.warning(
+                'While translating from a monopartite-molecules SynGraph to Iron an empty route was found: "None" returned')
             return None
 
 
@@ -406,8 +416,9 @@ class TranslatorIbm(AbsTranslator):
             logger.warning('While translating from IBM to Iron an empty route was found: "None" returned')
             return None
         except InvalidRoute:
-            logger.warning('While translating from IBM to Iron an invalid route containing only one molecule was found: '
-                           '"None" returned')
+            logger.warning(
+                'While translating from IBM to Iron an invalid route containing only one molecule was found: '
+                '"None" returned')
             return None
 
 
@@ -544,7 +555,8 @@ class TranslatorDotVisualization(AbsTranslator):
                 os.remove(f'{id_n}.png')
 
         except EmptyRoute:
-            logger.warning('While translating from Iron to PyDot-visualization format- an empty route was found: "None" returned')
+            logger.warning(
+                'While translating from Iron to PyDot-visualization format- an empty route was found: "None" returned')
             return None
 
     def to_iron(self, graph):
@@ -591,7 +603,8 @@ class TranslatorFactory:
     def select_translation_to_iron(self, input_format: str, graph, out_data_model: str):
         """ Calls the correct translator to transform the selected input graph object into an Iron instance """
         if input_format not in self.translators:
-            logger.error(f"'{input_format}' is not a valid input format. Possible formats are: {self.translators.keys()}")
+            logger.error(
+                f"'{input_format}' is not a valid input format. Possible formats are: {self.translators.keys()}")
             raise UnavailableInputFormat
 
 
@@ -607,7 +620,8 @@ class TranslatorFactory:
     def select_translation_from_iron(self, out_format: str, iron_graph, out_data_model: str):
         """ Calls the correct translator to transform an Iron instance into the selected output graph object """
         if out_format not in self.translators:
-            logger.error(f"'{out_format}' is not a valid output format. Possible formats are: {self.translators.keys()}")
+            logger.error(
+                f"'{out_format}' is not a valid output format. Possible formats are: {self.translators.keys()}")
             raise UnavailableOutputFormat
 
         elif out_format == 'iron':
