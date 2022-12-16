@@ -1,7 +1,7 @@
 from typing import List, Dict, Tuple, Union
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from linchemin.cheminfo.models import (Molecule, ChemicalEquation, Ratam, Disconnection, Template, Pattern)
 import linchemin.cheminfo.functions as cif
@@ -44,9 +44,9 @@ class MoleculeConstructor:
         rdmol_unmapped = cif.remove_rdmol_atom_mapping(rdmol=rdmol_mapped)
         rdmol_unmapped_canonical = cif.canonicalize_rdmol_lite(rdmol=rdmol_unmapped, is_pattern=False)
         rdmol_mapped_canonical = cif.canonicalize_rdmol_lite(rdmol=rdmol_mapped, is_pattern=False)
-        hash_map = cif.calculate_molecular_hash_values(rdmol=rdmol_unmapped_canonical, hash_list=['CanonicalSmiles',
-                                                                                                  'inchi_key',
-                                                                                                  'inchi_KET_15T'])
+        hash_map = calculate_molecular_hash_values(rdmol=rdmol_unmapped_canonical, hash_list=['CanonicalSmiles',
+                                                                                              'inchi_key',
+                                                                                              'inchi_KET_15T'])
         identity_property = hash_map.get(self.identity_property_name)
         uid = utilities.create_hash(identity_property)
         smiles = cif.compute_mol_smiles(rdmol=rdmol_unmapped_canonical)
@@ -158,7 +158,7 @@ class DisconnectionConstructor:
         disconnection.new_bonds = new_bonds
         disconnection.modified_bonds = modified_bonds
 
-        disconnection.hash_map = self.calculate_hash_values(disconnection)
+        disconnection.hash_map = calculate_disconnection_hash_values(disconnection)
         disconnection.identity_property = disconnection.hash_map.get('disconnection_summary')
         disconnection.uid = utilities.create_hash(disconnection.identity_property)
 
@@ -171,18 +171,10 @@ class DisconnectionConstructor:
         print('new_bonds:', product_changes.new_bonds)
         print('modified_bonds:', product_changes.modified_bonds)
         """
-        disconnection.rdmol_fragmented = self.get_fragments(rdmol=product_rdmol, new_bonds=new_bonds, fragmentation_method=2)
+        disconnection.rdmol_fragmented = self.get_fragments(rdmol=product_rdmol, new_bonds=new_bonds,
+                                                            fragmentation_method=2)
 
         return disconnection
-
-    def calculate_hash_values(self, disconnection):
-        idp = disconnection.molecule.identity_property
-        changes = '__'.join(['_'.join(map(str, disconnection.reacting_atoms)), '_'.join(map(str, disconnection.new_bonds)),
-                             '_'.join(map(str, disconnection.modified_bonds)), ])
-
-        disconnection_summary = '|'.join([idp, changes])
-
-        return {'disconnection_summary': disconnection_summary}
 
     @staticmethod
     def re_map(product_changes, rdmol_old, rdmol_new):
@@ -396,7 +388,7 @@ class PatternConstructor:
         pattern.rdmol = rdmol_unmapped_canonical
         pattern.rdmol_mapped = rdmol_mapped_canonical
         pattern.smarts = cif.compute_mol_smarts(rdmol=pattern.rdmol)
-        pattern.hash_map = self.calculate_hash_values(pattern.smarts)
+        pattern.hash_map = calculate_pattern_hash_values(pattern.smarts)
 
         pattern.identity_property = pattern.hash_map.get(self.identity_property_name)
         pattern.uid = utilities.create_hash(pattern.identity_property)  # the hashed identity property
@@ -408,9 +400,6 @@ class PatternConstructor:
 
     def build_from_rdmol(self, rdmol: cif.Mol) -> Pattern:
         return self.create_pattern(rdmol)
-
-    def calculate_hash_values(self, smarts):
-        return {'smarts': smarts}
 
 
 # Template Constructor
@@ -436,8 +425,7 @@ class TemplateConstructor:
 
     def unpack_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
         constructor = PatternConstructor(identity_property_name=self.identity_property_name)
-        reaction_rdmols = cif.rdrxn_to_rxn_mol_catalog(rdrxn=rdrxn)
-        reaction_mols = cif.rdmol_catalog_to_molecule_catalog(reaction_rdmols, constructor)
+        reaction_mols = cif.rdrxn_to_molecule_catalog(rdrxn, constructor)
         builder = UnmappedChemicalEquationGenerator()
         attributes = builder.get_basic_attributes(reaction_mols)
         return attributes['catalog'], attributes['stoichiometry_coefficients'], attributes['role_map']
@@ -475,7 +463,7 @@ class TemplateConstructor:
         template.pattern_catalog = pattern_catalog
         template.stoichiometry_coefficients = stoichiometry_coefficients
         template.role_map = role_map
-        template.hash_map = create_hash_values(pattern_catalog, role_map)
+        template.hash_map = create_reaction_like_hash_values(pattern_catalog, role_map)
         template.uid = template.hash_map.get('r_p')  # TODO: review
 
         template.rdrxn = cif.build_rdrxn(catalog=pattern_catalog,
@@ -551,9 +539,8 @@ def create_chemical_equation(rdrxn: cif.rdChemReactions.ChemicalReaction, identi
         Returns:
             a new ChemicalEquation instance
     """
-    reaction_rdmols = cif.rdrxn_to_rxn_mol_catalog(rdrxn=rdrxn)
-    builder_type = 'mapped' if cif.is_mapped(reaction_rdmols) else 'unmapped'
-    reaction_mols = cif.rdmol_catalog_to_molecule_catalog(reaction_rdmols, constructor)
+    builder_type = 'mapped' if cif.has_mapped_products(rdrxn) else 'unmapped'
+    reaction_mols = cif.rdrxn_to_molecule_catalog(rdrxn, constructor)
     builder = Builder()
     builder.set_builder(builder_type)
     return builder.get_chemical_equation(reaction_mols)
@@ -623,8 +610,8 @@ class MappedChemicalEquationGenerator(ChemicalEquationGenerator):
                              'products': reaction_mols['products']}
         basic_attributes = {'mapping': self.generate_mapping(new_reaction_mols)}
         desired_product = cif.select_desired_product(reaction_mols)
-        basic_attributes['role_map'] = cif.new_role_reassignment(new_reaction_mols, basic_attributes['mapping'],
-                                                                 desired_product)
+        basic_attributes['role_map'] = cif.role_reassignment(new_reaction_mols, basic_attributes['mapping'],
+                                                             desired_product)
 
         all_molecules = reaction_mols['reactants'] + reaction_mols['reagents'] + reaction_mols['products']
         basic_attributes['catalog'] = {m.uid: m for m in set(all_molecules)}
@@ -671,7 +658,7 @@ class Builder:
         ce.stoichiometry_coefficients = basic_attributes['stoichiometry_coefficients']
         ce.rdrxn = self.__builder.generate_rdrxn(ce.catalog, ce.role_map, ce.stoichiometry_coefficients)
         ce.smiles = self.__builder.generate_smiles(ce.rdrxn)
-        ce.hash_map = create_hash_values(ce.catalog, ce.role_map)
+        ce.hash_map = create_reaction_like_hash_values(ce.catalog, ce.role_map)
         ce.uid = ce.hash_map.get('r_r_p')  # TODO: review
         ce.template = self.__builder.generate_template(ce)
         ce.disconnection = self.__builder.generate_disconnection(ce)
@@ -679,7 +666,38 @@ class Builder:
         return ce
 
 
-def create_hash_values(catalog, role_map):
+def calculate_molecular_hash_values(rdmol: cif.Mol, hash_list: List[str] = None) -> dict:
+    molhashf = cif.HashFunction.names
+    if hash_list:
+        hash_list += ['CanonicalSmiles']
+    else:
+        hash_list = list(molhashf.keys()) + ['inchi_key', 'inchikey_KET_15T', 'noiso_smiles', 'cx_smiles']
+
+    hash_map = {k: cif.MolHash(rdmol, v) for k, v in molhashf.items() if k in hash_list}
+
+    hash_map['smiles'] = hash_map.get('CanonicalSmiles')
+    if 'inchi_key' in hash_list:
+        hash_map['inchi'] = cif.Chem.MolToInchi(rdmol)
+        hash_map['inchi_key'] = cif.Chem.InchiToInchiKey(hash_map['inchi'])
+    if 'inchikey_KET_15T' in hash_list:
+        hash_map['inchi_KET_15T'] = cif.Chem.MolToInchi(rdmol, options='-KET -15T')
+        hash_map['inchikey_KET_15T'] = cif.Chem.InchiToInchiKey(hash_map['inchi_KET_15T'])
+    if 'noiso_smiles' in hash_list:
+        hash_map['noiso_smiles'] = cif.Chem.MolToSmiles(rdmol, isomericSmiles=False)
+    if 'cx_smiles' in hash_list:
+        hash_map['cx_smiles'] = cif.Chem.MolToCXSmiles(rdmol)
+    """
+
+    hash_map['ExtendedMurcko_AG'] = smiles_to_anonymus_graph(hash_map['ExtendedMurcko'])
+    hash_map['ExtendedMurcko_EG'] = smiles_to_element_graph(hash_map['ExtendedMurcko'])
+    hash_map['MurckoScaffold_AG'] = smiles_to_anonymus_graph(hash_map['MurckoScaffold'])
+    hash_map['MurckoScaffold_EG'] = smiles_to_element_graph(hash_map['MurckoScaffold'])
+    """
+
+    return hash_map
+
+
+def create_reaction_like_hash_values(catalog, role_map):
     """ To calculate the hash keys for reaction-like objects """
     mol_list_map = {role: [catalog.get(uid) for uid in uid_list]
                     for role, uid_list in role_map.items()}
@@ -699,6 +717,18 @@ def create_hash_values(catalog, role_map):
     idp_str_map['u_r_r_p'] = '>>'.join(
         sorted([idp_str_map.get('reactants'), idp_str_map.get('reagents'), idp_str_map.get('products')]))
     return {role: utilities.create_hash(v) for role, v in idp_str_map.items()}
+
+
+def calculate_disconnection_hash_values(disconnection):
+    idp = disconnection.molecule.identity_property
+    changes = '__'.join(['_'.join(map(str, disconnection.reacting_atoms)), '_'.join(map(str, disconnection.new_bonds)),
+                         '_'.join(map(str, disconnection.modified_bonds)), ])
+    disconnection_summary = '|'.join([idp, changes])
+    return {'disconnection_summary': disconnection_summary}
+
+
+def calculate_pattern_hash_values(smarts):
+    return {'smarts': smarts}
 
 
 if __name__ == '__main__':

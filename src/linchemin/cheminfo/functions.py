@@ -1,20 +1,18 @@
 import copy
-from collections import namedtuple
 from typing import Callable, List, Dict
 from functools import partial
-from abc import ABC, abstractmethod
 import re
 import rdkit
 from rdkit import Chem
 from rdkit.Chem import rdchem, rdChemReactions, DataStructs, rdFingerprintGenerator, Draw
 from rdkit.Chem.rdchem import Mol, Atom
-from rdkit.Chem.Draw import DrawingOptions, rdMolDraw2D
 from rdkit.Chem.rdMolHash import HashFunction, MolHash
 from rdkit import RDLogger
 import linchemin.utilities as utilities
 from rdchiral import template_extractor
 
 # RDLogger.DisableLog('rdApp.*')
+
 logger = utilities.console_logger(__name__)
 
 
@@ -158,23 +156,13 @@ def get_mol_property_function(property_name: str) -> MolPropertyFunction:
     return mol_property_function_factory.get(property_name)
 
 
-def draw_mol(smiles: str, filename: str):
-    """
-        Produces an file with the picture of a molecule using RDKit
-
-        Parameters:
-            smiles: string indicating the smiles of the molecule
-            filename: string indicated the name of the output file
-
-        Returns:
-            None. The image file is produced and stored in the directory
-        """
-    rdmol = rdmol_from_string(smiles, inp_fmt='smiles')
-
-    DrawingOptions.atomLabelFontSize = 55
-    DrawingOptions.dotsPerAngstrom = 100
-    DrawingOptions.bondLineWidth = 3.0
-    Draw.MolToFile(rdmol, filename)
+def is_mapped_molecule(rdmol):
+    """ To check whether a rdmol is mapped """
+    mapped_atoms = [a.GetAtomMapNum() for a in rdmol.GetAtoms()]
+    if not mapped_atoms or set(mapped_atoms) == {0} or set(mapped_atoms) == {-1}:
+        return False
+    else:
+        return True
 
 
 ####################################################################################################
@@ -208,6 +196,7 @@ def generate_topological_fp(params):
         fpSize=params.get('fpSize', 2048))
 
 
+####################################################################################################
 # RDRXN
 def rdrxn_from_string(input_string: str, inp_fmt: str) -> rdChemReactions.ChemicalReaction:
     format_function_map = {'smiles': partial(Chem.rdChemReactions.ReactionFromSmarts, useSmiles=True),
@@ -232,12 +221,14 @@ def rdrxn_to_string(rdrxn: rdChemReactions.ChemicalReaction, out_fmt: str, use_a
 
 
 def rdrxn_to_rxn_mol_catalog(rdrxn: rdChemReactions.ChemicalReaction) -> Dict[str, List[Mol]]:
+    """ To build from a rdkit rdrxn a dictionary in the form {'role': [Mol]}"""
     return {'reactants': list(rdrxn.GetReactants()),
             'reagents': list(rdrxn.GetAgents()),
             'products': list(rdrxn.GetProducts())}
 
 
 def rdrxn_from_rxn_mol_catalog(rxn_mol_catalog: Dict[str, List[Mol]]) -> rdChemReactions.ChemicalReaction:
+    """ To build a dictionary in the form {'role': [Mol]} a rdkit rdrxn """
     reaction_smiles_empty = '>>'
     rdrxn = rdChemReactions.ReactionFromSmarts(reaction_smiles_empty, useSmiles=True)
     for rdmol in rxn_mol_catalog.get('reactants'):
@@ -250,22 +241,22 @@ def rdrxn_from_rxn_mol_catalog(rxn_mol_catalog: Dict[str, List[Mol]]) -> rdChemR
     return rdrxn
 
 
-def rdmol_catalog_to_molecule_catalog(rdmol_catalog: Dict[str, List[Mol]], constructor):
+def rdrxn_to_molecule_catalog(rdrxn: rdChemReactions.ChemicalReaction, constructor):
+    """ To build from a rdkit rdrxn a dictionary in the form {'role': [Molecule]}"""
+    reaction_rdmols = rdrxn_to_rxn_mol_catalog(rdrxn=rdrxn)
     mol_catalog = {}
-    for role, rdmols in rdmol_catalog.items():
-        mol_catalog[role] = [constructor.build_from_rdmol(rdmol=rdmol) for r, rdmol_list in rdmol_catalog.items()
+    for role, rdmols in reaction_rdmols.items():
+        mol_catalog[role] = [constructor.build_from_rdmol(rdmol=rdmol) for r, rdmol_list in reaction_rdmols.items()
                              if r == role for rdmol in rdmol_list]
     return mol_catalog
 
 
-def is_mapped(reaction_rdmols: dict) -> bool:
-    """ To check if a rdrxn is mapped by looking at the mapping numbers of the products """
-    atoms = [mol.GetAtoms() for mol in reaction_rdmols.get('products')]
-    mapped_atoms = [a.GetAtomMapNum() for a_list in atoms for a in a_list]
-    if not mapped_atoms or all(mapped_atoms) == 0:
-        return False
-    else:
+def has_mapped_products(rdrxn: rdChemReactions.ChemicalReaction) -> bool:
+    """ To check if a rdrxn has any mapped product """
+    if any([is_mapped_molecule(mol) for mol in list(rdrxn.GetProducts())]):
         return True
+    else:
+        return False
 
 
 def select_desired_product(mol_catalog: dict):
@@ -273,28 +264,103 @@ def select_desired_product(mol_catalog: dict):
     return mol_catalog['products'][0]
 
 
-def new_role_reassignment(reaction_mols: dict, cem, desired_product):
-    """ To reassign the roles of reactants and reagents based on the mapping on the desired product """
+def rdrxn_role_reassignment(rdrxn: rdChemReactions.ChemicalReaction,
+                            desired_product_idx: int = 0) -> rdChemReactions.ChemicalReaction:
+    """function to reassign the reactant/reagent role in a ChemicalReaction by identifying
+    1) reactant molecules that should be reagent
+    2) reagent molecules that should be reactants
+    and reconstructing a ChemicalReaction with correct roles
+    this role reassignment is requires reaction atom to atom to atom mapping to identify reactants/reagents
+
+    a reactant contributes with at least one heavy atom to the desired product of a reaction
+    a reagent does not contribute with any heavy atom to the desired product of a reaction
+    either reactant or reagents can contribute to by-products
+
+        Parameters:
+        rdrxn: RDKit ChemicalReaction
+        desired_product_idx: integer index of the reference product used to assess the reactant contribution
+
+    Returns:
+        rdrxn: RDKit ChemicalReaction
+
+    """
+    if not rdChemReactions.HasReactionAtomMapping(rdrxn):
+        return rdrxn
+    molecule_catalog = {'reactants': [{'rdmol': rdmol,
+                                       'role_molecule_idx': i,
+                                       'matam': {atom.GetIdx(): atom.GetAtomMapNum() for atom in rdmol.GetAtoms()}} for
+                                      i, rdmol in enumerate(rdrxn.GetReactants())],
+                        'reagents': [{'rdmol': rdmol,
+                                      'role_molecule_idx': i,
+                                      'matam': {atom.GetIdx(): atom.GetAtomMapNum() for atom in rdmol.GetAtoms()}} for
+                                     i, rdmol in enumerate(rdrxn.GetAgents())],
+                        'products': [{'rdmol': rdmol,
+                                      'role_molecule_idx': i,
+                                      'matam': {atom.GetIdx(): atom.GetAtomMapNum() for atom in rdmol.GetAtoms()}} for
+                                     i, rdmol in enumerate(rdrxn.GetProducts())]}
+
+    rxn_mol_catalog = {'reactants': [],
+                       'reagents': [],
+                       'products': [item.get('rdmol') for item in molecule_catalog.get('products')]}
+
+    keys_output = set(molecule_catalog.get('products')[desired_product_idx].get('matam').values())
+
+    for input_item in molecule_catalog.get('reactants') + molecule_catalog.get('reagents'):
+        keys_input = set(input_item.get('matam').values())
+        x = keys_input.intersection(keys_output) - {0} - {-1}
+        rdmol = input_item.get('rdmol')
+        if len(x) == 0:
+            rxn_mol_catalog.get('reagents').append(rdmol)
+        else:
+            rxn_mol_catalog.get('reactants').append(rdmol)
+    return rdrxn_from_rxn_mol_catalog(rxn_mol_catalog=rxn_mol_catalog)
+
+
+def role_reassignment(reaction_mols: dict, ratam, desired_product):
+    """ To reassign the roles of reactants and reagents based on the mapping on the desired product.
+
+        Parameters:
+             reaction_mols: a dictionary in the form {'reactants_reagents': [Molecule], 'products': [Molecule]}
+
+             ratam: a Ratam object containing the mapping information of the reaction of interest
+
+             desired_product: the Molecule object of the desired product
+
+        Returns:
+            a dictionary in the form {'reactants': [Molecule], 'reagents': [Molecule], 'products': [Molecule]} with the
+            new roles based on atom mapping
+
+
+    """
     if desired_product not in reaction_mols['products']:
         logger.error('The selected product is not among the reaction products.')
         return None
-    desired_product_transformations = [at for at in cem.atom_transformations if at.product_uid == desired_product.uid]
+    desired_product_transformations = [at for at in ratam.atom_transformations if at.product_uid == desired_product.uid]
     true_reactants_uid = {at.reactant_uid for at in desired_product_transformations}
     true_reagents = {r.uid for r in reaction_mols['reactants_reagents'] if r.uid not in true_reactants_uid}
     true_reactants = {r.uid for r in reaction_mols['reactants_reagents'] if r.uid in true_reactants_uid}
     products = [m.uid for m in reaction_mols['products']]
-    reagents = check_reagents(cem.full_map_info, true_reagents)
+    reagents = check_reagents(ratam.full_map_info, true_reagents)
     return {'reactants': sorted(list(true_reactants)),
             'reagents': sorted(list(reagents)),
             'products': sorted(products)}
 
 
 def check_reagents(full_map_info, reagents):
-    """ To check if some molecules appear both mapped and unmapped and put the unmapped ones among the reagents"""
+    """ To add unmapped molecule as reagents of a chemical equation.
+
+        Parameters:
+            full_map_info: a dictionary in the form {uid: [map]} [attribute of the Ratam class]
+
+            reagents: a set containing the uid of the already discovered reagents
+
+        Returns:
+            reagents: un updated set, containing the uid of unmapped reagents.
+    """
     for uid, map_list in full_map_info.items():
         for d in map_list:
             map_nums = list(d.values())
-            if not map_nums or all(map_nums) == 0 or all(map_nums) == -1:
+            if not map_nums or set(map_nums) == {0} or set(map_nums) == {-1}:
                 reagents.add(uid)
     return reagents
 
@@ -310,177 +376,6 @@ def rdchiral_extract_template(reaction_string: str, inp_fmt: str, reaction_id: i
     return template_extractor.extract_from_reaction(reaction=rdchiral_input)
 
 
-# def unpack_rdrxn(rdrxn: rdChemReactions.ChemicalReaction, identity_property_name, constructor):
-#     """ Initializes the correct builder of the ChemicalEquation attributes based on the presence of the atom mapping """
-#     reaction_rdmols = rdrxn_to_rxn_mol_catalog(rdrxn=rdrxn)
-#     builder_type = 'mapped' if is_mapped(reaction_rdmols) else 'unmapped'
-#     reaction_mols = rdmol_catalog_to_molecule_catalog(reaction_rdmols, constructor)
-#     builder = AttributeBuilder()
-#     builder.set_builder(builder_type)
-#     return builder.get_attributes(reaction_mols)
-#
-#
-# class ChemicalEquationAttributes:
-#     def __init__(self):
-#         self.catalog = None
-#         self.role_map = None
-#         self.stoichiometry_coefficients = None
-#         self.mapping = None
-#         self.disconnection = None
-#         self.template = None
-#
-#     def set_catalog(self, catalog):
-#         self.catalog = catalog
-#
-#     def set_role_map(self, role_map):
-#         self.role_map = role_map
-#
-#     def set_stoichiometry_coefficients(self, stoichiometry_coefficients):
-#         self.stoichiometry_coefficients = stoichiometry_coefficients
-#
-#     def set_mapping(self, mapping):
-#         self.mapping = mapping
-#
-#     def set_disconnection(self, disconnection):
-#         self.disconnection = disconnection
-#
-#     def set_template(self, template):
-#         self.template = template
-#
-#
-# class ChemicalEquationAttributesGenerator(ABC):
-#     """ Abstract class for ChemicalEquationAttributesGenerator """
-#
-#     def get_basic_attributes(self, reaction_mols: dict):
-#         pass
-#
-#     @abstractmethod
-#     def generate_template(self, *args):
-#         pass
-#
-#     @abstractmethod
-#     def generate_disconnection(self, *args):
-#         pass
-#
-#
-# class UnmappedChemicalEquationAttributesGenerator(ChemicalEquationAttributesGenerator):
-#
-#     def get_basic_attributes(self, reaction_mols: dict):
-#         mapping = None
-#         role_map = {role: sorted([m.uid for m in set(mols)]) for role, mols in reaction_mols.items()}
-#         all_molecules = reaction_mols['reactants'] + reaction_mols['reagents'] + reaction_mols['products']
-#         catalog = {m.uid: m for m in set(all_molecules)}
-#         stoichiometry_coefficients = {}
-#
-#         for role, mol_uid_list in role_map.items():
-#             mols = [m for m in all_molecules if m.uid in mol_uid_list]
-#             stoichiometry_coefficients_tmp = {m.uid: mols.count(m) for m in set(mols) if m.uid in mol_uid_list}
-#             stoichiometry_coefficients[role] = stoichiometry_coefficients_tmp
-#
-#         return catalog, role_map, stoichiometry_coefficients, mapping
-#
-#     def generate_template(self):
-#         return None
-#
-#     def generate_disconnection(self):
-#         return None
-#
-#
-# class MappedChemicalEquationAttributesGenerator(ChemicalEquationAttributesGenerator):
-#
-#     def get_basic_attributes(self, reaction_mols: dict):
-#         new_reaction_mols = {'reactants_reagents': reaction_mols['reactants'] + reaction_mols['reagents'],
-#                              'products': reaction_mols['products']}
-#         mapping = self.generate_mapping(new_reaction_mols)
-#
-#         desired_product = select_desired_product(reaction_mols)
-#         role_map = new_role_reassignment(new_reaction_mols, mapping, desired_product)
-#
-#         all_molecules = reaction_mols['reactants'] + reaction_mols['reagents'] + reaction_mols['products']
-#         catalog = {m.uid: m for m in set(all_molecules)}
-#         stoichiometry_coefficients = {}
-#
-#         for role, mol_uid_list in role_map.items():
-#             mols = [m for m in all_molecules if m.uid in mol_uid_list]
-#             stoichiometry_coefficients_tmp = {m.uid: mols.count(m) for m in set(mols) if m.uid in mol_uid_list}
-#             stoichiometry_coefficients[role] = stoichiometry_coefficients_tmp
-#
-#         return catalog, role_map, stoichiometry_coefficients, mapping
-#
-#     def generate_mapping(self, new_reaction_mols: dict):
-#         return ChemicalEquationMapping(new_reaction_mols)
-#
-#     def generate_template(self):
-#         return None
-#
-#     def generate_disconnection(self):
-#         return None
-#
-#
-# class AttributeBuilder:
-#     builders = {'mapped': MappedChemicalEquationAttributesGenerator(),
-#                 'unmapped': UnmappedChemicalEquationAttributesGenerator()}
-#     __builder = None
-#
-#     def set_builder(self, builder_type: str):
-#         self.__builder = self.builders[builder_type]
-#
-#     def get_attributes(self, reaction_mols):
-#         attributes = ChemicalEquationAttributes()
-#
-#         catalog, role_map, stoichiometry_coefficients, mapping = self.__builder.get_basic_attributes(reaction_mols)
-#         attributes.set_catalog(catalog)
-#         attributes.set_role_map(role_map)
-#         attributes.set_stoichiometry_coefficients(stoichiometry_coefficients)
-#         attributes.set_mapping(mapping)
-#
-#         template = self.__builder.generate_template()
-#         attributes.set_template(template)
-#
-#         disconnection = self.__builder.generate_disconnection()
-#         attributes.set_disconnection(disconnection)
-#
-#         return attributes
-
-
-"""
-*******Old chemical equation builder****************
-def unpack_unmapped_rdrxn(reaction_rdmols, constructor):
-    catalog = {}
-    role_map = {}
-    stoichiometry_coefficients = {}
-    for role, rdmol_list in reaction_rdmols.items():
-        list_tmp = [constructor.build_from_rdmol(rdmol=rdmol) for rdmol in rdmol_list]
-        set_tmp = set(list_tmp)
-        stoichiometry_coefficients_tmp = {m.uid: list_tmp.count(m) for m in set_tmp}
-        stoichiometry_coefficients[role] = stoichiometry_coefficients_tmp
-        _tmp = {m.uid: m for m in set_tmp}
-        # the sorting provides the arbitrary canonicalization on the ordering  of molecules for each role
-        role_map[role] = sorted(list(stoichiometry_coefficients_tmp.keys()))
-        catalog = {**catalog, **_tmp}
-    return catalog, role_map, stoichiometry_coefficients, None
-
-
-def unpack_mapped_rdrxn(reaction_rdmols, constructor):
-    reactants_reagents = [constructor.build_from_rdmol(rdmol=rdmol) for role, rdmol_list in reaction_rdmols.items()
-                          if role in ['reactants', 'reagents'] for rdmol in rdmol_list]
-    products = [constructor.build_from_rdmol(rdmol=rdmol) for role, rdmol_list in reaction_rdmols.items()
-                if role == 'products' for rdmol in rdmol_list]
-    reaction_mols = {'reactants_reagents': reactants_reagents, 'products': products}
-    chemical_equation_mapping = ChemicalEquationMapping(reaction_mols)
-    new_role_map = new_role_reassignment(reaction_mols, chemical_equation_mapping, products[0])
-    stoichiometry_coefficients = {}
-    catalog = {}
-    for role, mol_uid_list in new_role_map.items():
-        mols = [m for m in reactants_reagents + products if m.uid in mol_uid_list]
-        stoichiometry_coefficients_tmp = {m.uid: mols.count(m) for m in set(mols) if m.uid in mol_uid_list}
-        stoichiometry_coefficients[role] = stoichiometry_coefficients_tmp
-        _tmp = {m.uid: m for m in set(mols)}
-        catalog = {**catalog, **_tmp}
-    return catalog, new_role_map, stoichiometry_coefficients, chemical_equation_mapping
-"""
-
-
 def build_rdrxn(catalog: Dict,
                 role_map: Dict,
                 stoichiometry_coefficients: Dict,
@@ -492,10 +387,12 @@ def build_rdrxn(catalog: Dict,
         if rdmol_mapped := catalog.get(mol_id).rdmol_mapped:
             for _ in range(stoichiometry_coefficients.get('reactants').get(mol_id)):
                 rdrxn_new.AddReactantTemplate(rdmol_mapped)
+
     for mol_id in role_map.get('reagents'):
         if rdmol_mapped := catalog.get(mol_id).rdmol_mapped:
             for _ in range(stoichiometry_coefficients.get('reagents').get(mol_id)):
                 rdrxn_new.AddAgentTemplate(rdmol_mapped)
+
     for mol_id in role_map.get('products'):
         if rdmol_mapped := catalog.get(mol_id).rdmol_mapped:
             for _ in range(stoichiometry_coefficients.get('products').get(mol_id)):
@@ -541,75 +438,8 @@ def activate_rdrxn(rdrxn: rdChemReactions.ChemicalReaction) -> (rdChemReactions.
     return rdrxn, log
 
 
-def rdrxn_role_reassignment(rdrxn: rdChemReactions.ChemicalReaction,
-                            desired_product_idx: int = 0) -> rdChemReactions.ChemicalReaction:
-    """function to reassign the reactant/reagent role in a ChemicalReaction by identifying
-    1) reactant molecules that should be reagent
-    2) reagent molecules that should be reactants
-    and reconstructing a ChemicalReaction with correct roles
-    this role reassignment is requires reaction atom to atom to atom mapping to identify reactants/reagents
-
-    a reactant contributes with at least one heavy atom to the desired product of a reaction
-    a reagent does not contribute with any heavy atom to the desired product of a reaction
-    either reactant or reagents can contribute to by-products
-
-        Parameters:
-        rdrxn: RDKit ChemicalReaction
-        desired_product_idx: integer index of the reference product used to assess the reactant contribution
-
-    Returns:
-        rdrxn: RDKit ChemicalReaction
-
-    """
-    if not rdChemReactions.HasReactionAtomMapping(rdrxn):
-        return rdrxn
-    molecule_catalog = {'reactants': [{'rdmol': rdmol, 'role_molecule_idx': i,
-                                       'matam': {atom.GetIdx(): atom.GetAtomMapNum() for atom in rdmol.GetAtoms()}} for
-                                      i, rdmol in enumerate(rdrxn.GetReactants())], 'reagents': [
-        {'rdmol': rdmol, 'role_molecule_idx': i,
-         'matam': {atom.GetIdx(): atom.GetAtomMapNum() for atom in rdmol.GetAtoms()}} for i, rdmol in
-        enumerate(rdrxn.GetAgents())], 'products': [{'rdmol': rdmol, 'role_molecule_idx': i,
-                                                     'matam': {atom.GetIdx(): atom.GetAtomMapNum() for atom in
-                                                               rdmol.GetAtoms()}} for i, rdmol in
-                                                    enumerate(rdrxn.GetProducts())]}
-
-    rxn_mol_catalog = {'reactants': [], 'reagents': [],
-                       'products': [item.get('rdmol') for item in molecule_catalog.get('products')]}
-
-    keys_output = set(molecule_catalog.get('products')[desired_product_idx].get('matam').values())
-
-    for input_item in molecule_catalog.get('reactants') + molecule_catalog.get('reagents'):
-        keys_input = set(input_item.get('matam').values())
-        x = keys_input.intersection(keys_output) - {0}
-        rdmol = input_item.get('rdmol')
-        if len(x) == 0:
-            rxn_mol_catalog.get('reagents').append(rdmol)
-        else:
-            rxn_mol_catalog.get('reactants').append(rdmol)
-    return rdrxn_from_rxn_mol_catalog(rxn_mol_catalog=rxn_mol_catalog)
-
-
-def draw_reaction(smiles: str, filename: str):
-    """
-    Produces a file with the picture of a reaction using RDKit
-
-    Parameters:
-        smiles: string indicating the smiles of the reaction
-        filename: string indicated the name of the output file
-
-    Returns:
-        None. The image file is produced and stored in the directory
-    """
-    rxn = rdrxn_from_string(smiles, inp_fmt='smiles')
-
-    DrawingOptions.atomLabelFontSize = 55
-    DrawingOptions.dotsPerAngstrom = 100
-    DrawingOptions.bondLineWidth = 3.0
-    rimage = Draw.ReactionToImage(rxn)
-    rimage.save(filename)
-
-
-###### descriptors
+####################################################################################################
+# Descriptors
 def calculate_atom_oxidation_number_by_EN(atom: Atom) -> int:
     pauling_en_map = {1: 2.2, 3: 0.98, 4: 1.57, 5: 2.04, 6: 2.55, 7: 3.04, 8: 3.44, 9: 3.98, 11: 0.93, 12: 1.31,
                       13: 1.61,
@@ -664,37 +494,6 @@ def compute_oxidation_numbers(rdmol: Mol) -> Mol:
         oxidation_number = calculate_atom_oxidation_number_by_EN(atom_)
         atom.SetIntProp('_OxidationNumber', oxidation_number)
     return rdmol
-
-
-def calculate_molecular_hash_values(rdmol: Mol, hash_list: List[str] = None) -> dict:
-    molhashf = HashFunction.names
-    if hash_list:
-        hash_list += ['CanonicalSmiles']
-    else:
-        hash_list = list(molhashf.keys()) + ['inchi_key', 'inchikey_KET_15T', 'noiso_smiles', 'cx_smiles']
-
-    hash_map = {k: MolHash(rdmol, v) for k, v in molhashf.items() if k in hash_list}
-
-    hash_map['smiles'] = hash_map.get('CanonicalSmiles')
-    if 'inchi_key' in hash_list:
-        hash_map['inchi'] = Chem.MolToInchi(rdmol)
-        hash_map['inchi_key'] = Chem.InchiToInchiKey(hash_map['inchi'])
-    if 'inchikey_KET_15T' in hash_list:
-        hash_map['inchi_KET_15T'] = Chem.MolToInchi(rdmol, options='-KET -15T')
-        hash_map['inchikey_KET_15T'] = Chem.InchiToInchiKey(hash_map['inchi_KET_15T'])
-    if 'noiso_smiles' in hash_list:
-        hash_map['noiso_smiles'] = Chem.MolToSmiles(rdmol, isomericSmiles=False)
-    if 'cx_smiles' in hash_list:
-        hash_map['cx_smiles'] = Chem.MolToCXSmiles(rdmol)
-    """
-    
-    hash_map['ExtendedMurcko_AG'] = smiles_to_anonymus_graph(hash_map['ExtendedMurcko'])
-    hash_map['ExtendedMurcko_EG'] = smiles_to_element_graph(hash_map['ExtendedMurcko'])
-    hash_map['MurckoScaffold_AG'] = smiles_to_anonymus_graph(hash_map['MurckoScaffold'])
-    hash_map['MurckoScaffold_EG'] = smiles_to_element_graph(hash_map['MurckoScaffold'])
-    """
-
-    return hash_map
 
 
 def smiles_to_anonymus_graph(r):

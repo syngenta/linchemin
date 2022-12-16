@@ -1,9 +1,12 @@
 from linchemin.cgu.iron import Iron, Edge, Node, Direction
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph, SynGraph
 from linchemin.cheminfo import functions as cf
-from linchemin.cheminfo.models import ChemicalEquation
+import linchemin.cheminfo.depiction as cid
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.cgu.convert import converter
 from linchemin.utilities import console_logger
+from linchemin.IO import io as lio
+
 import pydot
 import networkx as nx
 import os
@@ -530,15 +533,15 @@ class TranslatorDotVisualization(AbsTranslator):
             dot_graph = pydot.Dot(route_iron.source, graph_type='digraph')
             # Translating iron nodes into dot nodes
             for id_n, node in route_iron.nodes.items():
-                node_smiles = node.properties['node_smiles']
+                node_instance = node.properties['node_class']
 
-                if node_smiles.count('>') > 1:
-                    fname = f'{id_n}.png'
-                    cf.draw_reaction(node_smiles, filename=fname)
+                if type(node_instance) == ChemicalEquation:
+                    depiction_data = cid.draw_reaction(node_instance.rdrxn)
 
                 else:
-                    fname = f'{id_n}.png'
-                    cf.draw_mol(node_smiles, filename=fname)
+                    depiction_data = cid.draw_molecule(node_instance.rdmol)
+
+                lio.write_rdkit_depict(data=depiction_data, file_path=f'{id_n}.png')
 
                 dot_graph.add_node(pydot.Node(node.properties['node_smiles'], image=f'{id_n}.png', label=''))
 

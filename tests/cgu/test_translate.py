@@ -8,7 +8,7 @@ import pydot
 import networkx as nx
 import pytest
 import os
-import unittest
+import unittest.mock
 import logging
 
 
@@ -239,8 +239,7 @@ def test_one_node_iron_to_nx(ibm1_path):
 def test_route_depiction(az_path):
     graph_az = json.loads(open(az_path).read())
     syngraph = translator('az_retro', graph_az[0], 'syngraph', out_data_model='bipartite')
-    translator('syngraph', syngraph, 'pydot_visualization', out_data_model='monopartite_reactions')
-
+    translator('syngraph', syngraph, 'pydot_visualization', out_data_model='bipartite')
     fname_png = f'route_{syngraph.source}.png'
     assert os.path.exists(fname_png)
     fname_dot = f'route_{syngraph.source}.dot'
