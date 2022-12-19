@@ -1,6 +1,5 @@
 from linchemin.cgu.iron import Iron, Edge, Node, Direction
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph, SynGraph
-from linchemin.cheminfo import functions as cf
 import linchemin.cheminfo.depiction as cid
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.cgu.convert import converter

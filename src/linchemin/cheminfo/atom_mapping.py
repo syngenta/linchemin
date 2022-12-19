@@ -58,7 +58,7 @@ class NameRxnMapper(Mapper):
     info = 'NextMove reaction classifier. Needs credentials'
 
     def map_chemical_equations(self, reactions_list: list[dict]):
-        print('NameRxn mapper is called')
+        # print('NameRxn mapper is called')
         out = MappingOutput()
         namerxn_service = service.NamerxnService(base_url='http://127.0.0.1:8004/')
         input_dict = {'inp_fmt': 'smiles',
@@ -85,7 +85,7 @@ class ChematicaMapper(Mapper):
     info = 'Atom mapper developed in the Chematica software'
 
     def map_chemical_equations(self, reactions_list: list[dict]):
-        print('Chematica mapper is called')
+        # print('Chematica mapper is called')
         out = MappingOutput()
         out.unmapped_reactions = reactions_list
         # response = namerxn_sdk_wrapper(reactions_list)
@@ -100,7 +100,7 @@ class RxnMapper(Mapper):
     info = 'Atom mapper developed by IBM'
 
     def map_chemical_equations(self, reactions_list: list[dict]):
-        print('RxnMapper mapper is called')
+        # print('RxnMapper mapper is called')
         out = MappingOutput()
         rxnmapper_service = rxn_service.RxnMapperService(base_url='http://127.0.0.1:8002/')
         input_dict = {'classification_code': 'namerxn',
