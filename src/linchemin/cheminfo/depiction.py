@@ -735,7 +735,7 @@ def draw_reaction(rdrxn):
     DrawingOptions.bondLineWidth = 3.0
 
     d2d = Draw.MolDraw2DCairo(800, 300)
-    d2d.DrawReaction(rdrxn, highlightByReactant=True)
+    d2d.DrawReaction(rdrxn, highlightByReactant=False)
     return d2d.GetDrawingText()
 
 

@@ -564,8 +564,9 @@ class ChemicalEquationGenerator(ABC):
     def generate_rdrxn(self, catalog, role_map, stoichiometry_coefficients, use_atom_mapping=False, use_smiles=False):
         pass
 
+    @abstractmethod
     def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
-        return cif.rdrxn_to_string(rdrxn=rdrxn, out_fmt='smiles', use_atom_mapping=True)
+        pass
 
     def generate_stoichiometry_coefficients(self, role_map, all_molecules):
         stoichiometry_coefficients = {}
@@ -595,6 +596,9 @@ class UnmappedChemicalEquationGenerator(ChemicalEquationGenerator):
                                stoichiometry_coefficients=stoichiometry_coefficients,
                                use_smiles=use_smiles,
                                use_atom_mapping=use_atom_mapping)
+
+    def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
+        return cif.rdrxn_to_string(rdrxn=rdrxn, out_fmt='smiles', use_atom_mapping=False)
 
     def generate_template(self, ce):
         return None
@@ -630,6 +634,9 @@ class MappedChemicalEquationGenerator(ChemicalEquationGenerator):
                                stoichiometry_coefficients=stoichiometry_coefficients,
                                use_smiles=use_smiles,
                                use_atom_mapping=use_atom_mapping)
+
+    def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
+        return cif.rdrxn_to_string(rdrxn=rdrxn, out_fmt='smiles', use_atom_mapping=True)
 
     def generate_template(self, ce):
         tc = TemplateConstructor()
