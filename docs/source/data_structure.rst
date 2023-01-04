@@ -1,5 +1,3 @@
-.. graph_data_structure:
-
 Graph Data Structures
 =====================
 
@@ -7,6 +5,8 @@ Graph Data Structures
 
 LinChemIn provides two internal data structures and relative methods to store and manipulate graphs:
 :class:`~linchemin.cgu.iron.Iron` and :class:`~linchemin.cgu.syngraph.SynGraph`.
+
+.. _iron_link:
 
 
 Iron
@@ -43,13 +43,15 @@ The code snippet below shows how to create and populate an Iron instance.
     iron_graph = Iron()
 
     # Two nodes, instances of the Node class, are defined and added to the Iron instance
-    parent_node = Node(properties={'prop1': 'val1', 'prop2': 'val2'},   # "parent" node properties
+    parent_node = Node(properties={'node_smiles': 'CCN',    # "parent" node properties
+                                   'prop1': 'some_value'},
                        iid='0',                 # "parent" node id
                        labels=['parent_node'])  # "parent" node labels
 
     iron_graph.add_node(parent_node.iid, parent_node)       # the "parent" node is added
 
-    child_node = Node(properties={'prop1': 'val3', 'prop2': 'val4'},    # "child" node properties
+    child_node = Node(properties={'node_smiles': 'CCC(=O)NCC',  # "child" node properties
+                                  'prop2': 'some_other_value'},
                        iid='1',                         # "child" node id
                        labels=['child_node'])           # "child" node labels
 
@@ -66,6 +68,11 @@ The code snippet below shows how to create and populate an Iron instance.
                 labels=['some label'])                      # edge labels
 
     iron_graph.add_edge(edge.iid, edge) # the edge is added
+
+
+We recommend to add a 'node_smiles'
+key in the ``properties`` dictionary of the Iron nodes, so that the Iron object is suitable
+to be translated into a SynGraph instance.
 
 SynGraph
 --------
@@ -87,17 +94,14 @@ each of which represents a specific data model.
 
 An instance of any ``SynGraph`` can be initialized by passing an Iron instance
 whose nodes have at least the property ``node_smiles``. This allows the builder to construct
-the instances of the :class:`~linchemin.cheminfo.molecule.Molecule` or
-:class:`~linchemin.cheminfo.reaction.ChemicalEquation` classes, which will be the nodes
+the instances of the :class:`~linchemin.cheminfo.models.Molecule` or
+:class:`~linchemin.cheminfo.models.ChemicalEquation` classes, which will be the nodes
 of the :class:`~syngraph.SynGraph` object.
 As an alternative, it is possible to pass a list of dictionaries containing reaction strings, such as SMILES,
-in the form ``[{'id': reaction_id, 'reaction_string': reaction_string, 'inp_fmt': 'smiles'}]``.
+in the form ``[{'query_id': reaction_id, 'output_string': reaction_string}]``.
 The last option is to create an empty :class:`~syngraph.SynGraph` instance
 and add nodes using the method
 :meth:`~syngraph.SynGraph.add_node`.
-
-In order to convert one type of :class:`~syngraph.SynGraph` into another,
-the :func:`~convert.converter` can be used.
 
 .. code-block:: python
 
@@ -106,13 +110,27 @@ the :func:`~convert.converter` can be used.
     bp_syngraph = BipartiteSynGraph(iron_route)
 
     # A MonopartiteReacSynGraph is initiated by passing a list of dictionaries of reaction smiles
-    reactions_list =[{'id': 0, 'reaction_string': 'CC(=O)CC.CCN>>CC/N=C(C)\CC', 'inp_fmt': 'smiles'},
-                     {'id': 1, 'reaction_string': 'CC/N=C(C)\CC.N#CC[NaB]>>CCNC(C)CC', 'inp_fmt': 'smiles'}]
+    reactions_list =[{'query_id': 0, 'output_string': 'CC(=O)CC.CCN>>CC/N=C(C)\CC'},
+                     {'query_id': 1, 'output_string': 'CC/N=C(C)\CC.N#CC[NaB]>>CCNC(C)CC'}]
 
     mpr_syngraph = MonopartiteReacSynGraph(reactions_list)
 
-    # a MonopartiteMolSynGraph is initiated as an empty instance and then nodes are added
+    # A MonopartiteMolSynGraph is initiated as an empty instance and then nodes are added
     mpm_syngraph = MonopartiteMolSynGraph()
     mpm_syngraph.add_node(('CCN', ['CCNC(=O)CC']))
-    mpm_syngraph.add_node(('CCOC(=O)CC', ['CCNC(=O)CC ']))
+    mpm_syngraph.add_node(('CCOC(=O)CC', ['CCNC(=O)CC']))
+
+
+In order to convert one type of :class:`~syngraph.SynGraph` into another,
+the :func:`~convert.converter` can be used.
+
+.. code-block:: python
+
+    from linchemin.cgu.convert import converter
+    # A BipartiteSynGraph is converted into a MonopartiteReacSynGraph
+    mpr_syngraph = converter(bp_syngraph, 'monopartite_reactions')
+
+    # A MonopartiteReacSynGraph is converted into a BipartiteSynGraph
+    bp_syngraph = converter(mpr_syngraphs, 'bipartite')
+
 
