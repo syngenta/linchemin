@@ -14,7 +14,8 @@ from linchemin.rem.clustering import (clusterer, get_clustered_routes_metrics, g
 from linchemin.rem.graph_distance import (get_available_ged_algorithms, get_ged_default_parameters,
                                           compute_distance_matrix, get_ged_parameters, GraphDistanceError)
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph, SynGraph, merge_syngraph, extract_reactions_from_syngraph
-from linchemin.cgu.convert import converter
+from linchemin.cgu.convert import converter, Converter
+from linchemin.cheminfo.atom_mapping import pipeline_atom_mapping, perform_atom_mapping, get_available_mappers
 
 """
 Module containing high level functionalities/"user stories" to work in stream; it provides a simplified interface for the user.
@@ -57,6 +58,9 @@ DEFAULT_FACADE = {
                            'calculation'},
     'merging': {'value': {'out_data_model': 'bipartite'},
                 'info': 'A new, "merged", bipartite SynGraph'},
+    'atom_mapping': {'value': {'mapper': None,
+                               'out_data_model': 'bipartite'},
+                     'info': 'The full atom mapping pipeline is used; a list of bipartite SynGraph is generated'},
 }
 
 
@@ -246,7 +250,8 @@ class RoutesDescriptorsFacade(Facade):
                            'dest': 'routes'},
                 'descriptors': {'name_or_flags': ['-descriptors'],
                                 'default': DEFAULT_FACADE['routes_descriptors']['value'],
-                                'required': False, 'type': list[str],
+                                'required': False,
+                                'type': list[str],
                                 'choices': get_available_descriptors(),
                                 'help': 'List of descriptors to be calculated',
                                 'dest': 'descriptors'}}
@@ -643,7 +648,7 @@ class ReactionExtractionFacade(Facade):
 
     def perform_functionality(self, routes: list) -> tuple[list, dict]:
         """
-            Extract a dictionary in the form {route_id: list[Dict]}
+            Extracts a list of
 
             Parameters:
                     routes: list of SynGraph instances
@@ -685,11 +690,96 @@ class ReactionExtractionFacade(Facade):
                            'required': True,
                            'type': list[SynGraph],
                            'choices': None,
-                           'help': 'List of SynGraph objects in which duplicates should be searched',
+                           'help': 'List of SynGraph objects from which reaction strings should be extracted',
                            'dest': 'routes'}}
 
     def print_available_options(self):
         print('Reaction strings extraction options and default:')
+        data = self.get_available_options()
+        for d, info in data.items():
+            print('argument:', d)
+            print('     info: ', info['help'])
+            print('     default: ', info['default'])
+            print('     available options: ', info['choices'])
+        return data
+
+
+class AtomMappingFacade(Facade):
+    """ Subclass of Facade for mapping the chemical equations in a list of routes. """
+    info = 'To get a list of mapped SynGraph objects'
+
+    def perform_functionality(self, routes: list,
+                              mapper: str=DEFAULT_FACADE['atom_mapping']['value']['mapper'],
+                              out_data_model: str=DEFAULT_FACADE['atom_mapping']['value']['out_data_model']) -> tuple[list, dict]:
+        """
+            Generates a list of SynGraph objects with mapped chemical equations
+
+            Parameters:
+                    routes: a list of SynGraph instances
+
+                    mapper: a string indicating which mapper to be used
+                            (default: None -> full atom mapping pipeline is used)
+
+                    out_data_model: a string indicting the desired output data model
+                                    (default: 'bipartite' -> a list of bipartite SynGraphs is returned)
+
+            Returns:
+                output: a list of SynGraph objects
+                meta: a dictionary storing information about the the run
+        """
+        out_syngraphs = []
+        out_syngraph_type = Converter.out_datamodels[out_data_model]
+        tot_success_rate = 0
+        for route in routes:
+            reaction_list = extract_reactions_from_syngraph(route)
+            if mapper is None:
+                # the full pipeline is used
+                mapping_out = pipeline_atom_mapping(reaction_list)
+            else:
+                # the slected mapper is used
+                mapping_out = perform_atom_mapping(reaction_list, mapper)
+            if mapping_out.success_rate != 1:
+                # if not all the reactions are mapped, a warning is raised and
+                # the output graph is built using all the mapped and the unmapped reactions (so that it is complete)
+                mapping_out.mapped_reactions.append((mapping_out.unmapped_reactions))
+
+            out_syngraphs.append(out_syngraph_type(mapping_out.mapped_reactions))
+            tot_success_rate += mapping_out.success_rate
+
+        tot_success_rate = tot_success_rate / len(routes)
+
+        meta = {'mapper': mapper,
+                'mapping_success_rate': tot_success_rate}
+
+        return out_syngraphs, meta
+
+
+    def get_available_options(self) -> dict:
+        return {'routes': {'name_or_flags': ['-routes'],
+                           'default': None,
+                           'required': True,
+                           'type': list[SynGraph],
+                           'choices': None,
+                           'help': 'List of SynGraph objects in which duplicates should be searched',
+                           'dest': 'routes'},
+                'mapper': {'name_or_flags': ['-mapper'],
+                           'default': DEFAULT_FACADE['atom_mapping']['value']['mapper'],
+                           'required': False,
+                           'type': str,
+                           'choices': get_available_mappers(),
+                           'help': 'Which mapper should be used',
+                           'dest': 'mapper'},
+                'out_data_model': {'name_or_flags': ['-out_data_model'],
+                           'default': DEFAULT_FACADE['atom_mapping']['value']['out_data_model'],
+                           'required': False,
+                           'type': str,
+                           'choices': get_available_data_models(),
+                           'help': 'Data model of the output graphs',
+                           'dest': 'out_data_model'},
+                }
+
+    def print_available_options(self):
+        print('Atom mappingof routes reactions options and default:')
         data = self.get_available_options()
         for d, info in data.items():
             print('argument:', d)
@@ -716,6 +806,8 @@ class FacadeFactory:
                                    'info': MergingFacade.info},
                        'extract_reactions_strings': {'value': ReactionExtractionFacade,
                                                      'info': ReactionExtractionFacade.info},
+                       'atom_mapping': {'value': AtomMappingFacade,
+                                        'info': AtomMappingFacade.info},
                        }
 
     def select_functionality(self, functionality: str, *args, **kwargs):
