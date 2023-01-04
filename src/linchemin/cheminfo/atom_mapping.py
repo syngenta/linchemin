@@ -19,24 +19,18 @@ class UnavailableMapper(KeyError):
 
 @dataclass
 class MappingOutput:
-    """ Class to store the results of an atom-to-atom mapping.
-
-        Attributes:
-            mapped_reactions: a list of dictionaries with the successfully mapped reactions
-
-            unmapped_reactions: a list of dictionaries with the reactions that could not be mapped
-
-            success_rate: a float between 0.0 and 1 indicating the success rate of the mapping
-
-            pipeline_success_rate: a dictionary in the form {'mapper_name': success_rate} to store the success rates
-                                   of single mappers within a pipeline
-    """
+    """ Dataclass to store the results of an atom-to-atom mapping """
     mapped_reactions: list = field(default_factory=list)
+    """ A list of dictionaries with the successfully mapped reactions"""
     unmapped_reactions: list = field(default_factory=list)
+    """ A list of dictionaries with the reactions that could not be mapped"""
     pipeline_success_rate: dict = field(default_factory=dict)
+    """ a dictionary in the form {'mapper_name': success_rate} to store the success rates of single mappers
+        within a pipeline"""
 
     @property
     def success_rate(self) -> float | int:
+        """ A float between 0.0 and 1 indicating the success rate of the mapping"""
         if self.mapped_reactions:
             return len(self.mapped_reactions) / (len(self.mapped_reactions) + len(self.unmapped_reactions))
         else:
@@ -136,13 +130,14 @@ class MapperFactory:
         return mapper().map_chemical_equations(reactions_list)
 
 
-def perform_atom_mapping(mapper_name: str, reactions_list: list[dict]) -> MappingOutput:
+def perform_atom_mapping(reactions_list: list[dict], mapper_name: str) -> MappingOutput:
     """ Gives access to the mapper factory.
 
         Parameters:
-            mapper_name: a string indicating the name of the mapper to be used
 
             reactions_list: a list of dictionaries with the reaction strings to be mapped
+
+            mapper_name: a string indicating the name of the mapper to be used
     """
     factory = MapperFactory()
     return factory.call_mapper(mapper_name, reactions_list)
@@ -164,7 +159,7 @@ class FirstMapping(MappingStep):
     def mapping(self, out: MappingOutput):
         mapper = 'namerxn'
         # try:
-        mapper_output = perform_atom_mapping(mapper, out.unmapped_reactions)
+        mapper_output = perform_atom_mapping(out.unmapped_reactions, mapper)
         out.mapped_reactions = mapper_output.mapped_reactions
         # print(out.mapped_reactions)
         out.unmapped_reactions = mapper_output.unmapped_reactions
@@ -184,7 +179,7 @@ class SecondMapping(MappingStep):
     def mapping(self, out: MappingOutput):
         mapper = 'chematica'
         # try:
-        mapper_output = perform_atom_mapping(mapper, out.unmapped_reactions)
+        mapper_output = perform_atom_mapping(out.unmapped_reactions, mapper)
         if mapper_output.mapped_reactions is not []:
             out.mapped_reactions.extend(mapper_output.mapped_reactions)
         out.unmapped_reactions = mapper_output.unmapped_reactions
@@ -203,7 +198,7 @@ class ThirdMapping(MappingStep):
     def mapping(self, out):
         mapper = 'rxnmapper'
         # try:
-        mapper_output = perform_atom_mapping(mapper, out.unmapped_reactions)
+        mapper_output = perform_atom_mapping(out.unmapped_reactions, mapper)
         if mapper_output.mapped_reactions is not []:
             out.mapped_reactions.extend(mapper_output.mapped_reactions)
         out.unmapped_reactions = mapper_output.unmapped_reactions
@@ -225,7 +220,7 @@ class MappingBuilder:
         return FirstMapping().mapping(out)
 
 
-def pipeline_atom_mapping(reactions_list: list[dict] = None):
+def pipeline_atom_mapping(reactions_list: list[dict] = None) -> MappingOutput:
     """ Facade function to start the atom-to-atom mapping pipeline.
 
         Parameters:

@@ -7,7 +7,7 @@ import json
 
 def test_basic_factory(capfd):
     with pytest.raises(KeyError) as ke:
-        perform_atom_mapping('unavailable_mapper', [])
+        perform_atom_mapping([], 'unavailable_mapper')
     assert "UnavailableMapper" in str(ke.type)
 
 
@@ -21,7 +21,7 @@ def test_rxnmapper(az_path):
     graph_az = json.loads(open(az_path).read())
     syngraph = translator('az_retro', graph_az[0], 'syngraph', 'monopartite_reactions')
     reaction_list = extract_reactions_from_syngraph(syngraph)
-    out = perform_atom_mapping('rxnmapper', reaction_list)
+    out = perform_atom_mapping(reaction_list, 'rxnmapper')
     assert out is not None
     assert out.pipeline_success_rate == {}
     s = MonopartiteReacSynGraph(out.mapped_reactions)
@@ -35,7 +35,7 @@ def test_namerxn_service(ibm1_path):
     graph = json.loads(open(ibm1_path).read())
     syngraph = translator('ibm_retro', graph[2], 'syngraph', 'monopartite_reactions')
     reaction_list = extract_reactions_from_syngraph(syngraph)
-    out = perform_atom_mapping('namerxn', reaction_list)
+    out = perform_atom_mapping(reaction_list, 'namerxn')
     assert out is not None
     s = MonopartiteReacSynGraph(out.mapped_reactions)
     assert len(syngraph.graph) == len(s.graph)

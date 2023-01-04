@@ -12,7 +12,6 @@ Translate
 .. automodule:: linchemin.cgu.translate
 .. autosummary::
     :toctree: generated
-        :hidden:
 
 
     translator
@@ -27,7 +26,6 @@ Iron
 .. automodule:: linchemin.cgu.iron
 .. autosummary::
     :toctree: generated
-        :hidden:
 
 
     Iron
@@ -44,7 +42,6 @@ Syngraph
 .. automodule:: linchemin.cgu.syngraph
 .. autosummary::
     :toctree: generated
-        :hidden:
 
 
     SynGraph
@@ -52,6 +49,7 @@ Syngraph
     BipartiteSynGraph
     MonopartiteReacSynGraph
     MonopartiteMolSynGraph
+    extract_reactions_from_syngraph
 
 
 Convert
@@ -60,7 +58,6 @@ Convert
 .. automodule:: linchemin.cgu.convert
 .. autosummary::
     :toctree: generated
-        :hidden:
 
 
     converter
@@ -75,7 +72,6 @@ Workflows
 .. automodule:: linchemin.interfaces.workflows
 .. autosummary::
     :toctree: generated
-        :hidden:
 
     process_routes
     get_workflow_options
@@ -87,8 +83,6 @@ Facade
 .. automodule:: linchemin.interfaces.facade
 .. autosummary::
     :toctree: generated
-        :hidden:
-
 
     facade
     facade_helper
@@ -102,7 +96,6 @@ Route Descriptors
 .. automodule:: linchemin.rem.route_descriptors
 .. autosummary::
     :toctree: generated
-        :hidden:
 
     descriptor_calculator
     DescriptorCalculator
@@ -115,7 +108,6 @@ Graph Distance
 .. automodule:: linchemin.rem.graph_distance
 .. autosummary::
     :toctree: generated
-        :hidden:
 
     compute_distance_matrix
     Ged
@@ -129,7 +121,6 @@ Clustering
 .. automodule:: linchemin.rem.clustering
 .. autosummary::
     :toctree: generated
-        :hidden:
 
     clusterer
     ClusterCalculator
@@ -140,25 +131,40 @@ Clustering
 Cheminfo
 --------
 
-Molecule
-^^^^^^^^^^^
+Constructors
+^^^^^^^^^^^^^
 
-.. automodule:: linchemin.cheminfo.molecule
+.. automodule:: linchemin.cheminfo.constructors
 .. autosummary::
     :toctree: generated
-        :hidden:
+
+    MoleculeConstructor
+    ChemicalEquationConstructor
+
+Models
+^^^^^^^
+
+.. automodule:: linchemin.cheminfo.models
+.. autosummary::
+    :toctree: generated
 
     Molecule
-    MoleculeConstructor
+    ChemicalEquation
+    Ratam
 
-Reaction
-^^^^^^^^^^^
 
-.. automodule:: linchemin.cheminfo.reaction
+Atom Mapping
+^^^^^^^^^^^^^^
+
+.. automodule:: linchemin.cheminfo.atom_mapping
 .. autosummary::
     :toctree: generated
-        :hidden:
 
-    ChemicalEquation
-    ChemicalEquationConstructor
+    perform_atom_mapping
+    pipeline_atom_mapping
+    MappingOutput
+    get_available_mappers
+    Mapper
+    Mapper.map_chemical_equations
+
 
