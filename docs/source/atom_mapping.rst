@@ -37,15 +37,15 @@ and the name of the selected mapper. The :func:`~linchemin.cheminfo.atom_mapping
 allows users to call a single mapper at time.
 
 Each mapping tool has been developed in a different way and thus has its own characteristics:
-rxnmapper is accurate and fast, but if it fails to classify the submitted reaction, it
-does not return any mapping; namerxn, on the other side, is a slightly less accurate and
+namerxn is accurate and fast, but if it fails to classify the submitted reaction, it
+does not return any mapping; rxnmapper, on the other side, is a slightly less accurate and
 slower, but it always returns a mapping.
 In order to efficiently exploit each mapper, we implemented a pipeline
 (a chain of responsibility structure) on top of the factory. The pipeline initially
 calls rxnmapper and submits all the input reaction strings to it.
-If rxnmapper was able to map all the inputs, the results are returned
+If namerxn was able to map all the inputs, the results are returned
 as a :class:`~linchemin.cheminfo.atom_mapping.MappingOutput` object and the workflow
-ends. However, if not all the reactions were mapped, namerxn is called and the unmapped
+ends. However, if not all the reactions were mapped, rxnmapper is called and the unmapped
 inputs are submitted to it; the results of the two mappers are put together and returned
 as a single :class:`~linchemin.cheminfo.atom_mapping.MappingOutput` instance.
 
