@@ -1,5 +1,5 @@
 Chemical Objects Classes
-=======================
+==========================
 
 .. currentmodule:: linchemin.cheminfo
 
@@ -8,7 +8,7 @@ LinChemIn provides two classes to store chemical objects:
 
 
 Molecule
---------
+----------
 
 Instances of the :class:`~models.Molecule` class hold information regarding chemical compounds
 and can be initialized by using the :class:`~linchemin.cheminfo.constructors.MoleculeConstructor`
@@ -35,7 +35,7 @@ associated with the Molecule instance.
 
 
 ChemicalEquation
-----------------
+------------------
 Instances of the :class:`~models.ChemicalEquation` class hold information regarding chemical reactions
 and can be initialized by using the :class:`~linchemin.cheminfo.constructors.ChemicalEquationConstructor`
 constructor and its methods.
