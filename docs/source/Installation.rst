@@ -6,14 +6,14 @@ LinChemIn requires python 3.9 or higher, as well as some common and reliable thi
 
 Usage installation
 --------------------
-Install directly from pypi
+LinChemIn can be installed directly from pypi
 
 .. code-block:: console
 
     $ pip install linchemin
 
 
-After cloning the LinChemIn repository from git, you can use ``pip`` to install it:
+As an alternative, you can clone the LinChemIn repository from git and then use ``pip`` to install it:
 
 .. code-block:: console
 
