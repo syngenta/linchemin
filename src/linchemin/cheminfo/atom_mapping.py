@@ -74,19 +74,19 @@ class NameRxnMapper(Mapper):
         return out
 
 
-class ChematicaMapper(Mapper):
-    """ Class for the Chematica atom mapper """
-    info = 'Atom mapper developed in the Chematica software'
-
-    def map_chemical_equations(self, reactions_list: list[dict]):
-        # print('Chematica mapper is called')
-        out = MappingOutput()
-        out.unmapped_reactions = reactions_list
-        # response = namerxn_sdk_wrapper(reactions_list)
-        # if the mapper is not available, raise an error MapperUnavailableError.
-        # out.mapped_reactions = response['success_list]
-        # out.unmapped_reactions = response['failure_list']
-        return out
+# class ChematicaMapper(Mapper):
+#     """ Class for the Chematica atom mapper """
+#     info = 'Atom mapper developed in the Chematica software'
+#
+#     def map_chemical_equations(self, reactions_list: list[dict]):
+#         # print('Chematica mapper is called')
+#         out = MappingOutput()
+#         out.unmapped_reactions = reactions_list
+#         # response = namerxn_sdk_wrapper(reactions_list)
+#         # if the mapper is not available, raise an error MapperUnavailableError.
+#         # out.mapped_reactions = response['success_list]
+#         # out.unmapped_reactions = response['failure_list']
+#         return out
 
 
 class RxnMapper(Mapper):
@@ -114,8 +114,8 @@ class RxnMapper(Mapper):
 class MapperFactory:
     mappers = {'namerxn': {'value': NameRxnMapper,
                            'info': NameRxnMapper.info},
-               'chematica': {'value': ChematicaMapper,
-                             'info': ChematicaMapper.info},
+               # 'chematica': {'value': ChematicaMapper,
+               #               'info': ChematicaMapper.info},
                'rxnmapper': {'value': RxnMapper,
                              'info': RxnMapper.info}
                }
@@ -167,29 +167,29 @@ class FirstMapping(MappingStep):
         if out.success_rate == 1.0:
             return out
         else:
-            return SecondMapping().mapping(out)
+            return ThirdMapping().mapping(out)
             # return ThirdMapping().mapping(out)
         # except: MapperUnavailableError
         #   return SecondMapping().mapping(out)
 
 
-class SecondMapping(MappingStep):
-    """ Concrete handler to call the second mapper """
-
-    def mapping(self, out: MappingOutput):
-        mapper = 'chematica'
-        # try:
-        mapper_output = perform_atom_mapping(out.unmapped_reactions, mapper)
-        if mapper_output.mapped_reactions is not []:
-            out.mapped_reactions.extend(mapper_output.mapped_reactions)
-        out.unmapped_reactions = mapper_output.unmapped_reactions
-        out.pipeline_success_rate[mapper] = mapper_output.success_rate
-        if out.success_rate == 1.0:
-            return out
-        else:
-            return ThirdMapping().mapping(out)
-        # except: MapperUnavailableError
-        #   return ThirdMapping().mapping(out)
+# class SecondMapping(MappingStep):
+#     """ Concrete handler to call the second mapper """
+#
+#     def mapping(self, out: MappingOutput):
+#         mapper = 'chematica'
+#         # try:
+#         mapper_output = perform_atom_mapping(out.unmapped_reactions, mapper)
+#         if mapper_output.mapped_reactions is not []:
+#             out.mapped_reactions.extend(mapper_output.mapped_reactions)
+#         out.unmapped_reactions = mapper_output.unmapped_reactions
+#         out.pipeline_success_rate[mapper] = mapper_output.success_rate
+#         if out.success_rate == 1.0:
+#             return out
+#         else:
+#             return ThirdMapping().mapping(out)
+#         # except: MapperUnavailableError
+#         #   return ThirdMapping().mapping(out)
 
 
 class ThirdMapping(MappingStep):

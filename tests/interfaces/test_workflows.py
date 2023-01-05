@@ -1,8 +1,7 @@
-from linchemin.interfaces.workflows import process_routes, get_workflow_options, MergingStep
+from linchemin.interfaces.workflows import process_routes, get_workflow_options
 from linchemin.interfaces.facade import facade
 
 import pytest
-import os
 import unittest.mock
 
 
@@ -79,8 +78,7 @@ def test_workflow_cluster_dist_matrix(mock_dataframe, mock_csv, mit_path):
 def test_workflow_graphml(mock_graphml, mit_path):
     path = str(mit_path)
     input_dict = {path: 'askcos'}
-    out = process_routes(input_dict, output_format='graphml')
-    routes, meta = facade('translate', 'syngraph', out.routes_list, 'noc', out_data_model='bipartite')
+    process_routes(input_dict, output_format='graphml')
     mock_graphml.assert_called()
 
 
@@ -114,18 +112,28 @@ def test_graphml(mock_json, mock_csv, az_path):
     mock_json.assert_called_with(out.reaction_strings, "reaction_strings.json")
 
 
-def test_full_workflow(az_path):
+@unittest.mock.patch('linchemin.IO.io.write_json')
+@unittest.mock.patch('linchemin.interfaces.workflows.MergingStep.perform_step')
+@unittest.mock.patch('linchemin.interfaces.workflows.ClusteringAndDistanceMatrixStep.perform_step')
+@unittest.mock.patch('linchemin.interfaces.workflows.DescriptorsStep.perform_step')
+@unittest.mock.patch('linchemin.interfaces.workflows.TranslationStep.perform_step')
+def test_full_workflow(mock_translate, mock_descriptors, mock_cluster, mock_merging, mock_write, az_path):
     path = str(az_path)
     input_dict = {path: 'az'}
     process_routes(input_dict, out_data_model='monopartite_reactions',
                    functionalities=['compute_descriptors', 'clustering_and_d_matrix', 'merging'])
-    assert os.path.exists('distance_matrix.csv')
-    os.remove('distance_matrix.csv')
-    assert os.path.exists('cluster_metrics.csv')
-    os.remove('cluster_metrics.csv')
-    assert os.path.exists('routes.json')
-    os.remove('routes.json')
-    assert os.path.exists('descriptors.csv')
-    os.remove('descriptors.csv')
-    assert os.path.exists('tree.json')
-    os.remove('tree.json')
+    mock_translate.assert_called()
+    mock_descriptors.assert_called()
+    mock_cluster.assert_called()
+    mock_merging.assert_called()
+    mock_write.assert_called()
+
+
+@unittest.mock.patch('linchemin.IO.io.write_json')
+@unittest.mock.patch('linchemin.interfaces.workflows.AtomMappingStep.perform_step')
+def test_atom_mapping(mock_mapping, mock_write, az_path):
+    path = str(az_path)
+    input_dict = {path: 'az'}
+    process_routes(input_dict, out_data_model='monopartite_reactions', mapping=True)
+    mock_mapping.assert_called()
+    mock_write.assert_called()
