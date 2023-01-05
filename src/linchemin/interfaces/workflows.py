@@ -5,6 +5,7 @@ from linchemin.rem.route_descriptors import get_available_descriptors
 from linchemin.rem.graph_distance import (get_available_ged_algorithms, get_ged_default_parameters, get_ged_parameters)
 from linchemin.rem.clustering import get_available_clustering
 from linchemin.cgu.syngraph import SynGraph
+from linchemin.cheminfo.atom_mapping import get_available_mappers
 from linchemin.utilities import file_logger, console_logger
 
 from abc import ABC, abstractmethod
@@ -22,6 +23,7 @@ logger = console_logger(__name__)
 DEFAULT_WORKFLOW = {
     'functionalities': None,
     'output_format': 'json',
+    'mapping': False,
 }
 
 
@@ -69,8 +71,41 @@ class WorkflowStep(ABC):
     info: str
 
     @abstractmethod
-    def perform_step(self, data: dict, syngraph_routes: list, output: WorkflowOutput):
+    def perform_step(self, data: dict, output: WorkflowOutput) -> WorkflowOutput:
         pass
+
+
+class TranslationStep(WorkflowStep):
+    """ Handler handling the translate functionality of facade
+        It translates the input list of graphs in syngraph objects
+    """
+    info = 'To translate routes'
+
+    casps = {'ibmrxn': 'ibm_retro',
+             'az': 'az_retro',
+             'askcos': 'mit_retro'}
+
+    def perform_step(self, params: dict, output: WorkflowOutput):
+        print('Translating the routes in the input file to a list of SynGraph....')
+        all_routes = []
+        for file, casp in params['input'].items():
+            routes = lio.read_json(file)
+            if casp not in self.casps:
+                logger.error(f"{casp} is not a valid casp name. Available casps are: {list(self.casps.keys())}")
+                raise KeyError
+
+            syngraph_routes, meta = facade('translate', input_format=self.casps[casp], input_list=routes,
+                                           out_data_model=params['out_data_model'],
+                                           parallelization=params['parallelization'],
+                                           n_cpu=params['n_cpu'])
+            all_routes += syngraph_routes
+            output.log['_'.join(['translation', file])] = meta
+            if len(all_routes) < 1:
+                logger.warning('No valid routes were found. Workflow interrupted.')
+                return None
+
+        output.routes_list = all_routes
+        return output
 
 
 class DescriptorsStep(WorkflowStep):
@@ -80,9 +115,9 @@ class DescriptorsStep(WorkflowStep):
     """
     info = 'To compute routes descriptors'
 
-    def perform_step(self, params: dict, syngraph_routes: list, output: WorkflowOutput):
+    def perform_step(self, params: dict, output: WorkflowOutput):
         print('Computing the routes descriptors...')
-        descriptors, meta = facade('routes_descriptors', syngraph_routes, descriptors=params['descriptors'])
+        descriptors, meta = facade('routes_descriptors', output.routes_list, descriptors=params['descriptors'])
         output.descriptors = descriptors
         output.log['compute_descriptors'] = meta
         lio.dataframe_to_csv(descriptors, 'descriptors.csv')
@@ -96,9 +131,9 @@ class ClusteringAndDistanceMatrixStep(WorkflowStep):
     """
     info = 'To compute the distance matrix and clustering the routes'
 
-    def perform_step(self, params: dict, syngraph_routes: list, output: WorkflowOutput):
+    def perform_step(self, params: dict, output: WorkflowOutput):
         print('Clustering the routes...')
-        cluster_output, metrics, meta = facade('clustering', syngraph_routes,
+        cluster_output, metrics, meta = facade('clustering', output.routes_list,
                                                clustering_method=params['clustering_method'],
                                                ged_method=params['ged_method'],
                                                ged_params=params['ged_params'],
@@ -126,8 +161,8 @@ class ClusteringStep(WorkflowStep):
     """
     info = 'To clustering the routes'
 
-    def perform_step(self, params: dict, syngraph_routes: list, output: WorkflowOutput):
-        cluster_output, metrics, meta = facade('clustering', syngraph_routes,
+    def perform_step(self, params: dict, output: WorkflowOutput):
+        cluster_output, metrics, meta = facade('clustering', output.routes_list,
                                                clustering_method=params['clustering_method'],
                                                ged_method=params['ged_method'],
                                                ged_params=params['ged_params'],
@@ -151,13 +186,13 @@ class DistanceMatrixStep(WorkflowStep):
     """
     info = 'To compute the distance matrix'
 
-    def perform_step(self, data: dict, syngraph_routes: list, output: WorkflowOutput):
+    def perform_step(self, params: dict, output: WorkflowOutput):
         print('Computing the distance matrix...')
-        d_matrix, meta = facade('distance_matrix', syngraph_routes,
-                                ged_method=data['ged_method'],
-                                ged_params=data['ged_params'],
-                                parallelization=data['parallelization'],
-                                n_cpu=data['n_cpu'])
+        d_matrix, meta = facade('distance_matrix', output.routes_list,
+                                ged_method=params['ged_method'],
+                                ged_params=params['ged_params'],
+                                parallelization=params['parallelization'],
+                                n_cpu=params['n_cpu'])
         if not d_matrix:
             output.log['distance_matrix'] = meta
         else:
@@ -174,9 +209,9 @@ class MergingStep(WorkflowStep):
     """
     info = 'To merge the routes in a "SynTree"'
 
-    def perform_step(self, params: dict, syngraph_routes: list, output: WorkflowOutput):
+    def perform_step(self, params: dict, output: WorkflowOutput):
         print('Merging routes...')
-        merged = facade('merging', syngraph_routes, params['out_data_model'])
+        merged = facade('merging', output.routes_list, params['out_data_model'])
         output.tree = merged
         write_syngraph([merged], params['out_data_model'], params['output_format'], 'tree')
         return output
@@ -189,11 +224,25 @@ class ExtractingReactionsStep(WorkflowStep):
     """
     info = 'To extract reactions strings from a list of SynGraph objects'
 
-    def perform_step(self, params: dict, syngraph_routes: list, output: WorkflowOutput):
+    def perform_step(self, params: dict, output: WorkflowOutput):
         print('Extracting reaction strings...')
-        reactions, m = facade('extract_reactions_strings', syngraph_routes)
+        reactions, m = facade('extract_reactions_strings', output.routes_list)
         output.reaction_strings = reactions
         lio.write_json(reactions, 'reaction_strings.json')
+        return output
+
+
+class AtomMappingStep(WorkflowStep):
+    """ Handler handling the atom_mapping functionality of facade.
+        If the 'atom_mapping' argument is in 'functionalities', reaction strings are extracted from the routes and
+        sent to the selected atom-to-atom mapping tools. The mapped reaction strings are then used to rebuild the routes
+    """
+    info = 'To map the reaction strings involved in the routes'
+
+    def perform_step(self, params: dict, output: WorkflowOutput):
+        print('Mapping the reactions')
+        mapped_routes, m = facade('atom_mapping', output.routes_list, params['mapper'], params['out_data_model'])
+        output.routes_list = mapped_routes
         return output
 
 
@@ -209,34 +258,26 @@ class WorkflowHandler(ABC):
 class WorkflowStarter(WorkflowHandler):
     """ Concrete handler to perform the first step in the workflow """
 
-    casps = {'ibmrxn': 'ibm_retro',
-             'az': 'az_retro',
-             'askcos': 'mit_retro'}
-
     def execute(self, params: dict, output: WorkflowOutput):
-        """ Translates the routes in a list of SynGraph objects and calls the second step """
+        """ Executes the first step of the workflow: translation of the routes in SynGraph objects and, if selected,
+            the reactions' atom mapping
+        """
 
-        print('Translating the routes in the input file to a list of SynGraph....')
-        all_routes = []
-        for file, casp in params['input'].items():
-            routes = lio.read_json(file)
-            if casp not in self.casps:
-                logger.error(f"{casp} is not a valid casp name. Available casps are: {list(self.casps.keys())}")
-                raise KeyError
+        output = self.get_translatation(params, output)
+        if params['mapping'] is True:
+            output = self.get_mapped_routes(params, output)
 
-            syngraph_routes, meta = facade('translate', input_format=self.casps[casp], input_list=routes,
-                                           out_data_model=params['out_data_model'],
-                                           parallelization=params['parallelization'],
-                                           n_cpu=params['n_cpu'])
-            all_routes += syngraph_routes
-            output.log['_'.join(['translation', file])] = meta
-            if len(all_routes) < 1:
-                logger.warning('No valid routes were found. Workflow interrupted.')
-                return None
+        return Executor().execute(output.routes_list, params, output)
 
-        output.routes_list = all_routes
+    def get_translatation(self, params: dict, output: WorkflowOutput) -> WorkflowOutput:
+        """ Calls the translation step of the workflow """
+        output = TranslationStep().perform_step(params, output)
+        return output
 
-        return Executor().execute(all_routes, params, output)
+    def get_mapped_routes(self, params: dict, output: WorkflowOutput) -> WorkflowOutput:
+        """ Calles the atom mapping step of the workflow """
+        output = AtomMappingStep().perform_step(params, output)
+        return output
 
 
 class Executor(WorkflowHandler):
@@ -266,9 +307,9 @@ class Executor(WorkflowHandler):
                     logger.error(f'"{request}" is not a valid functionality. Available functionalities are: '
                                    f'{list(self.steps_map.keys())}')
                     raise KeyError
-                output = self.steps_map[request]['value']().perform_step(params, syngraph_routes, output)
+                output = self.steps_map[request]['value']().perform_step(params, output)
 
-        return Finisher().execute(syngraph_routes, params, output)
+        return Finisher().execute(params=params, output=output)
 
     def get_workflow_functions(self):
         return {f: additional_info['info'] for f, additional_info in self.steps_map.items()}
@@ -277,9 +318,9 @@ class Executor(WorkflowHandler):
 class Finisher(WorkflowHandler):
     """ Concrete handler to perform the last step in the workflow"""
 
-    def execute(self, syngraph_routes: list, params: dict, output: WorkflowOutput):
+    def execute(self, params: dict, output: WorkflowOutput):
         print('Writing the routes in the output file...')
-        write_syngraph(syngraph_routes, params['out_data_model'], params['output_format'], 'routes')
+        write_syngraph(output.routes_list, params['out_data_model'], params['output_format'], 'routes')
         return output
 
 
@@ -294,7 +335,9 @@ class WorkflowBuilder:
 
 def process_routes(input_dict: dict,
                    output_format=DEFAULT_WORKFLOW['output_format'],
+                   mapping=DEFAULT_WORKFLOW['mapping'],
                    functionalities=DEFAULT_WORKFLOW['functionalities'],
+                   mapper=DEFAULT_FACADE['atom_mapping']['value']['mapper'],
                    out_data_model=DEFAULT_FACADE['translate']['value']['data_model'],
                    descriptors=DEFAULT_FACADE['routes_descriptors']['value']['descriptors'],
                    ged_method=DEFAULT_FACADE['distance_matrix']['value']['ged_method'],
@@ -306,10 +349,12 @@ def process_routes(input_dict: dict,
         functionalities are performed. The mandatory start and stop actions are (i) to read a json file containing the
         routes predicted by a CASP tool, and (ii) to write the routes as dictionaries in an output file.
         Possible additional actions are:
+            - performing the atom mapping of the reactions involved in the routes
             - computing route descriptors
             - computing the distance matrix between the routes
             - clustering the routes
             - merging the routes
+            - extracting the reaction strings from the routes
 
         Parameters:
             input_dict: a dictionary
@@ -317,9 +362,13 @@ def process_routes(input_dict: dict,
                 {'file_path': 'casp_name'}
             output_format: a string (optional; default: 'json')
                 It indicates which format should be used while writing the routes (csv or json)
+            mapping: a boolean (optional; default: False)
+                It indicate whether the reactions involved in the routes should go through the atom-to-atom mapping
             functionalities: a list of strings (optional; default: None)
                 It contains the names of the functionalities to be performed; if it is None, the input routes are read
                 and written to a file
+            mapper: a string (optional; default: None)
+                It indicates which mapping tools should be used; if it is None, the mapping pipeline is used
             out_data_model: a string (optional; default: 'monopartite_reactions')
                 It indicates the desired data model for the output routes
             descriptors: a list of strings (optional; default: None)
@@ -346,7 +395,9 @@ def process_routes(input_dict: dict,
 
     params = {'input': input_dict,
               'output_format': output_format,
+              'mapping': mapping,
               'functionalities': functionalities,
+              'mapper' : mapper,
               'out_data_model': out_data_model,
               'descriptors': descriptors,
               'ged_method': ged_method,
@@ -460,7 +511,7 @@ def get_workflow_options(verbose=False):
                                'required': True,
                                'type': dict,
                                'choices': None,
-                               'help': 'Path to the input files and relative casp names in the form "file_path"="casp_name". Available CASP names are {}'.format(list(WorkflowStarter.casps.keys())),
+                               'help': 'Path to the input files and relative casp names in the form "file_path"="casp_name". Available CASP names are {}'.format(list(TranslationStep.casps.keys())),
                                'dest': 'input_dict'},
                 'output_format': {'name_or_flags': ['-output_format'],
                                   'default': DEFAULT_WORKFLOW['output_format'],
@@ -469,6 +520,20 @@ def get_workflow_options(verbose=False):
                                   'choices': list(SyngraphWriterFactory().file_formats.keys()),
                                   'help': 'Format of the output file containing the routes',
                                   'dest': 'output_format'},
+                'mapping': {'name_or_flags': ['-mapping'],
+                            'default': DEFAULT_WORKFLOW['mapping'],
+                            'required': False,
+                            'type': bool,
+                            'choices': [True, False],
+                            'help': 'Whether the atom-to-atom mapping of the reactions should be performed',
+                            'dest': 'mapping'},
+                'mapper': {'name_or_flags': ['-mapper'],
+                           'default': DEFAULT_FACADE['atom_mapping']['value']['mapper'],
+                           'required': False,
+                           'type': str,
+                           'choices': get_available_mappers(),
+                           'help': 'Which mapper should be used; if None, the mapping pipeline is used',
+                           'dest': 'mapper'},
                 'functionalities': {'name_or_flags': ['-functionalities'],
                                     'default': DEFAULT_WORKFLOW['functionalities'],
                                     'required': False,
@@ -484,11 +549,11 @@ def get_workflow_options(verbose=False):
                                    'help': 'Data model of the output graphs',
                                    'dest': 'out_data_model'},
                 'descriptors': {'name_or_flags': ['-descriptors'],
-                                'default': DEFAULT_FACADE['routes_descriptors']['value'],
+                                'default': DEFAULT_FACADE['routes_descriptors']['value']['descriptors'],
                                 'required': False,
                                 'type': list,
                                 'choices': get_available_descriptors(),
-                                'help': 'List of descriptors to be calculated',
+                                'help': 'List of descriptors to be calculated; if None, all descriptors are calculated',
                                 'dest': 'descriptors'},
                 'ged_method': {'name_or_flags': ['-ged_method'],
                                'default': DEFAULT_FACADE['distance_matrix']['value']['ged_method'],
