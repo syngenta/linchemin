@@ -26,6 +26,9 @@ DEFAULT_WORKFLOW = {
     'mapping': False,
 }
 
+class NoValidRoute(Exception):
+    """ Raised if no valid routes are found """
+    pass
 
 @dataclass
 class WorkflowOutput:
@@ -101,8 +104,8 @@ class TranslationStep(WorkflowStep):
             all_routes += syngraph_routes
             output.log['_'.join(['translation', file])] = meta
             if len(all_routes) < 1:
-                logger.warning('No valid routes were found. Workflow interrupted.')
-                return None
+                logger.error('No valid routes were found. Workflow interrupted.')
+                raise NoValidRoute
 
         output.routes_list = all_routes
         return output
@@ -262,12 +265,14 @@ class WorkflowStarter(WorkflowHandler):
         """ Executes the first step of the workflow: translation of the routes in SynGraph objects and, if selected,
             the reactions' atom mapping
         """
+        try:
+            output = self.get_translatation(params, output)
+            if params['mapping'] is True:
+                output = self.get_mapped_routes(params, output)
 
-        output = self.get_translatation(params, output)
-        if params['mapping'] is True:
-            output = self.get_mapped_routes(params, output)
-
-        return Executor().execute(output.routes_list, params, output)
+            return Executor().execute(output.routes_list, params, output)
+        except NoValidRoute:
+            return None
 
     def get_translatation(self, params: dict, output: WorkflowOutput) -> WorkflowOutput:
         """ Calls the translation step of the workflow """
