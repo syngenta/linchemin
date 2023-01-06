@@ -1,6 +1,7 @@
 from linchemin.cgu.iron import Iron, Edge, Node, Direction
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph, SynGraph
 import linchemin.cheminfo.depiction as cid
+import linchemin.cheminfo.functions as cif
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.cgu.convert import converter
 from linchemin.utilities import console_logger
@@ -116,11 +117,15 @@ class TranslatorMonopartiteReacSynGraph(AbsTranslator):
             id_n = 0
             id_e = 0
             for reac, connections in mp_syngraph.graph.items():
+                # if the smiles 'reac' is not yet among the nodes of the Iron instance,
+                # the corresponding node is created and added to Iron
                 if reac not in [n.properties['node_class'] for id, n in iron.nodes.items()]:
-                    # if the smiles 'reac' is not yet among the nodes of the Iron instance,
-                    # the corresponding node is created and added to Iron
-                    prop = {'node_smiles': reac.smiles,
-                            'node_class': reac}
+                    # the unmapped smiles is built so that the route is suitable to be correctly displayed in a png file
+                    unmapped_smiles = cif.rdrxn_to_string(reac.rdrxn, out_fmt='smiles', use_atom_mapping=False)
+                    prop = {
+                        'node_unmapped_smiles': unmapped_smiles,
+                        'node_smiles': reac.smiles,
+                        'node_class': reac}
                     node1 = [(id_n, Node(iid=str(id_n), properties=prop, labels=[]))]
                     iron.add_node(str(node1[0][0]), node1[0][1])
                     id_n += 1
@@ -130,8 +135,11 @@ class TranslatorMonopartiteReacSynGraph(AbsTranslator):
                     node1 = [(id, n) for id, n in iron.nodes.items() if n.properties['node_class'] == reac]
                 for c in connections:
                     if c.smiles not in [n.properties['node_smiles'] for id, n in iron.nodes.items()]:
-                        prop = {'node_smiles': c.smiles,
-                                'node_class': c}
+                        unmapped_smiles = cif.rdrxn_to_string(c.rdrxn, out_fmt='smiles', use_atom_mapping=False)
+                        prop = {
+                            'node_unmapped_smiles': unmapped_smiles,
+                            'node_smiles': c.smiles,
+                            'node_class': c}
                         node2 = [(id_n, Node(iid=str(id_n), properties=prop, labels=[]))]
                         iron.add_node(str(node2[0][0]), node2[0][1])
                         id_n += 1
@@ -178,12 +186,20 @@ class TranslatorBipartiteSynGraph(AbsTranslator):
             id_n = 0
             id_e = 0
             for reac, connections in syngraph.graph.items():
+                # if the smiles 'reac' is not yet among the nodes of the Iron instance,
+                # the corresponding node is created and added to Iron
                 if reac.smiles not in [n.properties['node_smiles'] for id, n in iron.nodes.items()]:
-                    prop = {'node_smiles': reac.smiles,
-                            'node_class': reac
+                    if type(reac) == ChemicalEquation:
+                        unmapped_smiles = cif.rdrxn_to_string(reac.rdrxn, out_fmt='smiles', use_atom_mapping=False)
+                    elif type(reac) == Molecule:
+                        unmapped_smiles = reac.smiles
+
+                    prop = {
+                        'node_unmapped_smiles': unmapped_smiles,
+                        'node_smiles': reac.smiles,
+                        'node_class': reac
                             }
-                    # if the smiles 'reac' is not yet among the nodes of the Iron instance,
-                    # the corresponding node is created and added to Iron
+
                     node1 = [(id_n, Node(iid=str(id_n), properties=prop, labels=[]))]
                     iron.add_node(str(node1[0][0]), node1[0][1])
                     id_n += 1
@@ -193,9 +209,16 @@ class TranslatorBipartiteSynGraph(AbsTranslator):
                     node1 = [(id, n) for id, n in iron.nodes.items() if n.properties['node_smiles'] == reac.smiles]
                 for c in connections:
                     if c.smiles not in [n.properties['node_smiles'] for id, n in iron.nodes.items()]:
-                        prop = {'node_smiles': c.smiles,
-                                'node_class': c
-                                }
+                        if type(c) == ChemicalEquation:
+                            unmapped_smiles = cif.rdrxn_to_string(c.rdrxn, out_fmt='smiles', use_atom_mapping=False)
+                        elif type(c) == Molecule:
+                            unmapped_smiles = c.smiles
+
+                        prop = {
+                            'node_unmapped_smiles':unmapped_smiles,
+                            'node_smiles': c.smiles,
+                            'node_class': c
+                            }
                         node2 = [(id_n, Node(iid=str(id_n), properties=prop, labels=[]))]
                         iron.add_node(str(node2[0][0]), node2[0][1])
                         id_n += 1
@@ -542,12 +565,13 @@ class TranslatorDotVisualization(AbsTranslator):
 
                 lio.write_rdkit_depict(data=depiction_data, file_path=f'{id_n}.png')
 
-                dot_graph.add_node(pydot.Node(node.properties['node_smiles'], image=f'{id_n}.png', label=''))
+                dot_graph.add_node(pydot.Node(node.properties['node_unmapped_smiles'], image=f'{id_n}.png', label=''))
 
             # Translating iron edges into dot edges
             for id_e, edge in route_iron.edges.items():
-                a = [n.properties['node_smiles'] for id, n in route_iron.nodes.items() if id == edge.a_iid]
-                b = [n.properties['node_smiles'] for id, n in route_iron.nodes.items() if id == edge.b_iid]
+                # the unmapped smiles is used to avoid the pydot issues in dealing with nodes' name with numbers
+                a = [n.properties['node_unmapped_smiles'] for id, n in route_iron.nodes.items() if id == edge.a_iid]
+                b = [n.properties['node_unmapped_smiles'] for id, n in route_iron.nodes.items() if id == edge.b_iid]
                 dot_graph.add_edge(pydot.Edge(a[0], b[0]))
 
             dot_graph.write(f'route_{route_iron.source}.dot')

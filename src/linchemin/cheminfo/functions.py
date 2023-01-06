@@ -209,7 +209,10 @@ def rdrxn_from_string(input_string: str, inp_fmt: str) -> rdChemReactions.Chemic
 
 def rdrxn_to_string(rdrxn: rdChemReactions.ChemicalReaction, out_fmt: str, use_atom_mapping: bool = False) -> str:
     if not use_atom_mapping:
-        Chem.rdChemReactions.RemoveMappingNumbersFromReactions(rdrxn)
+        rdrxn_ = copy.deepcopy(rdrxn)
+        Chem.rdChemReactions.RemoveMappingNumbersFromReactions(rdrxn_)
+    else:
+        rdrxn_ = rdrxn
     function_map = {'smiles': partial(Chem.rdChemReactions.ReactionToSmiles, canonical=True),
                     'smarts': Chem.rdChemReactions.ReactionToSmarts,
                     # 'rxn': partial(Chem.rdChemReactions.ReactionToRxnBlock, forceV3000=True),
@@ -217,7 +220,7 @@ def rdrxn_to_string(rdrxn: rdChemReactions.ChemicalReaction, out_fmt: str, use_a
                     # 'rxn': Chem.rdChemReactions.ReactionToV3KRxnBlock,
                     }
     func = function_map.get(out_fmt)
-    return func(rdrxn)
+    return func(rdrxn_)
 
 
 def rdrxn_to_rxn_mol_catalog(rdrxn: rdChemReactions.ChemicalReaction) -> Dict[str, List[Mol]]:
