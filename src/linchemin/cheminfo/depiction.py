@@ -734,8 +734,8 @@ def draw_reaction(rdrxn):
     DrawingOptions.dotsPerAngstrom = 100
     DrawingOptions.bondLineWidth = 3.0
 
-    d2d = Draw.MolDraw2DCairo(800, 300)
-    d2d.DrawReaction(rdrxn, highlightByReactant=False)
+    d2d = Draw.MolDraw2DCairo(800, 200)
+    d2d.DrawReaction(rdrxn, highlightByReactant=True)
     return d2d.GetDrawingText()
 
 
