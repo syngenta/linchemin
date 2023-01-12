@@ -77,7 +77,7 @@ class Ged(metaclass=abc.ABCMeta):
                     molecular_similarity_name):
         """ Calculates the Graph Edit Distance for a pair of graphs.
 
-                Parameters:
+                :param:
                     syngraph1, syngraph2: two graph objects
                         They are graphs for which the GED should be computed
 
@@ -103,7 +103,7 @@ class Ged(metaclass=abc.ABCMeta):
                         It indicates which method should be used to compute the similarity between molecules
 
 
-                Returns:
+                :return:
                     the value of the GED
         """
         pass
@@ -315,7 +315,7 @@ def graph_distance_factory(syngraph1, syngraph2, ged_method: str,
                            ged_params=None):
     """ Gives access to the Ged factory. Computes the distance matrix between a pair of SynGraph instances.
 
-        Parameters:
+        :param:
             syngraph1, syngraph2: two SynGraph objects
 
             ged_method: a string
@@ -331,7 +331,7 @@ def graph_distance_factory(syngraph1, syngraph2, ged_method: str,
                 (vi) molecular_fp_count_vect: a boolean indicating whether 'GetCountFingerprint' should be used
                 (vii) molecular_similarity_name: a string corresponding to the similarity type to be used for molecules
 
-        Returns:
+        :return:
             The output of the selected similarity algorithm, representing the ged between the two input graphs
         """
 
@@ -418,7 +418,7 @@ def compute_nodes_fingerprints(syngraph, reaction_fingerprints, molecular_finger
                                molecular_fp_count_vect=DEFAULT_GED['molecular_fp_count_vect']['value']):
     """ To create two dictionaries, whose keys are the hashes of the SynGraph nodes and the values their fingerprints.
 
-        Parameters:
+        :param:
             syngraph: A SynGraph object
             reaction_fingerprints: a string corresponding to the selected type of reaction fingerprint
             molecular_fingerprint: a string corresponding to the selected type of molecular fingerprint
@@ -426,7 +426,7 @@ def compute_nodes_fingerprints(syngraph, reaction_fingerprints, molecular_finger
             molecular_fp_params: a dictionary with the optional parameters for computing molecular fingerprints
             molecular_fp_count_vect: a boolean indicating whether 'GetCountFingerprint' should be used
 
-        Returns:
+        :return:
             reaction_nodes_fingerprints: a dictionary containing the fingerprints of the ChemicalEquation nodes
             molecule_node_fingerprints: a dictionary containing the fingerprints of the Molecule nodes
     """
@@ -461,14 +461,14 @@ def compute_nodes_fingerprints(syngraph, reaction_fingerprints, molecular_finger
 def build_similarity_matrix(d_fingerprints1, d_fingerprints2, similarity_name='tanimoto'):
     """ To build the similarity matrix between two routes with the selected method.
 
-        Parameters:
+        :param:
             d_fingerprints1: a dictionary {hash: fingerprints} relative to the first graph, output of
                              compute_nodes_fingerprints
             d_fingerprints2: a dictionary {hash: fingerprints} relative to the second graph, output of
                              compute_nodes_fingerprints
             similarity_name: a string specifying the similarity method to be used
 
-        Returns:
+        :return:
             matrix: a pandas dataframe (n nodes in graph1) x (n nodes in graph2) containing the similarity values
     """
     columns = list(d_fingerprints1.keys())
@@ -487,7 +487,7 @@ def compute_distance_matrix(syngraphs: list, ged_method: str, ged_params=None, p
                             n_cpu=mp.cpu_count()):
     """ To compute the distance matrix of a set of routes.
 
-        Parameters:
+        :param:
             syngraphs: a list of SynGraph objects
                 The routes to use for computing the distance matrix
             ged_method: a string
@@ -499,7 +499,7 @@ def compute_distance_matrix(syngraphs: list, ged_method: str, ged_params=None, p
             n_cpu: an integer (optional; default: 'mp.cpu_count()')
                 If parallelization is activated, it indicates the number of CPUs to be used
 
-        Returns:
+        :return:
             matrix: a pandas DataFrame
                 The distance matrix, with dimensions (n routes x n routes), with the graph distances
     """
@@ -540,11 +540,11 @@ def compute_distance_matrix(syngraphs: list, ged_method: str, ged_params=None, p
 def parallel_matrix_calculations(data, ged_method, ged_params):
     """ To compute the distance matrix elements in a fashion suitable for parallel computation.
 
-        Parameters:
+        :param:
             data: a tuple (i, j, route1, route2)
                 It contains the two indices and the two routes for computing an element of the distance matrix
 
-        Returns:
+        :return:
             i, j, sim: a tuple
                 It contains two indices of the matrix and the relative distance value
     """

@@ -43,7 +43,7 @@ class MoleculeConstructor:
         rdmol_mapped = rdmol
         rdmol_unmapped = cif.remove_rdmol_atom_mapping(rdmol=rdmol_mapped)
         rdmol_unmapped_canonical = cif.canonicalize_rdmol_lite(rdmol=rdmol_unmapped, is_pattern=False)
-        rdmol_mapped_canonical = cif.canonicalize_rdmol_lite(rdmol=rdmol_mapped, is_pattern=False)
+        rdmol_mapped_canonical = cif.canonicalize_mapped_rdmol(cif.canonicalize_rdmol_lite(rdmol=rdmol_mapped, is_pattern=False))
         hash_map = calculate_molecular_hash_values(rdmol=rdmol_unmapped_canonical, hash_list=['CanonicalSmiles',
                                                                                               'inchi_key',
                                                                                               'inchi_KET_15T'])

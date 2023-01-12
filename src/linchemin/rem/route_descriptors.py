@@ -46,11 +46,11 @@ class DescriptorCalculator(metaclass=abc.ABCMeta):
     def compute_descriptor(self, graph):
         """ Calculates the descriptor for the given graph.
 
-            Parameters:
+            :param:
                 graph: a graph object
                     It is the graph for which the descriptor should be computed
 
-            Returns:
+            :return:
                 the value of the descriptor
         """
         pass
@@ -299,13 +299,13 @@ class DescriptorsCalculatorFactory:
 def descriptor_calculator(graph, descriptor: str):
     """ Gives access to the routes descriptors factory.
 
-            Parameters:
+            :param:
                 graph: a graph object
                     The single route for which the descriptor must be computed
                 descriptor: a string
-                    It idicates the descriptor to be computed
+                    It indicates the descriptor to be computed
 
-            Returns:
+            :return:
                 The value of the selected descriptor for the input graph
     """
     descriptor_selector = DescriptorsCalculatorFactory()
@@ -320,13 +320,13 @@ def get_available_descriptors():
 def find_path(graph: SynGraph, leaf: str, root: str, path: list = None) -> list:
     """ Returns the path between two nodes in a SynGraph.
 
-            Parameters:
+            :param:
                 graph: a SynGraph
                 leaf: the smiles of one SynLeaf
                 root: the smiles of the SynRoot
                 path: a list of smiles (default: empty list)
 
-            Returns:
+            :return:
                 path/newpath: a list of smiles
     """
     if path is None:
@@ -345,10 +345,10 @@ def is_subset(syngraph1, syngraph2) -> bool:
         R2 if (i) the dictionary of R1 SynGraph instace is subset of the dictionary of R2, (ii) R1 and R2 have the
         same roots, (iii) R1 and R2 have different leaves.
 
-        Parameters:
+        :param:
             syngraph1, syngraph2: two instances of SynGraph or MonopartiteSynGraph
 
-        Returns:
+        :return:
             a boolean: True if syngraph1 is subset of syngraph2; False otherwise
     """
     if type(syngraph1) == BipartiteSynGraph:
@@ -367,10 +367,10 @@ def is_subset(syngraph1, syngraph2) -> bool:
 def find_duplicates(syngraphs1: list, syngraphs2: list):
     """ Returns a list of tuples containing the common elements in the two input lists.
 
-        Parameters:
+        :param:
             syngraphs1, syngraphs2: two lists of SynGraph objects
 
-        Returns:
+        :return:
             duplicates: a list of tuples
                 It contains the id/source of identical routes;
                 if there are no duplicates, nothing is returned and a message appears
@@ -394,10 +394,10 @@ def get_nodes_consensus(syngraphs: list) -> dict:
     """ Returns a dictionary of sets with the ChemicalEquation/Molecule instances as keys and the set of route ids
         involving the reaction/chemical as value.
 
-        Parameters:
+        :param:
               syngraphs: a list of SynGraph objects
 
-        Returns:
+        :return:
             node_consensus: a dictionary of sets
                 It contains the nodes and the ids of the routes that contain them in the form {nodes: {set of route ids}}
     """

@@ -36,7 +36,7 @@ class SynGraph(ABC):
 
     def __init__(self, initiator=None):
         """
-            Parameters:
+            :param:
                 initiator: object to initialize a SynGraph instance (optional, default: None).
                     It can be:
                         (i) an Iron instance
@@ -346,7 +346,7 @@ class MonopartiteMolSynGraph(SynGraph):
 def get_reaction_instance(reactants: list, products: list) -> ChemicalEquation:
     """ Takes the lists of reactants and products of a reaction and create the ChemicalEquation instance.
 
-        Parameters:
+        :param:
             reactants: a list of smiles corresponding to the reactants of the reaction
             products: a list of smiles corresponding to the products of the reaction
 
@@ -367,11 +367,11 @@ def get_reaction_instance(reactants: list, products: list) -> ChemicalEquation:
 def merge_syngraph(list_syngraph: list) -> SynGraph:
     """ Takes a list of SynGraph objects and returns a new 'merged' SynGraph.
 
-        Parameters:
+        :param:
             list_syngraph: a list
                 The input SynGraph objects to be merged
 
-        Returns:
+        :return:
             merged: a SynGraph object
                 The new SynGraph object resulting from the merging of the input graphs;
                 keys and connections are unique (no duplicates)
@@ -468,10 +468,10 @@ class ExtractorFactory:
 def extract_reactions_from_syngraph(syngraph: SynGraph) -> list:
     """ Takes a SynGraph object and returns a list of dictionaries of the involved chemical reactions.
 
-        Parameters:
+        :param:
             syngraph: a SynGraph object (MonopartiteReacSynGraph or BipartiteSynGraph)
 
-        Returns:
+        :return:
             reactions: a list of dictionary in the form
                        [{'query_id': n, 'input_string': reaction}]
     """

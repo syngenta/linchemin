@@ -735,7 +735,7 @@ def translator(input_format: str, original_graph, output_format: str, out_data_m
     """ Takes a graph object in an input format and translate it into a graph object in the desired output format
         and data model.
 
-            Parameters:
+            :param:
 
                 input_format: a string
                     It indicates the format of the input graph object
@@ -749,7 +749,7 @@ def translator(input_format: str, original_graph, output_format: str, out_data_m
                 out_data_model: a string
                     It indicates the desired type of output graph (monopartite, bipartite...)
 
-            Returns:
+            :return:
                 out_graph: a graph object in the specified output format
     """
     if 'syngraph' in input_format and 'syngraph' in output_format:

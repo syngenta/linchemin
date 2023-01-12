@@ -43,7 +43,7 @@ class ClusterCalculator(metaclass=abc.ABCMeta):
     def get_clustering(self, dist_matrix: pd.DataFrame, save_dist_matrix: bool, **kwargs):
         """ Applies the clustering algorithm to the provided distance matrix
 
-            Parameters:
+            :param:
                 dist_matrix: a pandas.DataFrame
                     It contains the symmetric distance matrix for the routes
 
@@ -132,7 +132,7 @@ def clusterer(syngraphs: list, ged_method: str, clustering_method: str, ged_para
               parallelization=False, n_cpu=None, **kwargs):
     """ Gives access to the Cluster factory
 
-        Parameters:
+        :param:
             syngraphs: a list of SynGraph objects
                 The routes to be clustered
             ged_method: a string
@@ -151,7 +151,7 @@ def clusterer(syngraphs: list, ged_method: str, clustering_method: str, ged_para
             **kwargs:
                 The optional parameters specific of the selected clustering algorithm
 
-        Returns:
+        :return:
             clustering, score, (dist_matrix): the output of the clustering, a float and a pandas DataFrame
                 The clustering algorithm output, the silhouette score and the distance matrix (save_dist_matrix=True)
     """
@@ -167,11 +167,11 @@ def clusterer(syngraphs: list, ged_method: str, clustering_method: str, ged_para
 def compute_silhouette_score(dist_matrix, clusterer_labels) -> float:
     """ To compute the silhouette score for the clustering of a distance matrix.
 
-        Parameters:
+        :param:
             dist_matrix: a np.array containg a distance matrix
             clusterer_labels: the labels assigned by a clutering algorithm
 
-        Returns:
+        :return:
             score: a float
     """
     return silhouette_score(dist_matrix, clusterer_labels, metric='precomputed')
@@ -180,11 +180,11 @@ def compute_silhouette_score(dist_matrix, clusterer_labels) -> float:
 def optimize_agglomerative_cluster(dist_matrix, linkage: str) -> tuple:
     """ To optimize the number of clusters for the AgglomerativeClustering method.
 
-        Parameters:
+        :param:
             dist_matrix: the distance matrix of the analzyed routes as numpy array
             linkage: a string indicating which type of linkage to use in the clustering
 
-        Returns:
+        :return:
             best_clustering: the output of the clustering algorithm with the best silhouette score
             max_score: a float indicating the silhouette score relative to the best_clustering
             best_n_cluster: an integer indicating the number of clusters used to get the best silhouette score
@@ -210,11 +210,11 @@ def optimize_agglomerative_cluster(dist_matrix, linkage: str) -> tuple:
 def get_clustered_routes_metrics(syngraphs: list, clustering_output) -> pd.DataFrame:
     """ To compute the metrics of the routes in the input list grouped by cluster.
 
-        Parameters:
+        :param:
             syngraphs: a list containing the SynGraph/MonopartiteSynGraph for which the metrics should be computed
             clustering_output: the output of a clustering algorithm
 
-        Returns:
+        :return:
              df1: a pandas DataFrame with columns ['routes_id', 'cluster', 'n_steps', 'n_branch']
     """
     labels = clustering_output.labels_

@@ -70,11 +70,11 @@ class NodeScoreCalculator:
 
 def node_score_calculator(node, score: str):
     """ Gives access to the NodeScoreCalculator factory.
-            Parameters:
+            :param:
                 node: a Molecule or ChemicalEquation instance
                 score: a string indicating which score should be computed
 
-            Returns:
+            :return:
                 score: a float
     """
     score_selector = NodeScoreCalculator()

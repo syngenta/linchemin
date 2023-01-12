@@ -361,7 +361,7 @@ def process_routes(input_dict: dict,
             - merging the routes
             - extracting the reaction strings from the routes
 
-        Parameters:
+        :param:
             input_dict: a dictionary
                 It contains the path to the input files and the relative casp names in the form
                 {'file_path': 'casp_name'}
@@ -391,7 +391,7 @@ def process_routes(input_dict: dict,
             n_cpu: an integer (optional; default: 'mp.cpu_count()')
                 It indicates the number of cpus to be used if parallelization is used.
 
-        Returns:
+        :return:
             output: a WorkflowOutput object
                 Its attributes store the results of the selected functionalities. The outcomes are also written to files.
 
