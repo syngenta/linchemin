@@ -5,9 +5,9 @@ from rdkit.Chem import DataStructs, rdChemReactions
 from linchemin.cheminfo.functions import rdkit as rdkit
 from linchemin.cheminfo.functions import canonicalize_rdmol, get_canonical_order, rdmol_from_string, \
     rdrxn_to_string, rdrxn_from_string, rdmol_to_bstr, bstr_to_rdmol, \
-    rdrxn_from_string, is_mapped_molecule, has_mapped_products, \
+    rdrxn_from_string, is_mapped_molecule, has_mapped_products, canonicalize_rdmol_lite,\
     compute_oxidation_numbers, rdrxn_role_reassignment, rdrxn_to_rxn_mol_catalog, \
-    remove_rdmol_atom_mapping, rdchiral_extract_template
+    remove_rdmol_atom_mapping, rdchiral_extract_template, canonicalize_mapped_rdmol
 
 
 def test_build_rdrxn_from_smiles():
@@ -384,6 +384,26 @@ def test_compute_oxidation_numbers():
             algorithm_assessment_failures.append({**item, **{'calculated': algorithm_assessment}})
 
     assert len(algorithm_assessment_failures) == 0
+
+
+def test_mapped_rdmol_atom_ids_canonicalization():
+    # the same molecule with two different mapping
+    s1 = 'CCO[C:16]([C:6]([C:4]([O:3][CH2:2][CH3:1])=[O:5])=[CH:7]N(C)C)=[O:17]'
+    s2 = '[CH:1](=[C:2]([C:3](=[O:4])[O:5][CH2:6][CH3:7])[C:8](=[O:9])[O:10][CH2:11][CH3:12])[N:14]([CH3:13])[CH3:15]'
+    mol1 = canonicalize_rdmol(rdmol_from_string(s1, inp_fmt='smiles'))[0]
+    mol2 = canonicalize_rdmol(rdmol_from_string(s2, inp_fmt='smiles'))[0]
+    d1 = {a.GetIdx(): [a.GetSymbol()] for a in mol1.GetAtoms()}
+    d2 = {a.GetIdx(): [a.GetSymbol()] for a in mol2.GetAtoms()}
+    # even if canonicalized, the two rdmol have different atom ids
+    assert d1 != d2
+    # to get the identical atom ids, we need to canonicalized the atoms order after the map numbers have been removed
+    mol1_canonical_atoms = canonicalize_mapped_rdmol(rdmol_from_string(s1, inp_fmt='smiles'))
+    mol2_canonical_atoms = canonicalize_mapped_rdmol(rdmol_from_string(s2, inp_fmt='smiles'))
+    d1 = {a.GetIdx(): [a.GetSymbol()] for a in mol1_canonical_atoms.GetAtoms()}
+    d2 = {a.GetIdx(): [a.GetSymbol()] for a in mol2_canonical_atoms.GetAtoms()}
+    assert d1 == d2
+
+
 
 #
 # def test_similarity_with_count_fp():

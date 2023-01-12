@@ -25,6 +25,8 @@ def test_molecule_equality():
         9: {'smiles': r'C\C=C(\C)O'},  # M5_T2
         10: {'smiles': 'Cl[C:2]([CH3:1])=[O:3]'},  # M6_atom_mapping_1
         11: {'smiles': 'Cl[C:1]([CH3:2])=[O:5]'},  # M6_atom_mapping_2
+        12: {'smiles': 'CCO[C:16]([C:6]([C:4]([O:3][CH2:2][CH3:1])=[O:5])=[CH:7]N(C)C)=[O:17]'},
+        13: {'smiles': '[CH:1](=[C:2]([C:3](=[O:4])[O:5][CH2:6][CH3:7])[C:8](=[O:9])[O:10][CH2:11][CH3:12])[N:14]([CH3:13])[CH3:15]'}
     }
     # initialize the constructor to use smiles as identity property
     molecule_constructor = MoleculeConstructor(identity_property_name='smiles')
@@ -39,6 +41,12 @@ def test_molecule_equality():
     assert ms1.get(6) != ms1.get(7)  # same molecule, but different tautomers: smiles fails to capture identity
     assert ms1.get(8) != ms1.get(9)  # same molecule, but different tautomers: smiles fails to capture identity
     assert ms1.get(10) == ms1.get(11)  # same molecule, but different atom mapping
+
+    mol1 = ms1.get(12).rdmol_mapped
+    mol2 = ms1.get(13).rdmol_mapped
+    d1 = {a.GetIdx(): [a.GetSymbol()] for a in mol1.GetAtoms()}
+    d2 = {a.GetIdx(): [a.GetSymbol()] for a in mol2.GetAtoms()}
+    assert d1 == d2
 
     # initialize the constructor to use inchi_key as identity property
     molecule_constructor = MoleculeConstructor(identity_property_name='inchi_key')

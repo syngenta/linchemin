@@ -835,7 +835,7 @@ def facade(functionality, *args, **kwargs):
     """
     Gives access to the 'facade', which wraps each of the main functionalities of the package.
 
-    Parameters:
+    :param:
         functionality: a string
             It indicates the functionality to be performed
         *args:
@@ -843,7 +843,7 @@ def facade(functionality, *args, **kwargs):
         **kwargs:
             the optional arguments of the selected functionality
 
-    Returns:
+    :return:
         the output of the selected functionality
 
     """
@@ -856,7 +856,7 @@ def facade_helper(functionality=None, verbose=False):
         Returns the available facade functions if no input is provided; if the name of a functionality is specified,
         the available parameters options for it are returned.
 
-        Parameters:
+        :param:
             functionality: a string or None (optional, default: None)
                 If provided, it indicates the functionality for which the helper is invoked. If it is None,
                 the helper for the facade is returned.
@@ -865,7 +865,7 @@ def facade_helper(functionality=None, verbose=False):
                 If provided, it indicates whether to print the available options and the default parameters are
                 printed on the screen.
 
-        Returns:
+        :return:
             A dictionary with the available options and default parameters.
     """
     if functionality is None:

@@ -3,17 +3,6 @@ from abc import ABC, abstractmethod
 
 """
 Module containing classes and functions to score SynRoutes.
-
-    AbstractClasses:
-        RouteScore
-        
-    Classes:
-        ScoreFactory
-        
-        BranchScore(RouteScore)
-        
-    Functions:
-        route_scorer(syngraph: SynGraph, score: str)
 """
 
 
@@ -57,11 +46,11 @@ class ScoreFactory:
 def route_scorer(syngraph, score: str):
     """ Gives access to ScoreFactory.
 
-            Parameters:
+            :param:
                 syngraph: a Syngraph/MonopartiteSynGraph instance
                 score: a string indicating the score to be computed
 
-            Returns:
+            :return:
                 a float between 0 and 1 (0 being 'bad' and 1 being 'good')
     """
     score_selector = ScoreFactory()

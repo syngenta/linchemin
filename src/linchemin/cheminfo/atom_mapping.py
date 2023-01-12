@@ -133,8 +133,7 @@ class MapperFactory:
 def perform_atom_mapping(reactions_list: list[dict], mapper_name: str) -> MappingOutput:
     """ Gives access to the mapper factory.
 
-        Parameters:
-
+        :param:
             reactions_list: a list of dictionaries with the reaction strings to be mapped
 
             mapper_name: a string indicating the name of the mapper to be used
@@ -223,11 +222,11 @@ class MappingBuilder:
 def pipeline_atom_mapping(reactions_list: list[dict] = None) -> MappingOutput:
     """ Facade function to start the atom-to-atom mapping pipeline.
 
-        Parameters:
+        :param:
              reactions_list: a list of dictionaries containing the reaction strings to be mapped and their id in the
                              form [{'query_id': n, 'input_string': unmapped_reaction_string}]
 
-        Returns:
+        :return:
             out: a MappingOutput instance
     """
     return MappingBuilder().initiate_mapping(reactions_list)
