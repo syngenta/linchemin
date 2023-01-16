@@ -96,8 +96,8 @@ def canonicalize_rdmol(rdmol: rdkit.Chem.rdchem.Mol) -> rdkit.Chem.rdchem.Mol:
             https://github.com/rdkit/rdkit/issues/2006
             https://sourceforge.net/p/rdkit/mailman/message/34923617/
 
-        :param rdmol:
-        :return: rdmol_canonicalized
+        :param rdmol: a rdkit.Chem.rdchem.Mol object
+        :return: rdmol_canonicalized: a rdkit.Chem.rdchem.Mol object with the atoms in canonical order
         """
     task_name = 'canonicalize_rdmol'
     if rdmol:
@@ -331,12 +331,11 @@ def rdrxn_role_reassignment(rdrxn: rdChemReactions.ChemicalReaction,
     either reactant or reagents can contribute to by-products
 
         :param:
-        rdrxn: RDKit ChemicalReaction
-        desired_product_idx: integer index of the reference product used to assess the reactant contribution
+            rdrxn: the rdChemReactions.ChemicalReaction object for which the role reassignment should be performed
 
-        :return:
-        rdrxn: RDKit ChemicalReaction
+            desired_product_idx: the integer index of the reference product used to assess the reactant contribution, default: 0
 
+        :return: the rdChemReactions.ChemicalReaction object with reassigned roles
     """
     if not rdChemReactions.HasReactionAtomMapping(rdrxn):
         return rdrxn
@@ -374,15 +373,14 @@ def role_reassignment(reaction_mols: dict, ratam, desired_product):
     """ To reassign the roles of reactants and reagents based on the mapping on the desired product.
 
         :param:
-             reaction_mols: a dictionary in the form {'reactants_reagents': [Molecule], 'products': [Molecule]}
+            reaction_mols: a dictionary in the form {'reactants_reagents': [Molecule], 'products': [Molecule]}
 
-             ratam: a Ratam object containing the mapping information of the reaction of interest
+            ratam: a Ratam object containing the mapping information of the reaction of interest
 
-             desired_product: the Molecule object of the desired product
+            desired_product: the Molecule instance of the desired product
 
-        :return:
-            a dictionary in the form {'reactants': [Molecule], 'reagents': [Molecule], 'products': [Molecule]} with the
-            new roles based on atom mapping
+        :return: a dictionary in the form {'reactants': [Molecule], 'reagents': [Molecule], 'products': [Molecule]}
+                 with the new roles based on atom mapping
 
 
     """
@@ -408,8 +406,7 @@ def check_reagents(full_map_info, reagents):
 
             reagents: a set containing the uid of the already discovered reagents
 
-        :return:
-            reagents: an updated set, containing the uid of unmapped reagents.
+        :return: reagents: an updated set, containing the uid of unmapped reagents.
     """
     for uid, map_list in full_map_info.items():
         for d in map_list:
@@ -417,6 +414,35 @@ def check_reagents(full_map_info, reagents):
             if not map_nums or set(map_nums) == {0} or set(map_nums) == {-1}:
                 reagents.add(uid)
     return reagents
+
+
+def mapping_diagnosis(chemical_equation, desired_product):
+    """ To check possible issues in the atom mapping: (i) if there are unmapped atoms in the desired product (issues
+        in computing route metrics); (ii) if there are unmapped atoms in the reactants (possible hint for leaving groups)
+
+        :param:
+            chemical_equation: the ChemicalEquation instance of interest
+
+            desired_product: the Molecule instance of the desired product
+
+        :return: unmapped_fragments: a list of smiles referring to the unmapped atoms of each reactant
+    """
+
+    if (unmapped_atoms_in_desired_product := [a for a in desired_product.rdmol_mapped.GetAtoms()
+                                          if a.GetAtomMapNum() in [0, -1]]):
+        logger.warning('Some atoms in the desired product remain unmapped: possible important reactants are missing')
+
+    for uid in chemical_equation.role_map['reactants']:
+        mols = [m.rdmol_mapped for u, m in chemical_equation.catalog.items() if u == uid]
+        unamapped_fragments = []
+        for m in mols:
+            if (unmapped_atoms := [a for a in m.GetAtoms() if a.GetAtomMapNum() in [0, -1]]):
+                atoms_indices = [a.GetIdx() for a in unmapped_atoms]
+                fragment = Chem.rdmolfiles.MolFragmentToSmiles(m, atomsToUse=atoms_indices,
+                                                               atomSymbols=[a.GetSymbol() for a in m.GetAtoms()])
+
+                unamapped_fragments.append(fragment)
+    return unamapped_fragments
 
 
 def rdchiral_extract_template(reaction_string: str, inp_fmt: str, reaction_id: int = None):

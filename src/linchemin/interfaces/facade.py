@@ -835,16 +835,13 @@ def facade(functionality, *args, **kwargs):
     """
     Gives access to the 'facade', which wraps each of the main functionalities of the package.
 
-    :param:
-        functionality: a string
-            It indicates the functionality to be performed
-        *args:
-            the mandatory arguments of the selected functionality
-        **kwargs:
-            the optional arguments of the selected functionality
+    :param: functionality: a string. It indicates the functionality to be performed
 
-    :return:
-        the output of the selected functionality
+            *args:the mandatory arguments of the selected functionality
+
+            **kwargs: the optional arguments of the selected functionality
+
+    :return: the output of the selected functionality
 
     """
     functionality_selector = FacadeFactory()

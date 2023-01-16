@@ -175,16 +175,10 @@ class Conversion:
 def converter(graph: SynGraph, out_data_model: str):
     """ Takes a SynGraph and convert it into the desired data model.
 
-        :param:
-            graph: a SynGraph object
-                It is the input graph as instance of one of the available SynGraph subclasses
+        :param: graph: a SynGraph object. It is the input graph as instance of one of the available SynGraph subclasses
+        :param: out_data_model: a string It indicates the desired output data model. Available data models are:'bipartite, 'monopartite_reactions', and 'monopartite_molecules'
 
-            out_data_model: a string
-                It indicates the desired output data model. Available data models are:
-                'bipartite, 'monopartite_reactions', and 'monopartite_molecules'
-
-        :return:
-            a SynGraph object in the desired data model
+        :return: a SynGraph object in the desired data model
 
     """
 
