@@ -25,8 +25,8 @@ def test_molecule_equality():
         9: {'smiles': r'C\C=C(\C)O'},  # M5_T2
         10: {'smiles': 'Cl[C:2]([CH3:1])=[O:3]'},  # M6_atom_mapping_1
         11: {'smiles': 'Cl[C:1]([CH3:2])=[O:5]'},  # M6_atom_mapping_2
-        12: {'smiles': 'CCO[C:16]([C:6]([C:4]([O:3][CH2:2][CH3:1])=[O:5])=[CH:7]N(C)C)=[O:17]'},
-        13: {'smiles': '[CH:1](=[C:2]([C:3](=[O:4])[O:5][CH2:6][CH3:7])[C:8](=[O:9])[O:10][CH2:11][CH3:12])[N:14]([CH3:13])[CH3:15]'}
+        12: {'smiles': '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]'},
+        13: {'smiles': '[cH:1]1[cH:6][c:7]2[cH:15][n:9][cH:10][cH:14][c:12]2[c:3]([cH:4]1)[C:2](=[O:5])[N:13]=[N+:11]=[N-:8]'}
     }
     # initialize the constructor to use smiles as identity property
     molecule_constructor = MoleculeConstructor(identity_property_name='smiles')

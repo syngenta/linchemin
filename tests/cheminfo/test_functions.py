@@ -1,13 +1,15 @@
 import pytest
 from rdkit import Chem
 from rdkit.Chem import DataStructs, rdChemReactions
+import unittest
 
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor, MoleculeConstructor
 from linchemin.cheminfo.functions import rdkit as rdkit
 from linchemin.cheminfo.functions import canonicalize_rdmol, get_canonical_order, rdmol_from_string, \
     rdrxn_to_string, rdrxn_from_string, rdmol_to_bstr, bstr_to_rdmol, \
     rdrxn_from_string, is_mapped_molecule, has_mapped_products, canonicalize_rdmol_lite,\
     compute_oxidation_numbers, rdrxn_role_reassignment, rdrxn_to_rxn_mol_catalog, \
-    remove_rdmol_atom_mapping, rdchiral_extract_template, canonicalize_mapped_rdmol
+    remove_rdmol_atom_mapping, rdchiral_extract_template, canonicalize_mapped_rdmol, mapping_diagnosis
 
 
 def test_build_rdrxn_from_smiles():
@@ -388,8 +390,8 @@ def test_compute_oxidation_numbers():
 
 def test_mapped_rdmol_atom_ids_canonicalization():
     # the same molecule with two different mapping
-    s1 = 'CCO[C:16]([C:6]([C:4]([O:3][CH2:2][CH3:1])=[O:5])=[CH:7]N(C)C)=[O:17]'
-    s2 = '[CH:1](=[C:2]([C:3](=[O:4])[O:5][CH2:6][CH3:7])[C:8](=[O:9])[O:10][CH2:11][CH3:12])[N:14]([CH3:13])[CH3:15]'
+    s1 = '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]'
+    s2 = '[cH:1]1[cH:6][c:7]2[cH:15][n:9][cH:10][cH:14][c:12]2[c:3]([cH:4]1)[C:2](=[O:5])[N:13]=[N+:11]=[N-:8]'
     mol1 = canonicalize_rdmol(rdmol_from_string(s1, inp_fmt='smiles'))[0]
     mol2 = canonicalize_rdmol(rdmol_from_string(s2, inp_fmt='smiles'))[0]
     d1 = {a.GetIdx(): [a.GetSymbol()] for a in mol1.GetAtoms()}
@@ -403,6 +405,37 @@ def test_mapped_rdmol_atom_ids_canonicalization():
     d2 = {a.GetIdx(): [a.GetSymbol()] for a in mol2_canonical_atoms.GetAtoms()}
     assert d1 == d2
 
+
+def test_mapping_diagnosis():
+    smiles = {
+        1: '[CH3:1][C:2]([OH:3])=[O:4]>O>CN[C:2]([CH3:1])=[O:4]',
+        2: '[O:1]=[C:2]([c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12)N=[N+]=[N-]>ClCCl.O=C(Cl)C(=O)Cl>O[C:2](=[O:1])[c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12.[N-:13]=[N+:14]=[N-:15]',
+        3: 'Cl[c:8]1[n:9][cH:10][cH:11][c:12]2[c:3]([cH:4][cH:5][cH:6][c:7]12)[C:2](=[O:1])N=[N+]=[N-]>ClCCl.O=C(Cl)C(=O)Cl>O[C:2](=[O:1])[c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12',
+    }
+    ce_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equations = {n: ce_constructor.build_from_reaction_string(reaction_string=s, inp_fmt='smiles')
+                          for n, s in smiles.items()}
+    desired_prod1 = [mol for uid, mol in chemical_equations.get(1).catalog.items()
+                     if uid == chemical_equations.get(1).role_map['products'][0]][0]
+    # a warning is raised if there are unmapped atoms in the desired product
+    with unittest.TestCase().assertLogs('linchemin.cheminfo.functions', level='WARNING') as w:
+        mapping_diagnosis(chemical_equations.get(1), desired_prod1)
+    unittest.TestCase().assertEqual(len(w.records), 1)
+    unittest.TestCase().assertIn('unmapped', w.records[0].getMessage())
+
+    # unmapped atoms in a single reactant are all bounded together: they might indicate a leaving group
+    desired_prod2 = [mol for uid, mol in chemical_equations.get(2).catalog.items()
+                     if uid == chemical_equations.get(2).role_map['products'][0]][0]
+    fragments2 = mapping_diagnosis(chemical_equations.get(2), desired_prod2)
+    assert len(fragments2) == 1
+    assert '.' not in fragments2[0]
+
+    # unmapped atoms in a single reactant are only partially bounded together: there might be more than one leaving group
+    desired_prod3 = [mol for uid, mol in chemical_equations.get(3).catalog.items()
+                     if uid == chemical_equations.get(3).role_map['products'][0]][0]
+    fragments3 = mapping_diagnosis(chemical_equations.get(3), desired_prod3)
+    assert len(fragments3) == 1
+    assert '.' in fragments3[0]
 
 
 #
