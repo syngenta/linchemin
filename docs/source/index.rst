@@ -25,6 +25,7 @@ Contents
    :maxdepth: 1
 
    Installation
+   Configuration
    Tutorial
    code_customization/index
    data_structure
