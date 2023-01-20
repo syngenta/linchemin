@@ -31,7 +31,9 @@ dependencies = [
         "pydantic",
         "hdbscan",
         "scikit-learn",
-        "joblib==1.1.0"
+        "joblib==1.1.0",
+        "dynaconf",
+        "toml"
         ]
 # TODO: newer versions of joblib create problems with hdbscan https://github.com/scikit-learn-contrib/hdbscan/issues/565
 
@@ -50,6 +52,7 @@ repository = "https://github.com/syngenta/linchemin"
 
 [project.scripts]
 linchemin = "linchemin.interfaces.cli:linchemin_cli"
+linchemin_configure = "linchemin.configuration.config:configure"
 
 [tool.bumpver]
 current_version = "1.0.1"

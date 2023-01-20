@@ -21,8 +21,9 @@ dist/
 # IPython Notebook
 .ipynb_checkpoints
 
-# Sphinx documentation
-docs/build/
+# Docs build
+/docs/build/
+/docs/source/reference/generated/*rst
 
 # managing secrets
 .ini

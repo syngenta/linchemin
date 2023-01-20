@@ -168,3 +168,11 @@ Atom Mapping
     Mapper.map_chemical_equations
 
 
+Configuration (Settings and Secrets)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: linchemin.configuration.config
+.. autosummary::
+    :toctree: generated
+
+    ConfigurationFileHandler

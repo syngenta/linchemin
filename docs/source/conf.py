@@ -18,7 +18,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.autosummary',
               'sphinx.ext.viewcode']
 
-templates_path = ['_templates']
+templates_path = ['templates']
 exclude_patterns = ['build', 'Thumbs.db', '.DS_Store']
 
 autosummary_generate = True

@@ -42,3 +42,17 @@ The Linked Chemical Information (LinChemIn) package is a python toolkit that all
 >pip install -e .[dev]    
 
 Testing is based on pytest  
+
+
+## Configuration
+
+This package requires some configuration parameters to work,
+including some secretes to store access credentials to database and services.
+After installation, and before the first usage, the use should run the following command
+
+>linchemin_configure
+
+his command generates the user_home/linchemin directory and places into it two files:
+1. settings.toml populated with defaults settings. The user can review and modify these values if necessary.
+2. .secrets.toml containing the keys for the necessary secrets. The user must replace the placeholders with the correct values
+For more details please refer to the Configuration section of the documentation
