@@ -67,8 +67,11 @@ def get_canonical_order(rdmol: rdkit.Chem.rdchem.Mol) -> tuple:
     """
         https://gist.github.com/ptosco/36574d7f025a932bc1b8db221903a8d2
 
-        :param rdmol:
+        :param
+            rdmol: an RDKit Mol object
+
         :return:
+            a tuple containing the canonical order of the atoms
         """
     canon_idx_old_idx = [(j, i) for i, j in enumerate(Chem.CanonicalRankAtoms(rdmol))]
     old_idcs_sorted_by_canon_idcs = tuple(zip(*sorted(canon_idx_old_idx)))
@@ -96,8 +99,11 @@ def canonicalize_rdmol(rdmol: rdkit.Chem.rdchem.Mol) -> rdkit.Chem.rdchem.Mol:
             https://github.com/rdkit/rdkit/issues/2006
             https://sourceforge.net/p/rdkit/mailman/message/34923617/
 
-        :param rdmol: a rdkit.Chem.rdchem.Mol object
-        :return: rdmol_canonicalized: a rdkit.Chem.rdchem.Mol object with the atoms in canonical order
+        :param:
+            rdmol: a rdkit.Chem.rdchem.Mol object
+
+        :return:
+            rdmol_canonicalized: a rdkit.Chem.rdchem.Mol object with the atoms in canonical order
         """
     task_name = 'canonicalize_rdmol'
     if rdmol:

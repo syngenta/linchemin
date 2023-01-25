@@ -1,6 +1,6 @@
 from linchemin.cgu.translate import translator
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
-from linchemin.cgu.syngraph import SynGraph, MonopartiteReacSynGraph, BipartiteSynGraph
+from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph
 from linchemin.cheminfo.chemical_similarity import (compute_reaction_fingerprint, compute_similarity,
                                                     compute_mol_fingerprint)
 from linchemin.utilities import console_logger
@@ -11,10 +11,13 @@ from functools import partial
 import pandas as pd
 import numpy as np
 import multiprocessing as mp
+from linchemin import settings
+from linchemin.configuration.defaults import DEFAULT_GED
 
 """
 Module containing classes and functions to compute the similarity between pairs of routes.
 """
+
 
 logger = console_logger(__name__)
 
@@ -39,31 +42,6 @@ class TooFewRoutes(GraphDistanceError):
     pass
 
 
-DEFAULT_GED = {
-    'reaction_fp': {'value': 'structure_fp', 'info': 'Structural reaction fingerprints as defined in RDKit',
-                    'general_info': 'Chemical reaction fingerprints to be used'},
-    'reaction_fp_params': {'value': None, 'info': 'The default parameters provided by RDKit are used for the specified'
-                                                  ' reaction fingerprints',
-                           'general_info': 'Chemical reaction fingerprints parameters'},
-    'reaction_similarity_name': {'value': 'tanimoto', 'info': 'The Tanimoto similarity as defined in RDKit is used for'
-                                                              ' computing the reaction similarity',
-                                 'general_info': 'Chemical similarity method for reactions'},
-    'molecular_fp': {'value': 'rdkit', 'info': 'The molecular fingerprints rdFingerprintGenerator.GetRDKitFPGenerator'
-                                               ' are used',
-                     'general_info': 'Molecular fingerprints to be used'},
-    'molecular_fp_params': {'value': None, 'info': 'The default parameters provided by RDKit are used for the specified'
-                                                   ' molecular fingerprints',
-                            'general_info': 'Molecular fingerprints parameters'},
-    'molecular_fp_count_vect': {'value': False, 'info': 'False. If set to True, GetCountFingerprint is used for the'
-                                                        ' molecular fingerprints',
-                                'general_info': 'If set to True, GetCountFingerprint is used for the molecular '
-                                                'fingerprints'},
-    'molecular_similarity_name': {'value': 'tanimoto', 'info': 'The Tanimoto similarity as defined in RDKit is used for'
-                                                               ' computing the molecular similarity',
-                                  'general_info': 'Chemical similarity method for molecules'}
-}
-
-
 class SingleRouteClustering(Exception):
     pass
 
@@ -77,34 +55,34 @@ class Ged(metaclass=abc.ABCMeta):
                     molecular_similarity_name):
         """ Calculates the Graph Edit Distance for a pair of graphs.
 
-                :param:
-                    syngraph1, syngraph2: two graph objects
-                        They are graphs for which the GED should be computed
+            :param:
+                syngraph1, syngraph2: two graph objects
+                    They are graphs for which the GED should be computed
 
-                    reaction_fp: a string
-                        It indicates which reaction fingerprints should be used
+                reaction_fp: a string
+                    It indicates which reaction fingerprints should be used
 
-                    reaction_fp_params: a dictionary
-                        It contains the parameters for the reaction fingerprints available in RDKIT
+                reaction_fp_params: a dictionary
+                    It contains the parameters for the reaction fingerprints available in RDKIT
 
-                    reaction_similarity_name: a string
-                        It indicates which method should be used to compute the similarity between reactions
+                reaction_similarity_name: a string
+                    It indicates which method should be used to compute the similarity between reactions
 
-                    molecular_fp: a string
-                        It indicates which molecular fingerprints should be used
+                molecular_fp: a string
+                    It indicates which molecular fingerprints should be used
 
-                    molecular_fp_params: a dictionary
-                        It contains the parameters for the molecular fingerprints available in RDKIT
+                molecular_fp_params: a dictionary
+                    It contains the parameters for the molecular fingerprints available in RDKIT
 
-                    molecular_fp_count_vect: a boolean
-                        If set to True, GetCountFingerprint is used for the molecular fingerprints
+                molecular_fp_count_vect: a boolean
+                    If set to True, GetCountFingerprint is used for the molecular fingerprints
 
-                    molecular_similarity_name: a string
-                        It indicates which method should be used to compute the similarity between molecules
+                molecular_similarity_name: a string
+                    It indicates which method should be used to compute the similarity between molecules
 
 
-                :return:
-                    the value of the GED
+            :return:
+                the value of the GED
         """
         pass
 
@@ -282,6 +260,7 @@ class GedFactory:
     """ GED Factory to give access to the GED calculators.
 
         Attributes:
+        -----------
             available_ged: a dictionary
                 It maps the strings representing the 'name' of a GED algorithm to the correct Ged subclass
     """
@@ -338,15 +317,15 @@ def graph_distance_factory(syngraph1, syngraph2, ged_method: str,
     if ged_params is None:
         ged_params = {}
 
-    reaction_fp = ged_params.get('reaction_fp', DEFAULT_GED['reaction_fp']['value'])
-    reaction_fp_params = ged_params.get('reaction_fp_params', DEFAULT_GED['reaction_fp_params']['value'])
+    reaction_fp = ged_params.get('reaction_fp', settings.GED.reaction_fp)
+    reaction_fp_params = ged_params.get('reaction_fp_params', settings.GED.reaction_fp_params)
     reaction_similarity_name = ged_params.get('reaction_similarity_name',
-                                              DEFAULT_GED['reaction_similarity_name']['value'])
-    molecular_fp = ged_params.get('molecular_fp', DEFAULT_GED['molecular_fp']['value'])
-    molecular_fp_params = ged_params.get('molecular_fp_params', DEFAULT_GED['molecular_fp_params']['value'])
-    molecular_fp_count_vect = ged_params.get('molecular_fp_count_vect', DEFAULT_GED['molecular_fp_count_vect']['value'])
+                                              settings.GED.reaction_similarity_name)
+    molecular_fp = ged_params.get('molecular_fp', settings.GED.molecular_fp)
+    molecular_fp_params = ged_params.get('molecular_fp_params', settings.GED.molecular_fp_params)
+    molecular_fp_count_vect = ged_params.get('molecular_fp_count_vect', settings.GED.molecular_fp_count_vect)
     molecular_similarity_name = ged_params.get('molecular_similarity_name',
-                                               DEFAULT_GED['molecular_similarity_name']['value'])
+                                               settings.GED.molecular_similarity_name)
 
     ged_calculator = GedFactory()
     return ged_calculator.select_ged(syngraph1, syngraph2, ged_method, reaction_fp, reaction_fp_params,
@@ -384,7 +363,7 @@ def node_subst_cost(node1, node2, reaction_fingerprints, reaction_fp_params, rea
     """ To compute the cost of substituting one node with another, based on the selected fingerprints/similarity.
         The more different the nodes, the higher the cost.
 
-        Returns:
+        :return:
             cost: a float between 0 and 1
     """
     # If both nodes are of the type 'ChemicalEquation', their Tanimoto similarity is computed
@@ -420,14 +399,20 @@ def compute_nodes_fingerprints(syngraph, reaction_fingerprints, molecular_finger
 
         :param:
             syngraph: A SynGraph object
+
             reaction_fingerprints: a string corresponding to the selected type of reaction fingerprint
+
             molecular_fingerprint: a string corresponding to the selected type of molecular fingerprint
+
             reaction_fp_params: a dictionary with the optional parameters for computing reaction fingerprints
+
             molecular_fp_params: a dictionary with the optional parameters for computing molecular fingerprints
+
             molecular_fp_count_vect: a boolean indicating whether 'GetCountFingerprint' should be used
 
         :return:
             reaction_nodes_fingerprints: a dictionary containing the fingerprints of the ChemicalEquation nodes
+
             molecule_node_fingerprints: a dictionary containing the fingerprints of the Molecule nodes
     """
     reaction_nodes_fingerprints = {}
@@ -464,8 +449,10 @@ def build_similarity_matrix(d_fingerprints1, d_fingerprints2, similarity_name='t
         :param:
             d_fingerprints1: a dictionary {hash: fingerprints} relative to the first graph, output of
                              compute_nodes_fingerprints
+
             d_fingerprints2: a dictionary {hash: fingerprints} relative to the second graph, output of
                              compute_nodes_fingerprints
+
             similarity_name: a string specifying the similarity method to be used
 
         :return:
@@ -490,12 +477,16 @@ def compute_distance_matrix(syngraphs: list, ged_method: str, ged_params=None, p
         :param:
             syngraphs: a list of SynGraph objects
                 The routes to use for computing the distance matrix
+
             ged_method: a string
                 It indicates which method to be used for computed the graph edit distance
+
             ged_params: a dictionary (optional; default: None)
                 If provided, it contains the parameters for fingerprints and similarity calculations
+
             parallelization: a boolean (optional; default: False)
                 It indicates whether parallelization should be used
+
             n_cpu: an integer (optional; default: 'mp.cpu_count()')
                 If parallelization is activated, it indicates the number of CPUs to be used
 
@@ -565,3 +556,4 @@ def get_ged_default_parameters():
 
 def get_ged_parameters():
     return {f: additional_info['general_info'] for f, additional_info in DEFAULT_GED.items()}
+

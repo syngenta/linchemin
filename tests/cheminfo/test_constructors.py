@@ -29,7 +29,7 @@ def test_molecule_equality():
         13: {'smiles': '[cH:1]1[cH:6][c:7]2[cH:15][n:9][cH:10][cH:14][c:12]2[c:3]([cH:4]1)[C:2](=[O:5])[N:13]=[N+:11]=[N-:8]'}
     }
     # initialize the constructor to use smiles as identity property
-    molecule_constructor = MoleculeConstructor(identity_property_name='smiles')
+    molecule_constructor = MoleculeConstructor(molecular_identity_property_name='smiles')
     # using smiles
     ms1 = {k: molecule_constructor.build_from_molecule_string(molecule_string=v.get('smiles'), inp_fmt='smiles')
            for k, v in mols.items()}
@@ -49,7 +49,7 @@ def test_molecule_equality():
     assert d1 == d2
 
     # initialize the constructor to use inchi_key as identity property
-    molecule_constructor = MoleculeConstructor(identity_property_name='inchi_key')
+    molecule_constructor = MoleculeConstructor(molecular_identity_property_name='inchi_key')
     ms2 = {k: molecule_constructor.build_from_molecule_string(molecule_string=v.get('smiles'), inp_fmt='smiles')
            for k, v in mols.items()}
     assert ms2.get(0) == ms2.get(1)  # identical molecule, identical input string
@@ -1073,7 +1073,7 @@ def test_ratam_and_role_reassignment():
                       'reagents': ['CN'],
                       'products': ['CNC(C)=O', 'O']}},
     ]
-    mol_constructor = MoleculeConstructor(identity_property_name='smiles')
+    mol_constructor = MoleculeConstructor(molecular_identity_property_name='smiles')
     for item in test_set:
         rdrxn = cif.rdrxn_from_string(input_string=item.get('smiles'), inp_fmt='smiles')
         rdmol_catalog = {'reactants': list(rdrxn.GetReactants()),

@@ -41,7 +41,7 @@ def test_add_existing_node(ibm1_path):
     graph = json.loads(open(ibm1_path).read())
     syngraph1 = translator('ibm_retro', graph[0], 'syngraph', out_data_model='bipartite')
     l1 = len(syngraph1.graph)
-    molecule_constructor = MoleculeConstructor(identity_property_name='smiles')
+    molecule_constructor = MoleculeConstructor(molecular_identity_property_name='smiles')
 
     reactant = molecule_constructor.build_from_molecule_string(molecule_string='CCN',
                                                                inp_fmt='smiles')
@@ -64,7 +64,7 @@ def test_add_existing_node_with_new_connections(ibm1_path):
     syngraph = translator('ibm_retro', graph[0], 'syngraph', out_data_model='bipartite')
     l1 = len(syngraph.graph)
 
-    molecule_constructor = MoleculeConstructor(identity_property_name='smiles')
+    molecule_constructor = MoleculeConstructor(molecular_identity_property_name='smiles')
 
     reactant = molecule_constructor.build_from_molecule_string(molecule_string='CCN',
                                                                inp_fmt='smiles')
@@ -138,7 +138,7 @@ def test_monopartite_syngraph(ibm1_path):
     graph_ibm = json.loads(open(ibm1_path).read())
     mp_syngraph = translator('ibm_retro', graph_ibm[5], 'syngraph', out_data_model='monopartite_molecules')
 
-    molecule_constructor = MoleculeConstructor(identity_property_name='smiles')
+    molecule_constructor = MoleculeConstructor(molecular_identity_property_name='smiles')
     mol1 = molecule_constructor.build_from_molecule_string(molecule_string='CCC(=O)Cl', inp_fmt='smiles')
     mol2 = molecule_constructor.build_from_molecule_string(molecule_string='CCNC(=O)CC', inp_fmt='smiles')
 

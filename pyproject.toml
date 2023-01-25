@@ -33,7 +33,7 @@ dependencies = [
         "scikit-learn",
         "joblib==1.1.0",
         "dynaconf",
-        "toml"
+        "pyyaml"
         ]
 # TODO: newer versions of joblib create problems with hdbscan https://github.com/scikit-learn-contrib/hdbscan/issues/565
 

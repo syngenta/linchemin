@@ -13,7 +13,7 @@ class Molecule:
     """ Class holding information of a chemical compound """
     smiles: str = field(default_factory=str)
     """ A string indicating the canonical smiles of the molecule"""
-    identity_property_name: str = field(default_factory=str)
+    molecular_identity_property_name: str = field(default_factory=str)
     """A string indicating the name of the property definying the identity of the molecule"""
     uid: int = field(default_factory=int)
     """ The integer obtained by hashing the identity property of the molecule"""

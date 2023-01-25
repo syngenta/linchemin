@@ -13,6 +13,7 @@ def list_of_dict_groupby(data_input: List[dict], keys: List):
     input_data_sorted = sorted(data_input, key=operator.itemgetter(*keys))
     return {i: list(g) for i, g in itertools.groupby(input_data_sorted, key=operator.itemgetter(*keys))}
 
+
 @dataclass
 class OutcomeMetadata:
     """Class for storing information about a stage of a process."""
@@ -51,8 +52,8 @@ def console_logger(name):
     logger.addHandler(handler)
     return logger
 
-def file_logger(name):
 
+def file_logger(name):
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
@@ -60,5 +61,4 @@ def file_logger(name):
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
-
 

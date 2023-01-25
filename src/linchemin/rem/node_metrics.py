@@ -3,19 +3,6 @@ import abc
 
 """
 Module containing functions and classes for computing score and metrics of single nodes of a route.
-
-    AbstractClasses:
-        NodeScore
-
-    Classes:
-        NodeScoreCalculator
-
-        CDNodeScore(NodeScore)
-
-
-    Functions:
-        node_score_calculator(node, score: str)
-        reaction_mapping(reactant_map: dict, product_map: dict, ids_transferred_atoms: list =None)
 """
 
 
@@ -85,12 +72,14 @@ def reaction_mapping(reactant_map: dict, product_map: dict, ids_transferred_atom
     """ Takes the dictionaries mapping the atom ids and their atom-2-atom mapping index for a reactant and a product
         of a ChemicalEquation and returns the list of atom ids transferred from the reactant to the product.
 
-        Parameters:
+        :params:
             reactant_map: a dictionary {atom_id : mapping_number}
+
             product_map: a dictionary {atom_id : mapping_number}
+
             ids_transferred_atoms: a list with the ids of atoms transferred from a previous ChemicalEquation
 
-        Returns:
+        :return:
             ids_transferred_atoms: a list with the ids of atoms transferred from the reactant to the product
     """
     if ids_transferred_atoms:

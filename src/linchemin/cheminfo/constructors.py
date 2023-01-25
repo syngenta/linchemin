@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from linchemin.cheminfo.models import (Molecule, ChemicalEquation, Ratam, Disconnection, Template, Pattern)
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
+from linchemin import settings
 
 """ 
 Module containing the constructor classes of relevant cheminformatics models defined in 'models' module
@@ -25,13 +26,13 @@ class MoleculeConstructor:
     """ Class implementing the constructor of the Molecule class
 
             Attributes:
-                identity_property_name: a string indicating which kind of input string determines the identity
-                                        of the object (e.g. 'smiles')
+                molecular_identity_property_name: a string indicating which kind of input string determines the identity
+                                                  of the object (e.g. 'smiles')
 
     """
 
-    def __init__(self, identity_property_name: str):
-        self.identity_property_name = identity_property_name
+    def __init__(self, molecular_identity_property_name: str = settings.CONSTRUCTORS.molecular_identity_property_name):
+        self.molecular_identity_property_name = molecular_identity_property_name
 
     def build_from_molecule_string(self, molecule_string: str, inp_fmt: str, ) -> Molecule:
         """ To build a Molecule instance from a string """
@@ -47,12 +48,12 @@ class MoleculeConstructor:
         hash_map = calculate_molecular_hash_values(rdmol=rdmol_unmapped_canonical, hash_list=['CanonicalSmiles',
                                                                                               'inchi_key',
                                                                                               'inchi_KET_15T'])
-        identity_property = hash_map.get(self.identity_property_name)
+        identity_property = hash_map.get(self.molecular_identity_property_name)
         uid = utilities.create_hash(identity_property)
         smiles = cif.compute_mol_smiles(rdmol=rdmol_unmapped_canonical)
         return Molecule(rdmol=rdmol_unmapped_canonical, rdmol_mapped=rdmol_mapped_canonical,
-                        identity_property_name=self.identity_property_name, hash_map=hash_map, smiles=smiles,
-                        uid=uid, identity_property=identity_property)
+                        molecular_identity_property_name=self.molecular_identity_property_name, hash_map=hash_map,
+                        smiles=smiles, uid=uid, identity_property=identity_property)
 
 
 # Ratam Constructor
@@ -146,7 +147,7 @@ class DisconnectionConstructor:
         product_rdmol = cif.Chem.Mol(rdrxn.GetProductTemplate(desired_product_idx))
         product_changes = rxn_reactive_center.get_product_changes(product_idx=desired_product_idx)
 
-        molecule_constructor = MoleculeConstructor(identity_property_name=self.identity_property_name)
+        molecule_constructor = MoleculeConstructor(molecular_identity_property_name=self.identity_property_name)
         product_molecule = molecule_constructor.build_from_rdmol(rdmol=product_rdmol)
         disconnection = Disconnection()
         disconnection.molecule = product_molecule
@@ -376,7 +377,7 @@ class RXNReactiveCenter:
 class PatternConstructor:
     """ Class implementing the constructor of the Pattern class """
 
-    def __init__(self, identity_property_name: str = 'smarts'):
+    def __init__(self, identity_property_name: str = settings.CONSTRUCTORS.pattern_identity_property_name):
         self.identity_property_name = identity_property_name
 
     def create_pattern(self, rdmol: cif.Mol):
@@ -404,7 +405,7 @@ class PatternConstructor:
 
 # Template Constructor
 class TemplateConstructor:
-    def __init__(self, identity_property_name: str = 'smarts'):
+    def __init__(self, identity_property_name: str = settings.CONSTRUCTORS.pattern_identity_property_name):
 
         self.identity_property_name = identity_property_name
 
@@ -464,7 +465,7 @@ class TemplateConstructor:
         template.stoichiometry_coefficients = stoichiometry_coefficients
         template.role_map = role_map
         template.hash_map = create_reaction_like_hash_values(pattern_catalog, role_map)
-        template.uid = template.hash_map.get('r_p')  # TODO: review
+        template.uid = template.hash_map.get(settings.CONSTRUCTORS.template_identity_property)  # TODO: review
 
         template.rdrxn = cif.build_rdrxn(catalog=pattern_catalog,
                                          role_map=role_map,
@@ -486,7 +487,7 @@ class ChemicalEquationConstructor:
 
     """
 
-    def __init__(self, identity_property_name: str):
+    def __init__(self, identity_property_name: str = settings.CONSTRUCTORS.molecular_identity_property_name):
 
         self.identity_property_name = identity_property_name
 
@@ -508,7 +509,7 @@ class ChemicalEquationConstructor:
 
     def unpack_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
         """ To compute ChemicalEquation attributes from the associated rdkit ChemicalReaction object """
-        constructor = MoleculeConstructor(identity_property_name=self.identity_property_name)
+        constructor = MoleculeConstructor(molecular_identity_property_name=self.identity_property_name)
         chemical_equation = create_chemical_equation(
             rdrxn=rdrxn, identity_property_name=self.identity_property_name,
             constructor=constructor)
@@ -529,14 +530,14 @@ class ChemicalEquationConstructor:
 def create_chemical_equation(rdrxn: cif.rdChemReactions.ChemicalReaction, identity_property_name, constructor):
     """ Initializes the correct builder of the ChemicalEquation based on the presence of the atom mapping.
 
-        Parameters:
+        :param:
             rdrxn: the initial RDKit ChemReaction object
 
             identity_property_name:
 
             constructor: the constructor for the Molecule objects involved
 
-        Returns:
+        :return:
             a new ChemicalEquation instance
     """
     builder_type = 'mapped' if cif.has_mapped_products(rdrxn) else 'unmapped'
@@ -666,7 +667,7 @@ class Builder:
         ce.rdrxn = self.__builder.generate_rdrxn(ce.catalog, ce.role_map, ce.stoichiometry_coefficients)
         ce.smiles = self.__builder.generate_smiles(ce.rdrxn)
         ce.hash_map = create_reaction_like_hash_values(ce.catalog, ce.role_map)
-        ce.uid = ce.hash_map.get('r_r_p')  # TODO: review
+        ce.uid = ce.hash_map.get(settings.CONSTRUCTORS.chemical_equation_identity_name)  # TODO: review
         ce.template = self.__builder.generate_template(ce)
         ce.disconnection = self.__builder.generate_disconnection(ce)
 
