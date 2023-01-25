@@ -702,10 +702,10 @@ def draw_molecule(rdmol):
     """
         Produces the data necessary to create a picture of a molecule with RDKit
 
-        Arguments:
+        :param:
             rdmol: an RDKit Mol object
 
-        Returns:
+        :return:
             The data in text format of the picture. It can be converted into a png file using the
             linchemin.IO.io.write_rdkit_depict function
     """
@@ -723,10 +723,10 @@ def draw_reaction(rdrxn):
     """
         Produces the data necessary to create a picture of a molecule with RDKit
 
-        Arguments:
+        :param:
             rdrxn: an RDKit ChemicalReaction object
 
-        Returns:
+        :return:
             The data in text format of the picture. It can be converted into a png file using the
             linchemin.IO.io.write_rdkit_depict function
     """

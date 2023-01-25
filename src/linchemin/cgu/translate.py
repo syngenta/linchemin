@@ -69,11 +69,11 @@ class AbsTranslator(ABC):
     def from_iron(self, graph: Iron):
         """ Translates an Iron instance into a graph object of another type.
 
-            Parameters:
+            :param:
                 graph: an Iron instance
                     It is the graph of interest as an Ion instance
 
-            Returns:
+            :return:
                 The same graph as another object type
         """
         pass
@@ -82,10 +82,10 @@ class AbsTranslator(ABC):
     def to_iron(self, graph) -> Iron:
         """ Translates a graph object of a specific type into an Iron instance.
 
-            Parameters:
+            :param:
                 graph: a graph object os a specific type
 
-            Returns:
+            :return:
                 The same graph as Iron instance
 
         """
@@ -794,7 +794,7 @@ def get_input_formats():
 def az_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> Iron:
     """ Takes a nested dictionary and returns an Iron instance. Recursive function.
 
-            Parameters:
+            :param:
                 route: a nested dictionary
                     The nested dictionary representing the input route
 
@@ -807,7 +807,7 @@ def az_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> I
                 parent: an integer
                     It represents the id of the parent node
 
-            Returns:
+            :return:
                 iron: an Iron instance
                     The output Iron instance
     """
@@ -852,7 +852,7 @@ def az_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> I
 def mit_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> Iron:
     """ Takes a nested dictionary and returns an Iron instance. Recursive function.
 
-                Parameters:
+                :param:
                     route: a nested dictionary
                         The nested dictionary representing the input route
 
@@ -865,7 +865,7 @@ def mit_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> 
                     parent: an integer
                         It represents the id of the parent node
 
-                Returns:
+                :return:
                     iron: an Iron instance
                         The output Iron instance
         """
@@ -914,7 +914,7 @@ def mit_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> 
 def ibm_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> Iron:
     """ Takes a nested dictionary and returns an Iron instance. Recursive function.
 
-            Parameters:
+            :param:
                 route: a nested dictionary
                     The nested dictionary representing the input route
 
@@ -927,7 +927,7 @@ def ibm_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> 
                 parent: an integer
                     It represents the id of the parent node
 
-            Returns:
+            :return:
                 iron: an Iron instance
                     The output Iron instance
     """

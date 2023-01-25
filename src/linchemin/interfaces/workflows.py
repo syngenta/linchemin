@@ -1,12 +1,13 @@
-from linchemin.interfaces.facade import facade, DEFAULT_FACADE
+from linchemin.interfaces.facade import facade
 import linchemin.IO.io as lio
 from linchemin.cgu.translate import get_available_data_models
 from linchemin.rem.route_descriptors import get_available_descriptors
-from linchemin.rem.graph_distance import (get_available_ged_algorithms, get_ged_default_parameters, get_ged_parameters)
+from linchemin.rem.graph_distance import (get_available_ged_algorithms, get_ged_parameters)
 from linchemin.rem.clustering import get_available_clustering
 from linchemin.cgu.syngraph import SynGraph
 from linchemin.cheminfo.atom_mapping import get_available_mappers
-from linchemin.utilities import file_logger, console_logger
+from linchemin.utilities import console_logger
+from linchemin import settings
 
 from abc import ABC, abstractmethod
 import pandas as pd
@@ -20,21 +21,17 @@ The functionalities to be actually activated are selected by the user by setting
 logger = console_logger(__name__)
 
 
-DEFAULT_WORKFLOW = {
-    'functionalities': None,
-    'output_format': 'json',
-    'mapping': False,
-}
-
 class NoValidRoute(Exception):
     """ Raised if no valid routes are found """
     pass
+
 
 @dataclass
 class WorkflowOutput:
     """ Class to store the outcome of the 'process_routes' function.
 
         Attributes:
+        ------------
              routes_list: a list of routes as instances of a SynGraph subclass
 
              descriptors: a pandas DataFrame containing the routes ids and the computed descriptors (returned only if
@@ -310,7 +307,7 @@ class Executor(WorkflowHandler):
             for request in requests:
                 if request not in self.steps_map:
                     logger.error(f'"{request}" is not a valid functionality. Available functionalities are: '
-                                   f'{list(self.steps_map.keys())}')
+                                 f'{list(self.steps_map.keys())}')
                     raise KeyError
                 output = self.steps_map[request]['value']().perform_step(params, output)
 
@@ -339,17 +336,17 @@ class WorkflowBuilder:
 
 
 def process_routes(input_dict: dict,
-                   output_format=DEFAULT_WORKFLOW['output_format'],
-                   mapping=DEFAULT_WORKFLOW['mapping'],
-                   functionalities=DEFAULT_WORKFLOW['functionalities'],
-                   mapper=DEFAULT_FACADE['atom_mapping']['value']['mapper'],
-                   out_data_model=DEFAULT_FACADE['translate']['value']['data_model'],
-                   descriptors=DEFAULT_FACADE['routes_descriptors']['value']['descriptors'],
-                   ged_method=DEFAULT_FACADE['distance_matrix']['value']['ged_method'],
-                   ged_params=DEFAULT_FACADE['distance_matrix']['value']['ged_params'],
-                   clustering_method=DEFAULT_FACADE['clustering']['value']['clustering_method'],
-                   parallelization=DEFAULT_FACADE['translate']['value']['parallelization'],
-                   n_cpu=DEFAULT_FACADE['translate']['value']['n_cpu'], ):
+                   output_format=settings.WORKFLOW.output_format,
+                   mapping=settings.WORKFLOW.mapping,
+                   functionalities=settings.WORKFLOW.functionalities,
+                   mapper=settings.FACADE.mapper,
+                   out_data_model=settings.FACADE.out_data_model,
+                   descriptors=settings.FACADE.descriptors,
+                   ged_method=settings.FACADE.ged_method,
+                   ged_params=settings.FACADE.ged_params,
+                   clustering_method=settings.FACADE.clustering_method,
+                   parallelization=settings.FACADE.parallelization,
+                   n_cpu=settings.FACADE.n_cpu, ):
     """ Function to start the workflow chain of responsibility: based on the input arguments, only the selected
         functionalities are performed. The mandatory start and stop actions are (i) to read a json file containing the
         routes predicted by a CASP tool, and (ii) to write the routes as dictionaries in an output file.
@@ -365,36 +362,46 @@ def process_routes(input_dict: dict,
             input_dict: a dictionary
                 It contains the path to the input files and the relative casp names in the form
                 {'file_path': 'casp_name'}
+
             output_format: a string (optional; default: 'json')
                 It indicates which format should be used while writing the routes (csv or json)
+
             mapping: a boolean (optional; default: False)
                 It indicate whether the reactions involved in the routes should go through the atom-to-atom mapping
+
             functionalities: a list of strings (optional; default: None)
                 It contains the names of the functionalities to be performed; if it is None, the input routes are read
                 and written to a file
+
             mapper: a string (optional; default: None)
                 It indicates which mapping tools should be used; if it is None, the mapping pipeline is used
+
             out_data_model: a string (optional; default: 'monopartite_reactions')
                 It indicates the desired data model for the output routes
+
             descriptors: a list of strings (optional; default: None)
                 It contains the names of the descriptos to be computed; if it is None, all the available are calculated
+
             ged_method: a string (optional; default: 'nx_ged')
                 It indicates the method to be used for graph similarity calculations
+
             ged_params: a dictionary (optional; default: None)
                 It contains the parameters for specifying reaction and molecular fingerprints and similarity functions;
                 if it is None, the default values are used
+
             clustering_method: a string (optional; default: None)
                 It indicates which clustering algorithm to be used for clustering the routes; if it is None, hdbscan
                 is used when there are more than 15 routes, Agglomerative Clustering otherwise
+
             parallelization: a boolean (optional, default: False)
                 It indicates whether parallel computing should be used where possible
+
             n_cpu: an integer (optional; default: 'mp.cpu_count()')
                 It indicates the number of cpus to be used if parallelization is used.
 
         :return:
             output: a WorkflowOutput object
-                Its attributes store the results of the selected functionalities. The outcomes are also written to files.
-
+                Its attributes store the results of the selected functionalities. The outcomes are also written to files
 
     """
 
@@ -402,7 +409,7 @@ def process_routes(input_dict: dict,
               'output_format': output_format,
               'mapping': mapping,
               'functionalities': functionalities,
-              'mapper' : mapper,
+              'mapper': mapper,
               'out_data_model': out_data_model,
               'descriptors': descriptors,
               'ged_method': ged_method,
@@ -458,7 +465,7 @@ class GraphMLWriter(SyngraphWriter):
         nx_routes, meta = facade('translate', 'syngraph', syngraphs, 'networkx', out_data_model=out_data_model)
         for nx_route in nx_routes:
             for n, data in nx_route.nodes.items():
-                r_id =data['attributes']['source']
+                r_id = data['attributes']['source']
                 del nx_route.nodes[n]["attributes"]
 
             for n1, n2, d in nx_route.edges(data=True):
@@ -477,7 +484,7 @@ class SyngraphWriterFactory:
     def select_writer(self, syngraphs: list, out_data_model: str, output_format: str, file_name: str):
         if output_format not in self.file_formats:
             logger.error(f"{output_format} is not a valid format. "
-                           f"Available formats are {list(self.file_formats.keys())}")
+                         f"Available formats are {list(self.file_formats.keys())}")
             raise KeyError
         writer = self.file_formats[output_format]
         writer().write_file(syngraphs, out_data_model, output_format, file_name)
@@ -487,10 +494,13 @@ def write_syngraph(syngraphs: list, out_data_model: str, output_format: str, fil
     """
     Takes a list of SynGraph instances and writes them to a file
 
-    Parameters:
+    :param:
         syngraphs: a list of SynGraph objects
+
         out_data_model: a string indicating the data model to be used for the output graphs
+
         output_format: a string indicating the format of the output file
+
         file_name: a string indicating the name of the output file
     """
     SyngraphWriterFactory().select_writer(syngraphs, out_data_model, output_format, file_name)
@@ -501,11 +511,11 @@ def get_workflow_options(verbose=False):
     """
         Returns the available options for the 'process_routes' function.
 
-        Parameters:
+        :param:
             verbose: a boolean (optional; default: False)
                 It indicates whether the information should be printed on the screen
 
-        Returns:
+        :return:
             a dictionary listing arguments, options and default values of the 'process_routes' function
     """
     if verbose:
@@ -516,73 +526,74 @@ def get_workflow_options(verbose=False):
                                'required': True,
                                'type': dict,
                                'choices': None,
-                               'help': 'Path to the input files and relative casp names in the form "file_path"="casp_name". Available CASP names are {}'.format(list(TranslationStep.casps.keys())),
+                               'help': 'Path to the input files and relative casp names in the form "file_path"="casp_name". Available CASP names are {}'.format(
+                                   list(TranslationStep.casps.keys())),
                                'dest': 'input_dict'},
                 'output_format': {'name_or_flags': ['-output_format'],
-                                  'default': DEFAULT_WORKFLOW['output_format'],
+                                  'default': settings.WORKFLOW.output_format,
                                   'required': False,
                                   'type': str,
                                   'choices': list(SyngraphWriterFactory().file_formats.keys()),
                                   'help': 'Format of the output file containing the routes',
                                   'dest': 'output_format'},
                 'mapping': {'name_or_flags': ['-mapping'],
-                            'default': DEFAULT_WORKFLOW['mapping'],
+                            'default': settings.WORKFLOW.mapping,
                             'required': False,
                             'type': bool,
                             'choices': [True, False],
                             'help': 'Whether the atom-to-atom mapping of the reactions should be performed',
                             'dest': 'mapping'},
                 'mapper': {'name_or_flags': ['-mapper'],
-                           'default': DEFAULT_FACADE['atom_mapping']['value']['mapper'],
+                           'default': settings.FACADE.mapper,
                            'required': False,
                            'type': str,
                            'choices': get_available_mappers(),
                            'help': 'Which mapper should be used; if None, the mapping pipeline is used',
                            'dest': 'mapper'},
                 'functionalities': {'name_or_flags': ['-functionalities'],
-                                    'default': DEFAULT_WORKFLOW['functionalities'],
+                                    'default': settings.WORKFLOW.functionalities,
                                     'required': False,
                                     'type': list,
                                     'choices': Executor().get_workflow_functions(),
                                     'help': 'List of functionalities to be performed',
                                     'dest': 'functionalities'},
                 'out_data_model': {'name_or_flags': ['-out_data_model'],
-                                   'default': DEFAULT_FACADE['translate']['value']['data_model'],
+                                   'default': settings.FACADE.out_data_model,
                                    'required': False,
                                    'type': str,
                                    'choices': get_available_data_models(),
                                    'help': 'Data model of the output graphs',
                                    'dest': 'out_data_model'},
                 'descriptors': {'name_or_flags': ['-descriptors'],
-                                'default': DEFAULT_FACADE['routes_descriptors']['value']['descriptors'],
+                                'default': settings.FACADE.descriptors,
                                 'required': False,
                                 'type': list,
                                 'choices': get_available_descriptors(),
                                 'help': 'List of descriptors to be calculated; if None, all descriptors are calculated',
                                 'dest': 'descriptors'},
                 'ged_method': {'name_or_flags': ['-ged_method'],
-                               'default': DEFAULT_FACADE['distance_matrix']['value']['ged_method'],
+                               'default': settings.FACADE.ged_method,
                                'required': False,
                                'type': str,
                                'choices': get_available_ged_algorithms(),
                                'help': 'Method to be used to calculate the GED',
                                'dest': 'ged_method'},
                 'ged_params': {'name_or_flags': ['-ged_params'],
-                               'default': DEFAULT_FACADE['distance_matrix']['value']['ged_params'],
+                               'default': settings.FACADE.ged_params,
                                'required': False,
                                'type': dict,
                                'choices': get_ged_parameters(),
                                'help': 'Parameters of the molecular and/or reaction chemical similarity',
                                'dest': 'ged_params'},
                 'clustering_method': {'name_or_flags': ['-clustering_method'],
-                                      'default': DEFAULT_FACADE['clustering']['value']['clustering_method'],
+                                      'default': settings.FACADE.clustering_method,
                                       'required': False,
                                       'type': str,
                                       'choices': get_available_clustering(),
                                       'help': 'Method to be used to calculate the GED',
                                       'dest': 'ged_method'},
                 'parallelization': {'name_or_flags': ['-parallelization'],
-                                    'default': DEFAULT_FACADE['clustering']['value']['parallelization'],
+                                    'default': settings.FACADE.parallelization,
                                     'required': False,
                                     'type': bool,
                                     'choices': [True, False],

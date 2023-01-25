@@ -193,7 +193,7 @@ class BipartiteSynGraph(SynGraph):
             and initiate the addition of the nodes."""
         # The Molecule instances for the reactant and product of reference are initiated
 
-        molecule_constructor = MoleculeConstructor(identity_property_name='smiles')
+        molecule_constructor = MoleculeConstructor(molecular_identity_property_name='smiles')
 
         reactant_canonical = molecule_constructor.build_from_molecule_string(molecule_string=reactant, inp_fmt='smiles')
         product_canonical = molecule_constructor.build_from_molecule_string(molecule_string=product, inp_fmt='smiles')
@@ -316,7 +316,7 @@ class MonopartiteMolSynGraph(SynGraph):
                             tup[0] == node1]
             check = [item for item in all_reactants if item in all_products]
             if not check:
-                molecule_constructor = MoleculeConstructor(identity_property_name='smiles')
+                molecule_constructor = MoleculeConstructor(molecular_identity_property_name='smiles')
 
                 reactant_canonical = molecule_constructor.build_from_molecule_string(molecule_string=reactant,
                                                                                      inp_fmt='smiles')

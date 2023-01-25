@@ -8,31 +8,31 @@ We use dynaconf (www.dynaconf.com/) to manage settings and secrets. This tool na
 sources settings from files in multiple formats and from environment variables. \n
 
 The package contains some default values for non-secret parameters, encoded into the package source code. \n
-The user can partially or totally override these values by providing a custom settings.toml file. \n
+The user can partially or totally override these values by providing a custom settings.yaml file. \n
 By default the program looks into the user home directory (<home_dir>) for a folder
-that has the name of the package (<package_name>) and for a settings.toml and .secrets.toml files inside it. \n
+that has the name of the package (<package_name>) and for a settings.yaml and .secrets.yaml files inside it. \n
 \n
-If the directory or the necessary files the program stops with an error message: it is necessary to create them! \n
-Tha package provides a convenience cli to create them, using defaults
+If the directory or the necessary files are missing the program stops with an error message: it is necessary to create them! \n
+Tha package provides a convenient cli to create them, using defaults
 
 .. code-block:: shell
 
     <package_name>_configure
 
 By executing this command in the environment where the package is installed, the command will generate the missing files. \n
-The settings.toml file will be populated using the encoded default values \n
-If required, .secrets.toml is also created containing only keys, leaving it to the user to complete it. \n
+The settings.yaml file will be populated using the encoded default values \n
+If required, .secrets.yaml is also created containing only keys, leaving it to the user to complete it. \n
 \n
-The program uses the values provided in the settings.toml and .secrets.toml files, overriding the encoded defaults. \n
+The program uses the values provided in the settings.yaml and .secrets.yaml files, overriding the encoded defaults. \n
 
-It is possible to override the instruction provided settings.toml by pointing to another settings file:\n
-the values provided in this file override the values in the <home_dir>/<package_name>/.settings.toml file. \n
+It is possible to override the instruction provided settings.yaml by pointing to another settings file:\n
+the values provided in this file override the values in the <home_dir>/<package_name>/.settings.yaml file. \n
 This is done by setting the environment variable INCLUDES_FOR_DYNACONF and pointing it to a user-specific setting file
 (https://www.dynaconf.com/configuration/)
 
 .. code-block:: shell
 
-    export INCLUDES_FOR_DYNACONF='/path/to/user_specific_settings.toml'
+    export INCLUDES_FOR_DYNACONF='/path/to/user_specific_settings.yaml'
 
 NOTE for Windows users:
 it is possible to set environment variables for each users or globally using the OS
@@ -66,7 +66,7 @@ we do not encode the secrets value in the code!
 """
 from pathlib import Path
 from dynaconf import Dynaconf
-import toml
+import yaml
 
 from . import defaults
 
@@ -85,10 +85,10 @@ class ConfigurationFileHandler:
             pointer to the user home directory
 
         settings_file: path
-            pointer to the settings file (settings.toml)
+            pointer to the settings file (settings.yaml)
 
         secrets_file: path
-            pointer to the secret file (.secrets.toml)
+            pointer to the secret file (.secrets.yaml)
 
     Methods:
     --------
@@ -105,8 +105,8 @@ class ConfigurationFileHandler:
 
     user_home_directory = Path.home()
     config_dir = user_home_directory / package_name
-    settings_file = config_dir / 'settings.toml'
-    secrets_file = config_dir / '.secrets.toml'
+    settings_file = config_dir / 'settings.yaml'
+    secrets_file = config_dir / '.secrets.yaml'
 
     def check(self) -> bool:
         """
@@ -182,7 +182,8 @@ class ConfigurationFileHandler:
             if not file.exists():
                 write = True
             else:
-                content_old = toml.load(file)
+                with open(file, 'r') as stream:
+                    content_old = yaml.load(stream, Loader=yaml.Loader)
                 message = f'\nThe {name} file was found in {file} \n' \
                           f' current  file content: {content_old}\n' \
                           f' proposed file content: {content}'
@@ -194,7 +195,7 @@ class ConfigurationFileHandler:
             if write:
                 print(f"Writing the {name} file in: {file}")
                 with open(file, 'w') as f:
-                    toml.dump(content, f)
+                    yaml.dump(content, f)
 
 
 def _ask(message: str, question: str, accepted_values: list):
@@ -211,7 +212,7 @@ def _ask(message: str, question: str, accepted_values: list):
 def configure():
     """
     This function it is used to create a cli (command line interface) to configure the parameters after package installation.
-    The name of the cli is defined in the project.toml file of the package and the cli itself is created automatically
+    The name of the cli is defined in the project.yaml file of the package and the cli itself is created automatically
     by the package installation procedure.
     Please refer to the package documentation for more details
 

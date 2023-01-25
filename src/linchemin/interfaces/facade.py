@@ -1,22 +1,22 @@
 # standard library imports
-import json
 from abc import ABC, abstractmethod
-import pprint
 import pandas as pd
 import multiprocessing as mp
 # local imports
-from linchemin.cgu.translate import (translator, get_available_formats, get_available_data_models, get_output_formats,
+from linchemin.cgu.translate import (translator, get_available_data_models, get_output_formats,
                                      get_input_formats, TranslationError)
 from linchemin.rem.route_descriptors import (descriptor_calculator, is_subset, find_duplicates,
                                              get_available_descriptors, DescriptorError)
 from linchemin.rem.clustering import (clusterer, get_clustered_routes_metrics, get_available_clustering,
                                       ClusteringError)
-from linchemin.rem.graph_distance import (get_available_ged_algorithms, get_ged_default_parameters,
+from linchemin.rem.graph_distance import (get_available_ged_algorithms,
                                           compute_distance_matrix, get_ged_parameters, GraphDistanceError)
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph, SynGraph, merge_syngraph, extract_reactions_from_syngraph
 from linchemin.cgu.convert import converter, Converter
 from linchemin.cheminfo.atom_mapping import pipeline_atom_mapping, perform_atom_mapping, get_available_mappers
 
+from linchemin.configuration.defaults import DEFAULT_FACADE
+from linchemin import settings
 """
 Module containing high level functionalities/"user stories" to work in stream; it provides a simplified interface for the user.
 The functionalities are implemented as methods of the Functionality class.
@@ -31,37 +31,6 @@ class FacadeError(Exception):
 class UnavailableFunctionality(FacadeError):
     """ Raised if the selected functionality is not among the available ones """
     pass
-
-
-DEFAULT_FACADE = {
-    'translate': {'value': {'data_format': 'syngraph',
-                            'data_model': 'bipartite',
-                            'parallelization': False,
-                            'n_cpu': mp.cpu_count()},
-                  'info': 'A list of instances of bipartite SynGraphs'},
-    'routes_descriptors': {'value': {'descriptors': None},
-                           'info': 'All the available descriptors are computed'},
-    'distance_matrix': {'value': {'ged_method': 'nx_ged',
-                                  'ged_params': None,
-                                  'parallelization': False,
-                                  'n_cpu': mp.cpu_count()},
-                        'info': 'The standard NetworkX GED algorithm and the default parameters are used'},
-    'clustering': {'value': {'clustering_method': None,
-                             'ged_method': 'nx_ged',
-                             'ged_params': None,
-                             'save_dist_matrix': False,
-                             'compute_metrics': False,
-                             'parallelization': False,
-                             'n_cpu': mp.cpu_count()},
-                   'info': 'AgglomerativeClustering is used when there are less than 15 routes, hdbscan otherwise.'
-                           'The standard NetworkX algorithm and default parameters are used for the distance matrix'
-                           'calculation'},
-    'merging': {'value': {'out_data_model': 'bipartite'},
-                'info': 'A new, "merged", bipartite SynGraph'},
-    'atom_mapping': {'value': {'mapper': None,
-                               'out_data_model': 'bipartite'},
-                     'info': 'The full atom mapping pipeline is used; a list of bipartite SynGraph is generated'},
-}
 
 
 class Facade(ABC):
@@ -86,23 +55,28 @@ class TranslateFacade(Facade):
     info = 'To translate a list of routes from a format to another one.',
 
     def perform_functionality(self, input_format: str, input_list: list,
-                              out_format=DEFAULT_FACADE['translate']['value']['data_format'],
-                              out_data_model=DEFAULT_FACADE['translate']['value']['data_model'],
-                              parallelization=DEFAULT_FACADE['translate']['value']['parallelization'],
-                              n_cpu=DEFAULT_FACADE['translate']['value']['n_cpu']) -> tuple:
+                              out_format=settings.FACADE.data_format,
+                              out_data_model=settings.FACADE.out_data_model,
+                              parallelization=settings.FACADE.parallelization,
+                              n_cpu=settings.FACADE.n_cpu) -> tuple:
         """
             Takes a list of routes in the specified input format and converts it into the desired format (default: SynGraph).
             Returns the converted routes and some metadata.
 
-            Parameters:
+            :param:
                 input_list: a list of routes in the specified input format
+
                 input_format: a string indicating the format of the input file
+
                 out_format: a string indicating the desired output format (format as for the translator factory)
+
                 out_data_model: a string indicting the desired output data model
+
                 parallelization: a boolean indicating whether parallelization should be used
+
                 n_cpu: an integer specifying the number of cpus to be used in the parallel calculation
 
-            Returns:
+            :return:
                 output: a list whose elements are the converted routes
                 meta: a dictionary storing information about the original file and the CASP tool that produced the routes
         """
@@ -153,28 +127,28 @@ class TranslateFacade(Facade):
                                  'help': 'CASP tool that generated the input file',
                                  'dest': 'casp'},
                 'out_format': {'name_or_flags': ['-out_format'],
-                               'default': DEFAULT_FACADE['translate']['value']['data_format'],
+                               'default': settings.FACADE.data_format,
                                'required': False,
                                'type': str,
                                'choices': get_output_formats(),
                                'help': 'Format of the output graphs',
                                'dest': 'out_format'},
                 'out_data_model': {'name_or_flags': ['-out_data_model'],
-                                   'default': DEFAULT_FACADE['translate']['value']['data_model'],
+                                   'default': settings.FACADE.out_data_model,
                                    'required': False,
                                    'type': str,
                                    'choices': get_available_data_models(),
                                    'help': 'Data model of the output graphs',
                                    'dest': 'out_data_model'},
                 'parallelization': {'name_or_flags': ['-parallelization'],
-                                    'default': DEFAULT_FACADE['translate']['value']['parallelization'],
+                                    'default': settings.FACADE.parallelization,
                                     'required': False,
                                     'type': bool,
                                     'choices': [True, False],
                                     'help': 'Whether parallelization should be used',
                                     'dest': 'parallelization'},
                 'n_cpu': {'name_or_flags': ['-n_cpu'],
-                          'default': 'All the available CPUs as given by "multiprocessing.cpu_count()"',
+                          'default': settings.FACADE.n_cpu,
                           'required': False,
                           'type': int,
                           'choices': None,
@@ -201,16 +175,16 @@ class RoutesDescriptorsFacade(Facade):
     info = 'To compute metrics of a list of SynGraph objects'
 
     def perform_functionality(self, routes: list,
-                              descriptors=DEFAULT_FACADE['routes_descriptors']['value']['descriptors']) -> tuple:
+                              descriptors=settings.FACADE.descriptors) -> tuple:
         """
             Computes the desired descriptors (default: all the available descriptors) for the routes in the provided list.
 
-            Parameters:
+            :param:
                 routes: a list of SynGraph instances
                 descriptors: a list of strings indicating the desired descriptors to be computed
                         (default: None -> all the available descriptors)
 
-            Returns:
+            :return:
                 output: a pandas dataframe
                 meta: a dictionary storing information about the computed descriptors
         """
@@ -280,19 +254,24 @@ class GedFacade(Facade):
                               parallelization=DEFAULT_FACADE['distance_matrix']['value']['parallelization'],
                               n_cpu=DEFAULT_FACADE['distance_matrix']['value']['n_cpu']) -> tuple:
         """
-            Computes the distance matrix for the routes in the provided list.
+        Computes the distance matrix for the routes in the provided list.
 
-            Parameters:
+            :param:
                 routes: a list of SynGraph instances; it is recommended to use the monopartite
-                        representation for performance reasons.
+                        representation for performance reasons
+
                 ged_method: a string indicating which algorithm should be used to compute the ged
                             (default: nx_optimized_ged)
+
                 ged_params: a dictionary indicating the optional parameters for chemical similarity and fingerprints
+
                 parallelization: a boolean indicating whether parallelization should be used
+
                 n_cpu: an integer specifying the number of cpus to be used in the parallel calculation
 
-            Returns:
+            :return:
                 dist_matrix: a pandas DataFrame (n routes) x (n routes) with the ged values
+
                 meta: a dictionary storing information about the type of graph (mono or bipartite), the algorithm used
                       for the ged calculations and the parameters for chemical similarity and fingerprints
         """
@@ -342,7 +321,8 @@ class GedFacade(Facade):
                                'help': 'Parameters of the molecular and/or reaction chemical similarity',
                                'dest': 'ged_params'},
                 'parallelization': {'name_or_flags': ['-parallelization'],
-                                    'default': DEFAULT_FACADE['distance_matrix']['value']['parallelization'],
+                                    'default': DEFAULT_FACADE['distance_matrix']['value'][
+                                        'parallelization'],
                                     'required': False,
                                     'type': bool,
                                     'choices': [True, False],
@@ -388,22 +368,31 @@ class ClusteringFacade:
         """
             Performs clustering of the routes in the provided list.
 
-            Parameters:
+            :param:
                 routes: a list of SynGraph instances
+
                 clustering_method: a string indicating which algorithm to use for clustering. If None is given,
                                 agglomerative_cluster is used when there are less than 15 routes, otherwise hdbscan is used
+
                 ged_method: a string indicating which algorithm to use for computing the ged (default: nx_optimized_ged)
+
                 ged_params: a dictionary indicating the optional parameters for chemical similarity and fingerprints
+
                 save_dist_matrix: a boolean indicating whether the distance matrix should be saved and returned as output
+
                 compute_metrics: a boolean indicating whether the average metrics for each cluster should be computed
+
                 parallelization: a boolean indicating whether parallelization should be used
+
                 n_cpu: an integer specifying the number of cpus to be used in the parallel calculation
+
                 kwargs: the type of linkage can be indicated when using the agglomerative_cluster; the minimum size of the
                         clusters can be indicated when using hdbscan
 
-            Returns:
+            :return:
                 results: a tuple with: clustering, score, (dist_matrix), corresponding to the output of the clustering,
                                      its silhouette score (and the distance matrix as a pandas dataframe if save_dist_matrix=True)
+
                 meta: a dictionary storing information about the original file and the CASP tool that produced the routes,
                     the type of graph (mono or bipartite), information regarding the clustering, information regarding
                     the ged calculations and the parameters for chemical similarity and fingerprints
@@ -440,10 +429,7 @@ class ClusteringFacade:
             metrics = pd.DataFrame()
 
         finally:
-            if compute_metrics:
-                return results, metrics, meta
-            else:
-                return results, meta
+            return (results, metrics, meta) if compute_metrics else (results, meta)
 
     def get_available_options(self) -> dict:
         """
@@ -526,10 +512,10 @@ class SubsetsFacade(Facade):
         """
             Checks the presence of subsets in the provided list of SynGraph objects.
 
-            Parameters:
+            :param:
                 routes: list of SynGraph instances
 
-            Returns:
+            :return:
                 subsets: list of pairs
         """
         subsets = []
@@ -566,10 +552,10 @@ class DuplicatesFacade(Facade):
         """
             Checks the presence of duplicated routes in the provided list of SynGraph instances.
 
-            Parameters:
+            :param:
                     routes: list of SynGraph instances
 
-            Returns:
+            :return:
                     a list of duplicates
         """
         routes1 = routes[:len(routes) // 2]
@@ -600,15 +586,17 @@ class MergingFacade(Facade):
     """ Subclass of Facade for merging a list of routes. """
     info = 'To merge a list of SynGraph objects'
 
-    def perform_functionality(self, routes: list, out_data_model=DEFAULT_FACADE['merging']['value']['out_data_model']):
+    def perform_functionality(self, routes: list,
+                              out_data_model=DEFAULT_FACADE['merging']['value']['out_data_model']):
         """
             Merges the provided list of SynGraph instances in a new SynGraph instance.
 
-            Parameters:
+            :param:
                     routes: list of SynGraph instances
+
                     out_data_model: the data model of the output SynGraph
 
-            Returns:
+            :return:
                     a new SynGraph instance resulting from the merging of the input routes
         """
         routes_checked_type = [converter(r, out_data_model) for r in routes]
@@ -650,12 +638,13 @@ class ReactionExtractionFacade(Facade):
         """
             Extracts a list of
 
-            Parameters:
+            :param:
                     routes: list of SynGraph instances
 
-            Returns:
+            :return:
                 output: a list of dictionaries
-                meta: a dictionary storing information about the the run
+
+                meta: a dictionary storing information about the run
 
         """
         checked_routes = [r for r in routes if r != {}]
@@ -709,12 +698,14 @@ class AtomMappingFacade(Facade):
     info = 'To get a list of mapped SynGraph objects'
 
     def perform_functionality(self, routes: list,
-                              mapper: str=DEFAULT_FACADE['atom_mapping']['value']['mapper'],
-                              out_data_model: str=DEFAULT_FACADE['atom_mapping']['value']['out_data_model']) -> tuple[list, dict]:
+                              mapper: str = DEFAULT_FACADE['atom_mapping']['value']['mapper'],
+                              out_data_model: str = DEFAULT_FACADE['atom_mapping']['value'][
+                                  'out_data_model']) -> tuple[
+        list, dict]:
         """
             Generates a list of SynGraph objects with mapped chemical equations
 
-            Parameters:
+            :param:
                     routes: a list of SynGraph instances
 
                     mapper: a string indicating which mapper to be used
@@ -723,9 +714,10 @@ class AtomMappingFacade(Facade):
                     out_data_model: a string indicting the desired output data model
                                     (default: 'bipartite' -> a list of bipartite SynGraphs is returned)
 
-            Returns:
+            :return:
                 output: a list of SynGraph objects
-                meta: a dictionary storing information about the the run
+
+                meta: a dictionary storing information about the run
         """
         out_syngraphs = []
         out_syngraph_type = Converter.out_datamodels[out_data_model]
@@ -736,7 +728,7 @@ class AtomMappingFacade(Facade):
                 # the full pipeline is used
                 mapping_out = pipeline_atom_mapping(reaction_list)
             else:
-                # the slected mapper is used
+                # the selected mapper is used
                 mapping_out = perform_atom_mapping(reaction_list, mapper)
             if mapping_out.success_rate != 1:
                 # if not all the reactions are mapped, a warning is raised and
@@ -752,7 +744,6 @@ class AtomMappingFacade(Facade):
                 'mapping_success_rate': tot_success_rate}
 
         return out_syngraphs, meta
-
 
     def get_available_options(self) -> dict:
         return {'routes': {'name_or_flags': ['-routes'],
@@ -770,12 +761,12 @@ class AtomMappingFacade(Facade):
                            'help': 'Which mapper should be used',
                            'dest': 'mapper'},
                 'out_data_model': {'name_or_flags': ['-out_data_model'],
-                           'default': DEFAULT_FACADE['atom_mapping']['value']['out_data_model'],
-                           'required': False,
-                           'type': str,
-                           'choices': get_available_data_models(),
-                           'help': 'Data model of the output graphs',
-                           'dest': 'out_data_model'},
+                                   'default': DEFAULT_FACADE['atom_mapping']['value']['out_data_model'],
+                                   'required': False,
+                                   'type': str,
+                                   'choices': get_available_data_models(),
+                                   'help': 'Data model of the output graphs',
+                                   'dest': 'out_data_model'},
                 }
 
     def print_available_options(self):
@@ -835,13 +826,15 @@ def facade(functionality, *args, **kwargs):
     """
     Gives access to the 'facade', which wraps each of the main functionalities of the package.
 
-    :param: functionality: a string. It indicates the functionality to be performed
+        :param:
+            functionality: a string. It indicates the functionality to be performed
 
             *args:the mandatory arguments of the selected functionality
 
             **kwargs: the optional arguments of the selected functionality
 
-    :return: the output of the selected functionality
+        :return:
+            the output of the selected functionality
 
     """
     functionality_selector = FacadeFactory()
@@ -850,8 +843,8 @@ def facade(functionality, *args, **kwargs):
 
 def facade_helper(functionality=None, verbose=False):
     """
-        Returns the available facade functions if no input is provided; if the name of a functionality is specified,
-        the available parameters options for it are returned.
+    Returns the available facade functions if no input is provided; if the name of a functionality is specified,
+    the available parameters options for it are returned.
 
         :param:
             functionality: a string or None (optional, default: None)
