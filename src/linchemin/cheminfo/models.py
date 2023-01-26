@@ -130,6 +130,7 @@ class Template:
         return cif.build_rdrxn(catalog=self.pattern_catalog,
                                role_map=self.role_map,
                                stoichiometry_coefficients=self.stoichiometry_coefficients,
+                               use_reagents=True,
                                use_smiles=False,
                                use_atom_mapping=use_atom_mapping)
 
@@ -162,7 +163,7 @@ class ChemicalEquation:
     hash_map: dict = field(default_factory=dict)
     """ A dictionary mapping various properties with their values"""
     uid: int = field(default_factory=int)
-    """ The integer obtained by hashing the identity property of the molecule"""
+    """ The integer obtained by hashing the chemical identity identity property """
     rdrxn: cif.rdChemReactions.ChemicalReaction | None = None
     """ An RDKit ChemicalReaction object """
     smiles: str = field(default_factory=str)
@@ -183,10 +184,15 @@ class ChemicalEquation:
     def __str__(self) -> str:
         return f'{self.smiles}'
 
-    def build_reaction_smiles(self) -> str:
-        """ To build the reaction smiles from the smiles of the involved Molecule instances """
-        return '>'.join(['.'.join([self.catalog.get(uid).smiles for uid in self.role_map[role]]) for role in
-                         ['reactants', 'reagents', 'products']])
+    def build_reaction_smiles(self, use_reagents) -> str:
+        """ To build a reaction smiles from the smiles of the involved Molecule instances """
+        if use_reagents:
+            return '>'.join(['.'.join([self.catalog.get(uid).smiles for uid in self.role_map[role]]) for role in
+                             ['reactants', 'reagents', 'products']])
+        else:
+            return '>'.join(['.'.join([self.catalog.get(uid).smiles for uid in self.role_map[role]]) for role in
+                             ['reactants', 'products']])
+
 
     def to_dict(self) -> dict:
         """ To return a dictionary with all the attributes of the ChemicalEquation instance """
@@ -197,10 +203,11 @@ class ChemicalEquation:
                 'template': self.template.to_dict() if self.template else None,
                 'disconnection': self.disconnection.to_dict() if self.disconnection else None}
 
-    def build_rdrxn(self, use_atom_mapping=True):
-        """ To build the rdkit ChemicalReaction object associated with the ChemicalEquation instance """
+    def build_rdrxn(self, use_reagents, use_atom_mapping=True):
+        """ To build an rdkit ChemicalReaction object from the ChemicalEquation instance """
         return cif.build_rdrxn(catalog=self.catalog,
                                role_map=self.role_map,
                                stoichiometry_coefficients=self.stoichiometry_coefficients,
+                               use_reagents=use_reagents,
                                use_smiles=False,
                                use_atom_mapping=use_atom_mapping)

@@ -538,6 +538,7 @@ class TemplateConstructor:
         template.rdrxn = cif.build_rdrxn(catalog=pattern_catalog,
                                          role_map=role_map,
                                          stoichiometry_coefficients=stoichiometry_coefficients,
+                                         use_reagents=True,
                                          use_smiles=False,
                                          use_atom_mapping=True)
         template.smarts = cif.rdrxn_to_string(rdrxn=template.rdrxn, out_fmt='smarts')
@@ -661,10 +662,12 @@ class UnmappedChemicalEquationGenerator(ChemicalEquationGenerator):
             basic_attributes['role_map'], all_molecules)
         return basic_attributes
 
-    def generate_rdrxn(self, catalog, role_map, stoichiometry_coefficients, use_atom_mapping=False, use_smiles=False):
+    def generate_rdrxn(self, catalog, role_map, stoichiometry_coefficients, use_reagents,
+                       use_atom_mapping=False, use_smiles=False):
         return cif.build_rdrxn(catalog=catalog,
                                role_map=role_map,
                                stoichiometry_coefficients=stoichiometry_coefficients,
+                               use_reagents=use_reagents,
                                use_smiles=use_smiles,
                                use_atom_mapping=use_atom_mapping)
 
@@ -699,10 +702,12 @@ class MappedChemicalEquationGenerator(ChemicalEquationGenerator):
         ratam_constructor = RatamConstructor()
         return ratam_constructor.create_ratam(new_reaction_mols)
 
-    def generate_rdrxn(self, catalog, role_map, stoichiometry_coefficients, use_atom_mapping=True, use_smiles=False):
+    def generate_rdrxn(self, catalog, role_map, stoichiometry_coefficients, use_reagents,
+                       use_atom_mapping=True, use_smiles=False):
         return cif.build_rdrxn(catalog=catalog,
                                role_map=role_map,
                                stoichiometry_coefficients=stoichiometry_coefficients,
+                               use_reagents=use_reagents,
                                use_smiles=use_smiles,
                                use_atom_mapping=use_atom_mapping)
 
@@ -715,7 +720,7 @@ class MappedChemicalEquationGenerator(ChemicalEquationGenerator):
 
     def generate_disconnection(self, ce):
         dc = DisconnectionConstructor(identity_property_name='smiles')
-        rdrxn = ce.build_rdrxn(use_atom_mapping=True)
+        rdrxn = ce.build_rdrxn(use_reagents=False, use_atom_mapping=True)
         return dc.build_from_rdrxn(rdrxn=rdrxn)
 
 
@@ -734,7 +739,11 @@ class Builder:
         ce.mapping = basic_attributes['mapping']
         ce.role_map = basic_attributes['role_map']
         ce.stoichiometry_coefficients = basic_attributes['stoichiometry_coefficients']
-        ce.rdrxn = self.__builder.generate_rdrxn(ce.catalog, ce.role_map, ce.stoichiometry_coefficients)
+        if chemical_equation_identity_name in ['r_p', 'u_r_p']:
+            use_reagents = False
+        else:
+            use_reagents = True
+        ce.rdrxn = self.__builder.generate_rdrxn(ce.catalog, ce.role_map, ce.stoichiometry_coefficients, use_reagents)
         ce.smiles = self.__builder.generate_smiles(ce.rdrxn)
         ce.hash_map = create_reaction_like_hash_values(ce.catalog, ce.role_map)
         ce.uid = ce.hash_map.get(chemical_equation_identity_name)
