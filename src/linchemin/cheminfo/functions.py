@@ -216,37 +216,6 @@ def is_mapped_molecule(rdmol):
 
 
 ####################################################################################################
-# utilities functions for creating fingerprints
-
-def generate_rdkit_fp(params):
-    return rdFingerprintGenerator.GetRDKitFPGenerator(
-        minPath=params.get('minPath', 1),
-        maxPath=params.get('maxPath', 7),
-        countSimulation=params.get('countSimulation', False),
-        numBitsPerFeature=params.get('numBitsPerFeature', 2),
-        fpSize=params.get('fpSize', 2048))
-
-
-def generate_morgan_fp(params):
-    return rdFingerprintGenerator.GetMorganGenerator(
-        radius=params.get('radius', 3),
-        useCountSimulation=params.get('countSimulation', False),
-        includeChirality=params.get('includeChirality', False),
-        useBondTypes=params.get('useBondTypes', True),
-        countBounds=params.get('countBounds', None),
-        fpSize=params.get('fpSize', 2048))
-
-
-def generate_topological_fp(params):
-    return rdFingerprintGenerator.GetTopologicalTorsionGenerator(
-        includeChirality=params.get('includeChirality', False),
-        torsionAtomCount=params.get('torsionAtomCount', 4),
-        countSimulation=params.get('countSimulation', True),
-        countBounds=params.get('countBounds', None),
-        fpSize=params.get('fpSize', 2048))
-
-
-####################################################################################################
 # RDRXN
 def rdrxn_from_string(input_string: str, inp_fmt: str) -> rdChemReactions.ChemicalReaction:
     format_function_map = {'smiles': partial(Chem.rdChemReactions.ReactionFromSmarts, useSmiles=True),
@@ -465,6 +434,7 @@ def rdchiral_extract_template(reaction_string: str, inp_fmt: str, reaction_id: i
 def build_rdrxn(catalog: Dict,
                 role_map: Dict,
                 stoichiometry_coefficients: Dict,
+                use_reagents: bool,
                 use_smiles: bool,
                 use_atom_mapping: bool) -> rdChemReactions.ChemicalReaction:
     reaction_smiles_empty = '>>'
@@ -474,10 +444,11 @@ def build_rdrxn(catalog: Dict,
             for _ in range(stoichiometry_coefficients.get('reactants').get(mol_id)):
                 rdrxn_new.AddReactantTemplate(rdmol_mapped)
 
-    for mol_id in role_map.get('reagents'):
-        if rdmol_mapped := catalog.get(mol_id).rdmol_mapped:
-            for _ in range(stoichiometry_coefficients.get('reagents').get(mol_id)):
-                rdrxn_new.AddAgentTemplate(rdmol_mapped)
+    if use_reagents:
+        for mol_id in role_map.get('reagents'):
+            if rdmol_mapped := catalog.get(mol_id).rdmol_mapped:
+                for _ in range(stoichiometry_coefficients.get('reagents').get(mol_id)):
+                    rdrxn_new.AddAgentTemplate(rdmol_mapped)
 
     for mol_id in role_map.get('products'):
         if rdmol_mapped := catalog.get(mol_id).rdmol_mapped:

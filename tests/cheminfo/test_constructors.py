@@ -884,7 +884,8 @@ def test_chemical_equation_hashing():
                  9: {'smiles': 'CNC(C)=O>O>CN.CC(O)=O'}
                  }
     # initialize the constructor
-    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_r_p')
     results = {}
     for k, v in reactions.items():
         chemical_equation = chemical_equation_constructor.build_from_reaction_string(
@@ -939,21 +940,34 @@ def test_chemical_equation_hashing():
 
 def test_instantiate_chemical_equation():
     reaction_smiles_input = 'NC.CC(O)=O>O>CNC(C)=O'
-    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_r_p')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=reaction_smiles_input,
                                                                                  inp_fmt='smiles')
     assert chemical_equation
+    assert chemical_equation.smiles == 'CC(=O)O.CN>O>CNC(C)=O'
+    assert list(chemical_equation.rdrxn.GetAgents())
     # assert molecules are canonicalized
     # assert reaction is canonicalized
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_p')
+    chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=reaction_smiles_input,
+                                                                                 inp_fmt='smiles')
+    assert chemical_equation.smiles == 'CC(=O)O.CN>>CNC(C)=O'
+    assert not list(chemical_equation.rdrxn.GetAgents())
 
 
 def test_create_reaction_smiles_from_chemical_equation():
     reaction_smiles_input = 'CN.CC(O)=O>O>CNC(C)=O'
-    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_p')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=reaction_smiles_input,
                                                                                  inp_fmt='smiles')
-    reaction_smiles = chemical_equation.build_reaction_smiles()
-    assert reaction_smiles
+    reaction_smiles_no_reagents = chemical_equation.build_reaction_smiles(use_reagents=False)
+    reaction_smiles_reagents = chemical_equation.build_reaction_smiles(use_reagents=True)
+
+    assert reaction_smiles_no_reagents, reaction_smiles_reagents
+    assert reaction_smiles_no_reagents != reaction_smiles_reagents
 
 
 def test_reaction_canonicalization_from_molecules():
@@ -1042,17 +1056,28 @@ def test_chemical_equation_attributes_are_not_available():
 def test_chemical_equation_attributes_are_available():
     smiles = '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15].C(Cl)Cl.C(=O)(C(=O)Cl)Cl>>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]'
     expected_smiles = 'O[C:2](=[O:1])[c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12.[N-:13]=[N+:14]=[N-:15]>ClCCl.O=C(Cl)C(=O)Cl>[O:1]=[C:2]([c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12)[N:13]=[N+:14]=[N-:15]'
-    # initialize the constructor
-    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
+    # initialize the constructor with identity property 'r_r_p'
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_r_p')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
                                                                                  inp_fmt='smiles')
 
-    disconnection = chemical_equation.disconnection
-    template = chemical_equation.template
+    disconnection1 = chemical_equation.disconnection
+    template1 = chemical_equation.template
     assert chemical_equation.mapping
-    assert disconnection
-    assert template
+    assert disconnection1
+    assert template1
     assert chemical_equation.smiles == expected_smiles
+    # initialize the constructor with identity property 'r_p'
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_p')
+    chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
+                                                                                 inp_fmt='smiles')
+    disconnection2 = chemical_equation.disconnection
+    template2 = chemical_equation.template
+    # disconnection and template are independent of the chemical equation identity property
+    assert disconnection2 == disconnection1
+    assert template2 == template1
 
 
 # Ratam tests

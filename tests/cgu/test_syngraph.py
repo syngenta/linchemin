@@ -46,7 +46,8 @@ def test_add_existing_node(ibm1_path):
     reactant = molecule_constructor.build_from_molecule_string(molecule_string='CCN',
                                                                inp_fmt='smiles')
 
-    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_r_p')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(
         reaction_string='CCN>>CCC(=O)NCC',
         inp_fmt='smiles')
@@ -69,7 +70,8 @@ def test_add_existing_node_with_new_connections(ibm1_path):
     reactant = molecule_constructor.build_from_molecule_string(molecule_string='CCN',
                                                                inp_fmt='smiles')
 
-    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_r_p')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(
         reaction_string='CCN>>CCC(=O)NCC',
         inp_fmt='smiles')
@@ -150,7 +152,8 @@ def test_reaction_monopartite(az_path):
     graph_az = json.loads(open(az_path).read())
     mp_reac_syngraph = translator('az_retro', graph_az[0], 'syngraph', out_data_model='monopartite_reactions')
 
-    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_r_p')
     ce_root = chemical_equation_constructor.build_from_reaction_string(
         reaction_string='Cc1cccc(C)c1NCC(=O)Nc1ccc(-c2ncon2)cc1.O=C('
                         'O)C1CCS(=O)(=O)CC1>>Cc1cccc(C)c1N(CC(=O)Nc1ccc('
@@ -230,7 +233,8 @@ def test_hashing(ibm2_path):
     # The hash key is created
     assert syngraph_mpr.uid
     uid1 = syngraph_mpr.uid
-    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_r_p')
     ce = chemical_equation_constructor.build_from_reaction_string(
         reaction_string='Cc1cccc(C)c1NCC(=O)Nc1ccc(-c2ncon2)cc1.O=C('
                         'O)C1CCS(=O)(=O)CC1>>Cc1cccc(C)c1N(CC(=O)Nc1ccc('

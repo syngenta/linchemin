@@ -6,6 +6,32 @@ from linchemin import settings
 Module containing functions and classes for computing chemical fingerprints and similarity
 """
 
+def generate_rdkit_fp(params):
+    return cif.rdFingerprintGenerator.GetRDKitFPGenerator(
+        minPath=params.get('minPath', 1),
+        maxPath=params.get('maxPath', 7),
+        countSimulation=params.get('countSimulation', False),
+        numBitsPerFeature=params.get('numBitsPerFeature', 2),
+        fpSize=params.get('fpSize', 2048))
+
+
+def generate_morgan_fp(params):
+    return cif.rdFingerprintGenerator.GetMorganGenerator(
+        radius=params.get('radius', 3),
+        useCountSimulation=params.get('countSimulation', False),
+        includeChirality=params.get('includeChirality', False),
+        useBondTypes=params.get('useBondTypes', True),
+        countBounds=params.get('countBounds', None),
+        fpSize=params.get('fpSize', 2048))
+
+
+def generate_topological_fp(params):
+    return cif.rdFingerprintGenerator.GetTopologicalTorsionGenerator(
+        includeChirality=params.get('includeChirality', False),
+        torsionAtomCount=params.get('torsionAtomCount', 4),
+        countSimulation=params.get('countSimulation', True),
+        countBounds=params.get('countBounds', None),
+        fpSize=params.get('fpSize', 2048))
 
 # Reaction fingerprint factory
 
@@ -94,7 +120,7 @@ class RDKitMolFingerprint(MolFingerprint):
     def compute_molecular_fingerprint(self, rdmol, params, count_fp_vector):
         if params is None:
             params = {}
-        fpgen = cif.generate_rdkit_fp(params)
+        fpgen = generate_rdkit_fp(params)
         fp_builder = select_fp_vector(fpgen, count_fp_vector)
         return fp_builder(rdmol)
 
@@ -103,7 +129,7 @@ class MorganMolFingerprint(MolFingerprint):
     def compute_molecular_fingerprint(self, rdmol, params, count_fp_vector):
         if params is None:
             params = {}
-        fpgen = cif.generate_morgan_fp(params)
+        fpgen = generate_morgan_fp(params)
         fp_builder = select_fp_vector(fpgen, count_fp_vector)
         return fp_builder(rdmol)
 
@@ -112,7 +138,7 @@ class TopologicalMolFingerprint(MolFingerprint):
     def compute_molecular_fingerprint(self, rdmol, params, count_fp_vector):
         if params is None:
             params = {}
-        fpgen = cif.generate_topological_fp(params)
+        fpgen = generate_topological_fp(params)
         fp_builder = select_fp_vector(fpgen, count_fp_vector)
         return fp_builder(rdmol)
 
