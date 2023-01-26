@@ -69,7 +69,8 @@ DEFAULT_FACADE = {
 DEFAULT_CONSTRUCTORS = {'molecular_identity_property_name': 'smiles',
                         'chemical_equation_identity_name': 'r_r_p',
                         'pattern_identity_property_name': 'smarts',
-                        'template_identity_property': 'r_p'}
+                        'template_identity_property': 'r_p',
+                        'molecular_hash_list': ['inchi_key', 'inchikey_KET_15T']}
 
 DEFAULT_CHEMICAL_SIMILARITY = {'includeAgents': True,
                                'diff_fp_fpSize': 2048,
@@ -84,12 +85,9 @@ DEFAULT_CHEMICAL_SIMILARITY = {'includeAgents': True,
 
 
 def get_settings():
-    all_settings = {}
     d_ged = {param: d['value'] for param, d in DEFAULT_GED.items()}
-    all_settings['GED'] = d_ged
-    all_settings['WORKFLOW'] = DEFAULT_WORKFLOW
-    all_settings['CONSTRUCTORS'] = DEFAULT_CONSTRUCTORS
-    all_settings['FACADE'] = {}
+    all_settings = {'GED': d_ged, 'WORKFLOW': DEFAULT_WORKFLOW, 'CONSTRUCTORS': DEFAULT_CONSTRUCTORS, 'FACADE': {}}
+
     for functionality, d in DEFAULT_FACADE.items():
         all_settings['FACADE'] |= d['value']
     all_settings['CHEMICAL_SIMILARITY'] = DEFAULT_CHEMICAL_SIMILARITY

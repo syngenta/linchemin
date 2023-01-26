@@ -1,16 +1,29 @@
 from linchemin.cheminfo.constructors import (MoleculeConstructor, ChemicalEquationConstructor, RatamConstructor,
                                              BadMapping, PatternConstructor, TemplateConstructor,
-                                             DisconnectionConstructor, calculate_molecular_hash_values)
+                                             DisconnectionConstructor, calculate_molecular_hash_values,
+                                             UnavailableMolIdentifier)
 from linchemin.cheminfo.models import Template
 from linchemin.utilities import create_hash
 import linchemin.cheminfo.functions as cif
 from linchemin.IO import io as lio
 import linchemin.cheminfo.depiction as cid
-
+import unittest
 import pytest
 
 
 # Molecule tests
+def test_molecular_constructor():
+    smiles = 'CC(C)=O'
+    with pytest.raises(UnavailableMolIdentifier) as ke:
+        MoleculeConstructor(molecular_identity_property_name='something')
+    assert 'UnavailableMolIdentifier' in str(ke.type)
+    with unittest.TestCase().assertLogs('linchemin.cheminfo.constructors', level='WARNING'):
+        molecule_constructor = MoleculeConstructor(molecular_identity_property_name='smiles',
+                                                   hash_list=['something'])
+        mol = molecule_constructor.build_from_molecule_string(molecule_string=smiles, inp_fmt='smiles')
+    assert 'something' not in mol.hash_map
+
+
 def test_molecule_equality():
     mols = {
         0: {'smiles': 'CN'},  # M1
@@ -25,8 +38,10 @@ def test_molecule_equality():
         9: {'smiles': r'C\C=C(\C)O'},  # M5_T2
         10: {'smiles': 'Cl[C:2]([CH3:1])=[O:3]'},  # M6_atom_mapping_1
         11: {'smiles': 'Cl[C:1]([CH3:2])=[O:5]'},  # M6_atom_mapping_2
-        12: {'smiles': '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]'},
-        13: {'smiles': '[cH:1]1[cH:6][c:7]2[cH:15][n:9][cH:10][cH:14][c:12]2[c:3]([cH:4]1)[C:2](=[O:5])[N:13]=[N+:11]=[N-:8]'}
+        12: {
+            'smiles': '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]'},
+        13: {
+            'smiles': '[cH:1]1[cH:6][c:7]2[cH:15][n:9][cH:10][cH:14][c:12]2[c:3]([cH:4]1)[C:2](=[O:5])[N:13]=[N+:11]=[N-:8]'}
     }
     # initialize the constructor to use smiles as identity property
     molecule_constructor = MoleculeConstructor(molecular_identity_property_name='smiles')
@@ -869,7 +884,7 @@ def test_chemical_equation_hashing():
                  9: {'smiles': 'CNC(C)=O>O>CN.CC(O)=O'}
                  }
     # initialize the constructor
-    chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     results = {}
     for k, v in reactions.items():
         chemical_equation = chemical_equation_constructor.build_from_reaction_string(
@@ -924,7 +939,7 @@ def test_chemical_equation_hashing():
 
 def test_instantiate_chemical_equation():
     reaction_smiles_input = 'NC.CC(O)=O>O>CNC(C)=O'
-    chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=reaction_smiles_input,
                                                                                  inp_fmt='smiles')
     assert chemical_equation
@@ -934,7 +949,7 @@ def test_instantiate_chemical_equation():
 
 def test_create_reaction_smiles_from_chemical_equation():
     reaction_smiles_input = 'CN.CC(O)=O>O>CNC(C)=O'
-    chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=reaction_smiles_input,
                                                                                  inp_fmt='smiles')
     reaction_smiles = chemical_equation.build_reaction_smiles()
@@ -954,7 +969,7 @@ def test_reaction_canonicalization_from_molecules():
                  9: {'smiles': 'CNC(C)=O>O>CN.CC(O)=O'}
                  }
     # initialize the constructor
-    chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     results = {}
     for k, v in reactions.items():
         chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=v.get('smiles'),
@@ -973,14 +988,15 @@ def test_chemical_equation_equality():
                  3: {'smiles': 'NC.CC(=O)O>O>CNC(C)=O'},  # R1
                  4: {'smiles': 'CC(O)=O.CN>O>CNC(C)=O'},  # R1
                  5: {'smiles': '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]'},
-                 6: {'smiles': '[CH3:1][C:20]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:20]([CH3:1])=[O:4].[OH2:3]'},
+                 6: {
+                     'smiles': '[CH3:1][C:20]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:20]([CH3:1])=[O:4].[OH2:3]'},
                  7: {'smiles': '[CH3:6][NH2:5].[CH3:1][C:20]([OH:3])=[O:4]>>[CH3:6][NH:5][C:20]([CH3:1])=[O:4].[OH2:3]'}
                  }
 
     ces1 = {}
 
     # initialize the constructor
-    chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
 
     for k, v in reactions.items():
         chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=v.get('smiles'),
@@ -1000,7 +1016,7 @@ def test_chemical_equation_builder():
     reaction_string_reference = 'CC(=O)O.CN.CN>O>CNC(C)=O'
 
     # initialize the constructor
-    cec = ChemicalEquationConstructor(identity_property_name='smiles')
+    cec = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
 
     for reaction_string_test in [
         'CC(=O)O.CN.CN>O>CNC(C)=O',  # expected smiles
@@ -1014,7 +1030,7 @@ def test_chemical_equation_builder():
 
 def test_chemical_equation_attributes_are_not_available():
     smiles = 'CN.CC(O)=O>O>CNC(C)=O'
-    chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
                                                                                  inp_fmt='smiles')
     disconnection = chemical_equation.disconnection
@@ -1027,7 +1043,7 @@ def test_chemical_equation_attributes_are_available():
     smiles = '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15].C(Cl)Cl.C(=O)(C(=O)Cl)Cl>>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]'
     expected_smiles = 'O[C:2](=[O:1])[c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12.[N-:13]=[N+:14]=[N-:15]>ClCCl.O=C(Cl)C(=O)Cl>[O:1]=[C:2]([c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12)[N:13]=[N+:14]=[N-:15]'
     # initialize the constructor
-    chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
                                                                                  inp_fmt='smiles')
 

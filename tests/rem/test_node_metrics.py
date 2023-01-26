@@ -6,7 +6,7 @@ import pytest
 def test_factory():
     smile1 = 'CC(O)=O.CN>>CNC(C)=O'
 
-    chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     reaction1 = chemical_equation_constructor.build_from_reaction_string(
         reaction_string=smile1,
         inp_fmt='smiles')
@@ -17,12 +17,12 @@ def test_factory():
 
 def test_CDScores():
     smile1 = 'CC(O)=O.CN>>CNC(C)=O'
-    chemical_equation_constructor1 = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equation_constructor1 = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     reaction1 = chemical_equation_constructor1.build_from_reaction_string(
         reaction_string=smile1,
         inp_fmt='smiles')
     smile2 = 'CN.CC(O)=O>O>CNC(C)=O'
-    chemical_equation_constructor2 = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equation_constructor2 = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     reaction2 = chemical_equation_constructor2.build_from_reaction_string(
         reaction_string=smile1,
         inp_fmt='smiles')
