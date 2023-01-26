@@ -55,7 +55,7 @@ class SynGraph(ABC):
         if initiator is not None and isinstance(initiator, list):
             chemical_equations = []
             for d in initiator:
-                chemical_eq_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+                chemical_eq_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
                 chemical_equations.append(
                     chemical_eq_constructor.build_from_reaction_string(reaction_string=d['output_string'],
                                                                        inp_fmt='smiles'))
@@ -356,7 +356,7 @@ def get_reaction_instance(reactants: list, products: list) -> ChemicalEquation:
 
     # The ChemicalEquation instance is created
     reaction_string = '>'.join(['.'.join(reactants), '.'.join([]), '.'.join(products)])
-    chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(
         reaction_string=reaction_string,
         inp_fmt='smiles')
@@ -441,7 +441,7 @@ class ReactionsExtractorFromMonopartiteMolecules(ReactionsExtractor):
             for child in children:
                 reactants = [r.smiles for r, products_set in syngraph.graph.items() if child in products_set]
                 reaction_string = '>'.join(['.'.join(reactants), '.'.join([]), '.'.join([child.smiles])])
-                chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+                chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
                 chemical_equation = chemical_equation_constructor.build_from_reaction_string(
                     reaction_string=reaction_string,
                     inp_fmt='smiles')

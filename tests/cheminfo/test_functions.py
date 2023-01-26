@@ -412,7 +412,7 @@ def test_mapping_diagnosis():
         2: '[O:1]=[C:2]([c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12)N=[N+]=[N-]>ClCCl.O=C(Cl)C(=O)Cl>O[C:2](=[O:1])[c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12.[N-:13]=[N+:14]=[N-:15]',
         3: 'Cl[c:8]1[n:9][cH:10][cH:11][c:12]2[c:3]([cH:4][cH:5][cH:6][c:7]12)[C:2](=[O:1])N=[N+]=[N-]>ClCCl.O=C(Cl)C(=O)Cl>O[C:2](=[O:1])[c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12',
     }
-    ce_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    ce_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     chemical_equations = {n: ce_constructor.build_from_reaction_string(reaction_string=s, inp_fmt='smiles')
                           for n, s in smiles.items()}
     desired_prod1 = [mol for uid, mol in chemical_equations.get(1).catalog.items()
