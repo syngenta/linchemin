@@ -1030,7 +1030,8 @@ def test_chemical_equation_builder():
     reaction_string_reference = 'CC(=O)O.CN.CN>O>CNC(C)=O'
 
     # initialize the constructor
-    cec = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
+    cec = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                      chemical_equation_identity_name='r_r_p')
 
     for reaction_string_test in [
         'CC(=O)O.CN.CN>O>CNC(C)=O',  # expected smiles

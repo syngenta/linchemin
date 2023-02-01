@@ -190,7 +190,7 @@ class ChemicalEquation:
             return '>'.join(['.'.join([self.catalog.get(uid).smiles for uid in self.role_map[role]]) for role in
                              ['reactants', 'reagents', 'products']])
         else:
-            return '>'.join(['.'.join([self.catalog.get(uid).smiles for uid in self.role_map[role]]) for role in
+            return '>>'.join(['.'.join([self.catalog.get(uid).smiles for uid in self.role_map[role]]) for role in
                              ['reactants', 'products']])
 
 
