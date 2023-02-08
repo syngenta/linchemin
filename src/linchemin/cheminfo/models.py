@@ -47,6 +47,7 @@ class Disconnection:
     rdmol: cif.Mol | None = None
     rdmol_fragmented: cif.Mol | None = None
     reacting_atoms: list = field(default_factory=list)
+    hydrogenated_atoms: list = field(default_factory=list)
     new_bonds: list = field(default_factory=list)
     modified_bonds: list = field(default_factory=list)
     hash_map: dict = field(default_factory=dict)

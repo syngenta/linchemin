@@ -1,3 +1,4 @@
+from itertools import combinations
 from linchemin.cheminfo.constructors import (MoleculeConstructor, ChemicalEquationConstructor, RatamConstructor,
                                              BadMapping, PatternConstructor, TemplateConstructor,
                                              DisconnectionConstructor, calculate_molecular_hash_values,
@@ -1308,6 +1309,190 @@ def test_disconnection_equality():
     assert results.get('rnx_4') != results.get('rnx_5')
     # same product from two sets of equivalent reactants (at synthol level)
     assert results.get('rnx_1') == results.get('rnx_6')
+
+
+def test_disconnection():
+    test_set = {
+        # fully balanced amide formation from carboxylic acid and amine
+        'rxn_1': {'smiles': '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]',
+                  'expected': {},
+                  },
+        # fully balanced amide hydrolysis
+        'rxn_2': {'smiles': '[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]>>[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]',
+                  'expected': {},
+                  },
+        # fully balanced intramolecular michael addition ring forming, one new bond and one changed bond
+        'rxn_3': {
+            'smiles': '[CH3:1][CH2:2][C:3](=[O:4])[c:5]1[cH:6][cH:7][cH:8][n:9]1[CH2:10]/[CH:11]=[CH:12]\[C:13](=[O:14])[O:15][CH3:16]>>[CH3:1][CH:2]1[CH:11]([CH2:10][n:9]2[cH:8][cH:7][cH:6][c:5]2[C:3]1=[O:4])[CH2:12][C:13](=[O:14])[O:15][CH3:16]',
+        },
+        # fully balanced diels-alder product regioisomer 1
+        'rxn_4': {
+            'smiles': '[CH3:6][CH:7]=[CH2:8].[CH3:1][C:2](=[CH2:3])[CH:4]=[CH2:5]>>[CH3:6][CH:7]1[CH2:8][CH2:3][C:2](=[CH:4][CH2:5]1)[CH3:1] ',
+        },
+        # fully balanced diels-alder product regioisomer 2
+        'rxn_5': {
+            'smiles': '[CH3:6][CH:7]=[CH2:8].[CH3:1][C:2](=[CH2:3])[CH:4]=[CH2:5]>>[CH3:6][CH:7]1[CH2:8][CH2:5][CH:4]=[C:2]([CH2:3]1)[CH3:1]',
+        },
+        # fully balanced amide formation from acyl chloride and amine (same disconnection as rxn_1)
+        'rxn_6': {'smiles': '[CH3:1][C:2]([Cl:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[Cl:3][H]',
+                  },
+        # not fully balanced reaction
+        'rxn_7': {
+            'smiles': '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15]>C(Cl)Cl.C(=O)(C(=O)Cl)Cl>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]',
+        },
+        'rxn_8': {
+            'smiles': '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15]>C(Cl)Cl.C(=O)(C(=O)Cl)Cl>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]',
+        },
+        # ketone reduction to alcohol (two hydrogenated atoms)
+        'rxn_9': {
+            'smiles': '[CH3:1][C:2](=[O:4])[CH3:3]>>[CH3:1][CH:2]([CH3:3])[OH:4]',
+        },
+        # double alcohol deprotection (2*ester -> 2*alcohol)
+        'rxn_10': {
+            'smiles': 'C[O:1][CH2:2][CH2:3][CH2:4][O:5]C>>[OH:5][CH2:4][CH2:3][CH2:2][OH:1]',
+        },
+        # double hydrogenation of a -C#N leading to two H added on N and two on C
+        'rxn_11': {
+            'smiles': '[CH3:3][C:2]#[N:1]>>[CH3:3][CH2:2][NH2:1]'
+        },
+        # single hydrogenation of a -C#N leading to 1 H added on N and one on C
+        'rxn_12': {
+            'smiles': '[CH3:3][C:2]#[N:1]>>[CH3:3][CH:2]=[NH:1]'
+        },
+        # amine deprotection: same product as rxn_11 but different disconnection
+        'rxn_13': {
+            'smiles': '[CH3:1][CH2:2][NH:3]C(O)=O>>[CH3:1][CH2:2][NH2:3]'
+        },
+
+        # Cl replacement: same product as rxn_11 but different disconnection,
+        'rxn_14': {
+            'smiles': '[CH3:2][CH2:3]Cl.[NH3:1]>>[CH3:2][CH2:3][NH2:1]'
+        },
+
+    }
+
+    # initialize the constructor
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_p')
+    disconnection_constructor = DisconnectionConstructor(identity_property_name='smiles')
+
+    results = {}
+    for k, v in test_set.items():
+        smiles_input = v.get('smiles')
+        chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles_input,
+                                                                                     inp_fmt='smiles')
+        mapping = chemical_equation.mapping
+        catalog = chemical_equation.catalog
+        rdrxn = chemical_equation.rdrxn
+        smiles_actual = chemical_equation.smiles
+        disconnection_from_ce = chemical_equation.disconnection
+
+        disconnection_from_smiles_input = disconnection_constructor.build_from_reaction_string(
+            reaction_string=smiles_input,
+            inp_fmt='smiles')
+        disconnection_from_smiles_actual = disconnection_constructor.build_from_reaction_string(
+            reaction_string=smiles_actual,
+            inp_fmt='smiles')
+
+        disconnection_from_rdrxn_actual = disconnection_constructor.build_from_rdrxn(rdrxn=rdrxn)
+
+        results[k] = {'smiles_input': smiles_input,
+                      'smiles_actual': smiles_actual,
+                      'chemical_equation': chemical_equation,
+                      'disconnection_from_ce': disconnection_from_ce,
+                      'disconnection_from_smiles_input': disconnection_from_smiles_input,
+                      'disconnection_from_smiles_actual': disconnection_from_smiles_actual,
+                      'disconnection_from_rdrxn_actual': disconnection_from_rdrxn_actual,
+                      }
+    # check that the chemical equation is generated for each reaction
+    for k, v in results.items():
+        chemical_equation = v.get('chemical_equation')
+        assert chemical_equation, f'The reaction {k} yields a null chemical equation'
+
+    # check that the disconnection generated from the chemical_equation is not null
+    for k, v in results.items():
+        disconnection_from_ce = v.get('disconnection_from_ce')
+        assert disconnection_from_ce, f'The reaction {k} yields a null disconnection'
+
+    # check that the disconnection is different for reactions giving the same product from different reactants
+    reaction_list = ['rxn_11', 'rxn_13', 'rxn_14']
+    couples = combinations(reaction_list, 2)
+
+    for a, b in couples:
+        chemical_equation_a = results.get(a).get('chemical_equation')
+        chemical_equation_b = results.get(b).get('chemical_equation')
+        disconnection_a = chemical_equation_a.disconnection
+        disconnection_b = chemical_equation_b.disconnection
+        assert a != b, f'You are comparing the same thing, please review the reaction_list in the test set:  {a} {b}'
+
+        assert disconnection_a.molecule.uid == disconnection_b.molecule.uid, f'This is not a fair comparison because ' \
+                                                                             f'the product is not the same for:  {a} {b} '
+
+        assert disconnection_a.uid != disconnection_b.uid, f'The disconnection identifier is the same for some ' \
+                                                           f'reactions that have the same products but different reactants: \n' + \
+                                                           f'{a}: {disconnection_a.uid} \n' \
+                                                           f'{b}: {disconnection_b.uid} \n'
+        assert disconnection_a.hash_map.get("disconnection_summary") != disconnection_b.hash_map.get(
+            "disconnection_summary"), f'The disconnection summary is the same for some reactions that have the same ' \
+                                      f'products but different reactants: \n' + \
+                                      f'{a}: {disconnection_a.hash_map.get("disconnection_summary")} \n' \
+                                      f'{b}: {disconnection_b.hash_map.get("disconnection_summary")} \n'
+
+    # check that the disconnection is different for reactions giving the different products from the same reactants
+    couples = [['rxn_4', 'rxn_5']]
+    for a, b in couples:
+        chemical_equation_a = results.get(a).get('chemical_equation')
+        chemical_equation_b = results.get(b).get('chemical_equation')
+        disconnection_a = chemical_equation_a.disconnection
+        disconnection_b = chemical_equation_b.disconnection
+        assert a != b, f'You are comparing the same thing, please review the reactions selected from test set:  {a} {b}'
+
+        assert disconnection_a.molecule.uid != disconnection_b.molecule.uid, f'We expect the product to be different ' \
+                                                                             f'the product is the same for:  {a} {b} '
+
+        assert disconnection_a.uid != disconnection_b.uid, f'The disconnection identifier is the same for some ' \
+                                                           f'reactions that have different products but same reactants: \n' + \
+                                                           f'{a}: {disconnection_a.uid} \n' \
+                                                           f'{b}: {disconnection_b.uid} \n'
+        assert disconnection_a.hash_map.get("disconnection_summary") != disconnection_b.hash_map.get(
+            "disconnection_summary"), f'The disconnection summary is the same for some reactions that have the same ' \
+                                      f'products but different reactants: \n' + \
+                                      f'{a}: {disconnection_a.hash_map.get("disconnection_summary")} \n' \
+                                      f'{b}: {disconnection_b.hash_map.get("disconnection_summary")} \n'
+
+    # check that we have a disconnection for "deprotection" type reactions: a group of atoms is replaced by H
+    reaction_list = ['rxn_10', 'rxn_13']
+    for item in reaction_list:
+        chemical_equation = results.get(item).get('chemical_equation')
+        disconnection = chemical_equation.disconnection
+        assert len(disconnection.reacting_atoms) > 0, f'No reacting atoms for {item}'
+        assert len(disconnection.hydrogenated_atoms) > 0, f'No hydrogenated atoms for {item}'
+
+    # check that we have a disconnection for "hydrogenation" type reactions: addition of H atoms
+    reaction_list = ['rxn_9', 'rxn_11', 'rxn_12']
+    for item in reaction_list:
+        chemical_equation = results.get(item).get('chemical_equation')
+        disconnection = chemical_equation.disconnection
+        assert len(disconnection.reacting_atoms) > 0, f'No reacting atoms for {item}'
+        assert len(disconnection.hydrogenated_atoms) > 0, f'No hydrogenated atoms for {item}'
+
+    # check that single and double "hydrogenation" give different disconnections (the product changes)
+    couples = [['rxn_11', 'rxn_12']]
+    for a, b in couples:
+        chemical_equation_a = results.get(a).get('chemical_equation')
+        chemical_equation_b = results.get(b).get('chemical_equation')
+        disconnection_a = chemical_equation_a.disconnection
+        disconnection_b = chemical_equation_b.disconnection
+        assert a != b, f'You are comparing the same thing, please review the reactions selected from test set:  {a} {b}'
+        assert disconnection_a.uid != disconnection_b.uid, f'The disconnection identifier is the same for some ' \
+                                                           f'reactions that have different products but same reactants: \n' + \
+                                                           f'{a}: {disconnection_a.uid} \n' \
+                                                           f'{b}: {disconnection_b.uid} \n'
+        assert disconnection_a.hash_map.get("disconnection_summary") != disconnection_b.hash_map.get(
+            "disconnection_summary"), f'The disconnection summary is the same for some reactions that have the same ' \
+                                      f'products but different reactants: \n' + \
+                                      f'{a}: {disconnection_a.hash_map.get("disconnection_summary")} \n' \
+                                      f'{b}: {disconnection_b.hash_map.get("disconnection_summary")} \n'
 
 
 def test_disconnection_depiction():
