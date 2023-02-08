@@ -1,0 +1,48 @@
+name: TestSuite
+
+on: [push, pull_request]
+
+jobs:
+  pre-commit:
+    name: Run linters with pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+          cache-dependency-path: .devcontainer/dev-requirements.txt
+      - name: Install deps
+        run: pip3 install -r .devcontainer/dev-requirements.txt
+      - name: Run pre-commit hooks
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  testing:
+    # needs: [pre-commit]
+    name: "Python ${{ matrix.python-version }} on ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-20.04"]
+        python-version: ["3.9"]
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+      - name: Install linchemin and dependencies
+        run: |
+          pip install -e .[development]
+      - name: Run Tests
+        run: |
+          pytest -v

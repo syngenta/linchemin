@@ -50,6 +50,9 @@ repository = "https://github.com/syngenta/linchemin"
 [project.scripts]
 linchemin = "linchemin.interfaces.cli:linchemin_cli"
 
+[tool.black]
+target-version = ['py39']
+
 [tool.bumpver]
 current_version = "1.0.1"
 version_pattern = "MAJOR.MINOR.PATCH"
@@ -62,3 +65,8 @@ push            = true
 "pyproject.toml" = ['current_version = "{version}"', 'version = "{version}"']
 "docs/source/conf.py" = ['version = "{version}"']
 
+[tool.isort]
+atomic = true
+profile = "black"
+py_version = "39"
+skip_gitignore = true

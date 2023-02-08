@@ -1,0 +1,5 @@
+[flake8]
+# Whitespace before : is PEP8-compatible and used by black for slices (E203)
+# No need to check line length, enforced by black (E501)
+# Lambda expressions are ok (E731)
+extend-ignore=E203,E501,E731
