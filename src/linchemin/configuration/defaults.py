@@ -1,4 +1,7 @@
 import multiprocessing as mp
+"""
+Module containing the definition of the default values for all functionalities in LinChemIn.
+"""
 
 DEFAULT_WORKFLOW = {
     'functionalities': None,
@@ -67,7 +70,7 @@ DEFAULT_FACADE = {
 }
 
 DEFAULT_CONSTRUCTORS = {'molecular_identity_property_name': 'smiles',
-                        'chemical_equation_identity_name': 'r_r_p',
+                        'chemical_equation_identity_name': 'r_p',
                         'pattern_identity_property_name': 'smarts',
                         'template_identity_property': 'r_p',
                         'molecular_hash_list': ['inchi_key', 'inchikey_KET_15T']}
@@ -83,14 +86,18 @@ DEFAULT_CHEMICAL_SIMILARITY = {'includeAgents': True,
 
                                }
 
+DEFAULT_CLUSTERING = {'min_cluster_size': 3,
+                      'linkage': 'single'}
 
 def get_settings():
+    """ To assemble the default values read from the dictionaries above and written to the settings.yaml file"""
     d_ged = {param: d['value'] for param, d in DEFAULT_GED.items()}
     all_settings = {'GED': d_ged, 'WORKFLOW': DEFAULT_WORKFLOW, 'CONSTRUCTORS': DEFAULT_CONSTRUCTORS, 'FACADE': {}}
 
     for functionality, d in DEFAULT_FACADE.items():
         all_settings['FACADE'] |= d['value']
     all_settings['CHEMICAL_SIMILARITY'] = DEFAULT_CHEMICAL_SIMILARITY
+    all_settings['CLUSTERING'] = DEFAULT_CLUSTERING
     return all_settings
 
 

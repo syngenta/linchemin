@@ -1,6 +1,7 @@
 from linchemin.rem.graph_distance import SingleRouteClustering, compute_distance_matrix
 from linchemin.rem.route_descriptors import descriptor_calculator
 from linchemin.utilities import console_logger
+from linchemin import settings
 
 import pandas as pd
 import numpy as np
@@ -60,7 +61,7 @@ class HdbscanClusterCalculator(ClusterCalculator):
 
     def get_clustering(self, dist_matrix, save_dist_matrix, **kwargs):
         """ Applies the Hdbscan algorithm. Possible optional arguments: min_cluster_size """
-        min_cluster_size = kwargs.get("min_cluster_size", 2)
+        min_cluster_size = kwargs.get("min_cluster_size", settings.CLUSTERING.min_cluster_size)
 
         clustering = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, metric='precomputed').fit(
             dist_matrix.to_numpy(dtype=float))
@@ -83,7 +84,7 @@ class AgglomerativeClusterCalculator(ClusterCalculator):
 
     def get_clustering(self, dist_matrix, save_dist_matrix, **kwargs):
         """ Applies the Agglomerative Clustering algorithm. Possible optional arguments: linkage """
-        linkage = kwargs.get("linkage", 'single')
+        linkage = kwargs.get("linkage", settings.CLUSTERING.linkage)
         clustering, s_score, best_n_cluster = optimize_agglomerative_cluster(dist_matrix, linkage)
 
         if clustering is None:
