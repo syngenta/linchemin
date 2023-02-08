@@ -1,17 +1,19 @@
-from rdkit import Chem
-from rdkit.Chem import Draw
-# from rdkit.Chem.Draw import IPythonConsole
-from rdkit.Chem import rdChemReactions
-import rdkit
-from collections import namedtuple
 import pprint
+from collections import namedtuple
+
+import rdkit
+from rdkit import Chem
+
+# from rdkit.Chem.Draw import IPythonConsole
+from rdkit.Chem import Draw, rdChemReactions
 
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
 
 print(rdkit.__version__)
 
-rxn1 = rdChemReactions.ReactionFromRxnBlock('''$RXN
+rxn1 = rdChemReactions.ReactionFromRxnBlock(
+    """$RXN
 
       Mrv2102  111820212128
 
@@ -134,8 +136,8 @@ $MOL
   6 24  1  0  0  0  0
  24 25  1  0  0  0  0
 M  END
-''')
-
+"""
+)
 
 
 class Mp:
@@ -145,7 +147,9 @@ class Mp:
 
 def map_atoms(rdmol_reaction_catalog):
     atom_map_d = []
-    atom_tuple = namedtuple('atom_touple', ('role', 'role_molecule_idx', 'atom_idx', 'mapnum'))
+    atom_tuple = namedtuple(
+        "atom_touple", ("role", "role_molecule_idx", "atom_idx", "mapnum")
+    )
     atom_map_t = []
     for role, rdmols in rdmol_reaction_catalog.items():
         for role_molecule_idx, reactant in enumerate(rdmols):
@@ -153,8 +157,12 @@ def map_atoms(rdmol_reaction_catalog):
                 atom_idx = atom.GetIdx()
                 mapnum = atom.GetAtomMapNum()
                 print(role, role_molecule_idx, atom_idx, mapnum)
-                data_point = {'role': role, 'role_molecule_idx': role_molecule_idx, 'atom_idx': atom_idx,
-                              'mapnum': mapnum}
+                data_point = {
+                    "role": role,
+                    "role_molecule_idx": role_molecule_idx,
+                    "atom_idx": atom_idx,
+                    "mapnum": mapnum,
+                }
                 atom_map_d.append(data_point)
                 atom_map_t.append(atom_tuple(**data_point))
     return atom_map_d, atom_map_t
@@ -170,33 +178,42 @@ def role_reassignment(rdrxn: rdChemReactions.ChemicalReaction):
     desired_product_idx = 0
 
     #  diagnosis
-    atom_data_not_mapped = [item for item in atom_map_d if item.get('mapnum') == 0]
-    atom_data_mapped = [item for item in atom_map_d if item.get('mapnum') != 0]
+    atom_data_not_mapped = [item for item in atom_map_d if item.get("mapnum") == 0]
+    atom_data_mapped = [item for item in atom_map_d if item.get("mapnum") != 0]
 
-    output = utilities.list_of_dict_groupby(data_input=atom_data_mapped, keys=['role', 'role_molecule_idx'])
+    output = utilities.list_of_dict_groupby(
+        data_input=atom_data_mapped, keys=["role", "role_molecule_idx"]
+    )
     # pprint.pprint(output)
 
     # for each molecule get the set of mapnos
     # group the mapno by role.molecule
-    u = {k: set(utilities.list_of_dict_groupby(data_input=v, keys=['mapnum']).keys()) for k, v in output.items()}
-    print(f'\nu\n {u}')
+    u = {
+        k: set(utilities.list_of_dict_groupby(data_input=v, keys=["mapnum"]).keys())
+        for k, v in output.items()
+    }
+    print(f"\nu\n {u}")
 
     # reactant and reagents that map into desired product (excluding unmapped atoms that have 0 mapno)
-    ref = set(u.get(('products', desired_product_idx)))
+    ref = set(u.get(("products", desired_product_idx)))
 
-    p = {(role, role_molecule_idx): (ref - v) for (role, role_molecule_idx), v in u.items() if
-         role in ['reactants', 'reagents']}
-    print(f'\np\n {p}')
+    p = {
+        (role, role_molecule_idx): (ref - v)
+        for (role, role_molecule_idx), v in u.items()
+        if role in ["reactants", "reagents"]
+    }
+    print(f"\np\n {p}")
 
     return
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     rxn2 = rdChemReactions.ReactionFromSmarts(
         # '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]',
-        '[CH3:1][C:2]([OH:3])=[O:4]>C>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]',
+        "[CH3:1][C:2]([OH:3])=[O:4]>C>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]",
         # '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:2]([CH3:1])=[O].[OH2:3]',
-        useSmiles=True)
+        useSmiles=True,
+    )
     # dofun(rdrxn=rxn2)
 
     # diagnosis(rdrxn=rxn2)
