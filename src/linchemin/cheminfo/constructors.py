@@ -29,6 +29,7 @@ logger = utilities.console_logger(__name__)
 # Molecular hash calculations
 class MolIdentifierGenerator(ABC):
     """ Abstract class for generator of hash map fragments"""
+
     @abstractmethod
     def compute_identifier(self, rdmol, hash_map):
         pass
@@ -36,6 +37,7 @@ class MolIdentifierGenerator(ABC):
 
 class InchiKeyGenerator(MolIdentifierGenerator):
     """ To compute inch and inchKey """
+
     def compute_identifier(self, rdmol, hash_map):
         hash_map['inchi'] = cif.Chem.MolToInchi(rdmol)
         hash_map['inchi_key'] = cif.Chem.InchiToInchiKey(hash_map['inchi'])
@@ -44,6 +46,7 @@ class InchiKeyGenerator(MolIdentifierGenerator):
 
 class InchiKeyKET15Generator(MolIdentifierGenerator):
     """ To compute InchiKET15T and InchiKeyKET15T """
+
     def compute_identifier(self, rdmol, hash_map):
         hash_map['inchi_KET_15T'] = cif.Chem.MolToInchi(rdmol, options='-KET -15T')
         hash_map['inchikey_KET_15T'] = cif.Chem.InchiToInchiKey(hash_map['inchi_KET_15T'])
@@ -52,6 +55,7 @@ class InchiKeyKET15Generator(MolIdentifierGenerator):
 
 class NoisoSmilesGenerator(MolIdentifierGenerator):
     """ To compute Noiso smiles """
+
     def compute_identifier(self, rdmol, hash_map):
         hash_map['noiso_smiles'] = cif.Chem.MolToSmiles(rdmol, isomericSmiles=False)
         return hash_map
@@ -59,6 +63,7 @@ class NoisoSmilesGenerator(MolIdentifierGenerator):
 
 class CxSmilesGenerator(MolIdentifierGenerator):
     """ To compute CxSmiles """
+
     def compute_identifier(self, rdmol, hash_map):
         hash_map['cx_smiles'] = cif.Chem.MolToCXSmiles(rdmol)
         return hash_map
@@ -209,7 +214,9 @@ class DisconnectionConstructor:
 
         rxn_reactive_center = RXNReactiveCenter(rdrxn=rdrxn)
 
-        if len(rxn_reactive_center.rxn_bond_info_list) == 0:
+        if len(rxn_reactive_center.rxn_bond_info_list) == 0 and \
+                len(rxn_reactive_center.rxn_atom_info_list) == 0 and \
+                len(rxn_reactive_center.rxn_atomh_info_list) == 0:
             return None
 
         product_rdmol = cif.Chem.Mol(rdrxn.GetProductTemplate(desired_product_idx))
@@ -220,10 +227,11 @@ class DisconnectionConstructor:
         disconnection = Disconnection()
         disconnection.molecule = product_molecule
         disconnection.rdmol = product_molecule.rdmol
-        reacting_atoms, new_bonds, modified_bonds = self.re_map(product_changes,
-                                                                rdmol_old=product_rdmol,
-                                                                rdmol_new=product_molecule.rdmol)
+        reacting_atoms, hydrogenated_atoms, new_bonds, modified_bonds = self.re_map(product_changes,
+                                                                                    rdmol_old=product_rdmol,
+                                                                                    rdmol_new=product_molecule.rdmol)
         disconnection.reacting_atoms = reacting_atoms
+        disconnection.hydrogenated_atoms = hydrogenated_atoms
         disconnection.new_bonds = new_bonds
         disconnection.modified_bonds = modified_bonds
 
@@ -231,15 +239,6 @@ class DisconnectionConstructor:
         disconnection.identity_property = disconnection.hash_map.get('disconnection_summary')
         disconnection.uid = utilities.create_hash(disconnection.identity_property)
 
-        """
-        rxn_atom_info_list = rxn_reactive_center.rxn_atom_info_list
-        rxn_bond_info_list = rxn_reactive_center.rxn_bond_info_list
-        print('rxn_atom_info_list:', rxn_atom_info_list)
-        print('rxn_bond_info_list:', rxn_bond_info_list)
-        print('reacting_atoms:', product_changes.reacting_atoms)
-        print('new_bonds:', product_changes.new_bonds)
-        print('modified_bonds:', product_changes.modified_bonds)
-        """
         disconnection.rdmol_fragmented = self.get_fragments(rdmol=product_rdmol, new_bonds=new_bonds,
                                                             fragmentation_method=2)
 
@@ -253,12 +252,13 @@ class DisconnectionConstructor:
 
         """
         reacting_atoms_ = product_changes.reacting_atoms
+        hydrogenated_atoms_ = product_changes.hydrogenated_atoms
         new_bonds_ = product_changes.new_bonds
         modified_bonds_ = product_changes.modified_bonds
 
         match = rdmol_new.GetSubstructMatch(rdmol_old)
         reacting_atoms = sorted([match[x] for x in reacting_atoms_])
-
+        hydrogenated_atoms = sorted([match[x] for x in hydrogenated_atoms_])
         new_bonds = sorted(
             [rdmol_new.GetBondBetweenAtoms(match[bond.GetBeginAtomIdx()], match[bond.GetEndAtomIdx()]).GetIdx()
              for bond in rdmol_old.GetBonds() if bond.GetIdx() in new_bonds_])
@@ -267,7 +267,7 @@ class DisconnectionConstructor:
             rdmol_new.GetBondBetweenAtoms(match[bond.GetBeginAtomIdx()], match[bond.GetEndAtomIdx()]).GetIdx()
             for bond in rdmol_old.GetBonds() if bond.GetIdx() in modified_bonds_])
 
-        return reacting_atoms, new_bonds, modified_bonds
+        return reacting_atoms, hydrogenated_atoms, new_bonds, modified_bonds
 
     def build_from_reaction_string(self, reaction_string: str, inp_fmt: str) -> Union[Disconnection, None]:
         rdrxn = cif.rdrxn_from_string(input_string=reaction_string, inp_fmt=inp_fmt)
@@ -350,6 +350,7 @@ class RxnBondInfo:
 class RXNProductChanges:
     """Class for keeping track of the changes in a reaction product"""
     reacting_atoms: list[int]
+    hydrogenated_atoms: list[int]
     new_bonds: list[int]
     modified_bonds: list[int]
 
@@ -363,16 +364,20 @@ class RXNReactiveCenter:
 
     def __init__(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
         rdrxn.Initialize()
-        self.rxn_atom_info_list, self.rxn_bond_info_list = self.find_modifications_in_products(rdrxn)
+        self.rxn_atom_info_list, self.rxn_atomh_info_list, self.rxn_bond_info_list, = self.find_modifications_in_products(
+            rdrxn)
 
     def get_product_changes(self, product_idx: int = 0):
         reacting_atoms = sorted([ai.product_atom for ai in self.rxn_atom_info_list if ai.product == product_idx])
+        hydrogenated_atoms = sorted([ai.product_atom for ai in self.rxn_atomh_info_list if ai.product == product_idx])
+
         new_bonds = sorted(
             [bi.product_bond for bi in self.rxn_bond_info_list if bi.product == product_idx and bi.status == 'new'])
         modified_bonds = sorted(
             [bi.product_bond for bi in self.rxn_bond_info_list if
              bi.product == product_idx and bi.status == 'changed'])
-        return RXNProductChanges(reacting_atoms, new_bonds, modified_bonds)
+
+        return RXNProductChanges(reacting_atoms, hydrogenated_atoms, new_bonds, modified_bonds)
 
     @staticmethod
     def map_reacting_atoms_to_products(rdrxn: cif.rdChemReactions.ChemicalReaction, reactingAtoms):
@@ -408,18 +413,29 @@ class RXNReactiveCenter:
                     res[(amap, nmap)] = (nbr.GetIdx(), atom.GetIdx())
         return res
 
-    def find_modifications_in_products(self, rxn) -> tuple[list[RxnAtomInfo], list[RxnBondInfo]]:
-        """ returns a 2-tuple with the modified atoms and bonds from the reaction """
+    def find_modifications_in_products(self, rxn) -> tuple[list[RxnAtomInfo], list[RxnAtomInfo], list[RxnBondInfo]]:
+        """ returns a 3-tuple with the modified atoms and bonds from the reaction """
         reactingAtoms = rxn.GetReactingAtoms()
         amap = self.map_reacting_atoms_to_products(rxn, reactingAtoms)
         res = []
         seen = set()
+        amaph = []
+
         # this is all driven from the list of reacting atoms:
-        for _, ridx, raidx, pidx, paidx in amap:
+        for itm in amap:
+            _, ridx, raidx, pidx, paidx = itm
             reactant = rxn.GetReactantTemplate(ridx)
             ratom = reactant.GetAtomWithIdx(raidx)
             product = rxn.GetProductTemplate(pidx)
             patom = product.GetAtomWithIdx(paidx)
+
+            # check if the number of hydrogen (total or explicit or implicit) attached to an atom has increased when moving from reactant to product
+            q = patom.GetTotalNumHs() > ratom.GetTotalNumHs() or patom.GetNumExplicitHs() > ratom.GetNumExplicitHs() or patom.GetNumImplicitHs() > ratom.GetNumImplicitHs()
+            # print('\n', q)
+            # print(f"idx:symbol explicit/implicit/total {ratom.GetIdx()}:{ratom.GetSymbol()} {ratom.GetNumExplicitHs()}/{ratom.GetNumImplicitHs()}/{ratom.GetTotalNumHs()}")
+            # print(f"idx:symbol explicit/implicit/total {patom.GetIdx()}:{patom.GetSymbol()} {patom.GetNumExplicitHs()}/{patom.GetNumImplicitHs()}/{patom.GetTotalNumHs()}")
+            if q:
+                amaph.append(itm)
 
             rnbrs = self.get_mapped_neighbors(ratom)
             pnbrs = self.get_mapped_neighbors(patom)
@@ -436,9 +452,11 @@ class RXNReactiveCenter:
                     rbond = reactant.GetBondBetweenAtoms(*rnbrs[tpl])
                     if rbond.GetBondType() != pbond.GetBondType():
                         res.append(BondInfo(pidx, pnbrs[tpl], pbond.GetIdx(), 'changed'))
+
         rxn_atom_info_list = [RxnAtomInfo(**item._asdict()) for item in amap]
         rxn_bond_info_list = [RxnBondInfo(**item._asdict()) for item in res]
-        return rxn_atom_info_list, rxn_bond_info_list
+        rxn_atomh_info_list = [RxnAtomInfo(**item._asdict()) for item in amaph]
+        return rxn_atom_info_list, rxn_atomh_info_list, rxn_bond_info_list,
 
 
 # Pattern Constructor
@@ -809,9 +827,23 @@ def create_reaction_like_hash_values(catalog, role_map):
 
 def calculate_disconnection_hash_values(disconnection):
     idp = disconnection.molecule.identity_property
-    changes = '__'.join(['_'.join(map(str, disconnection.reacting_atoms)), '_'.join(map(str, disconnection.new_bonds)),
-                         '_'.join(map(str, disconnection.modified_bonds)), ])
-    disconnection_summary = '|'.join([idp, changes])
+
+    changes_map = {
+        'reacting_atoms': disconnection.reacting_atoms,
+        'hydrogenated_atoms': disconnection.hydrogenated_atoms,
+        'new_bonds': disconnection.new_bonds,
+        'mod_bonds': disconnection.modified_bonds,
+
+    }
+
+    """
+    | separates properties and is followded by the name and a :
+    
+    """
+    changes_str = '|'.join([f'{k}:{",".join(map(str, v))}' for k, v in changes_map.items()])
+
+    disconnection_summary = '|'.join([idp, changes_str])
+
     return {'disconnection_summary': disconnection_summary}
 
 
