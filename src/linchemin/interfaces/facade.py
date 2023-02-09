@@ -17,6 +17,7 @@ from linchemin.cheminfo.atom_mapping import pipeline_atom_mapping, perform_atom_
 
 from linchemin.configuration.defaults import DEFAULT_FACADE
 from linchemin import settings
+
 """
 Module containing high level functionalities/"user stories" to work in stream; it provides a simplified interface for the user.
 The functionalities are implemented as methods of the Functionality class.
@@ -418,7 +419,6 @@ class ClusteringFacade:
             if compute_metrics:
                 metrics = get_clustered_routes_metrics(routes, results[0])
 
-
         except ClusteringError as sre:
             exceptions.append(sre)
             meta = {'graph_type': 'monopartite' if type(checked_routes[0]) == MonopartiteReacSynGraph else 'bipartite',
@@ -700,8 +700,7 @@ class AtomMappingFacade(Facade):
     def perform_functionality(self, routes: list,
                               mapper: str = DEFAULT_FACADE['atom_mapping']['value']['mapper'],
                               out_data_model: str = DEFAULT_FACADE['atom_mapping']['value'][
-                                  'out_data_model']) -> tuple[
-        list, dict]:
+                                  'out_data_model']) -> tuple[list, dict]:
         """
             Generates a list of SynGraph objects with mapped chemical equations
 
@@ -723,6 +722,7 @@ class AtomMappingFacade(Facade):
         out_syngraph_type = Converter.out_datamodels[out_data_model]
         tot_success_rate = 0
         for route in routes:
+            source = route.source
             reaction_list = extract_reactions_from_syngraph(route)
             if mapper is None:
                 # the full pipeline is used
@@ -733,9 +733,10 @@ class AtomMappingFacade(Facade):
             if mapping_out.success_rate != 1:
                 # if not all the reactions are mapped, a warning is raised and
                 # the output graph is built using all the mapped and the unmapped reactions (so that it is complete)
-                mapping_out.mapped_reactions.append((mapping_out.unmapped_reactions))
-
-            out_syngraphs.append(out_syngraph_type(mapping_out.mapped_reactions))
+                mapping_out.mapped_reactions.append(mapping_out.unmapped_reactions)
+            mapped_route = out_syngraph_type(mapping_out.mapped_reactions)
+            mapped_route.source = source
+            out_syngraphs.append(mapped_route)
             tot_success_rate += mapping_out.success_rate
 
         tot_success_rate = tot_success_rate / len(routes)

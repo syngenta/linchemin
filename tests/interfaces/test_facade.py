@@ -190,6 +190,7 @@ def test_mapping(mock_pipeline, mock_rxnmapper, ibm1_path):
     assert meta['mapping_success_rate']
     for r in mapped_routes:
         assert type(r) == BipartiteSynGraph
+        assert r.source
 
     # with other values
     mapped_routes, meta = facade('atom_mapping', routes, mapper='rxnmapper', out_data_model='monopartite_reactions')
