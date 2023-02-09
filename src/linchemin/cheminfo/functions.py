@@ -17,7 +17,8 @@ logger = utilities.console_logger(__name__)
 
 
 # RDMOLECULE
-def rdmol_from_string(input_string: str, inp_fmt: str):
+def rdmol_from_string(input_string: str, inp_fmt: str) -> Mol:
+    """ To generate an RDKit Mol object from a molecular string """
     function_map = {'smiles': Chem.MolFromSmiles,
                     'smarts': Chem.MolFromSmarts}
     func = function_map.get(inp_fmt)
@@ -25,6 +26,7 @@ def rdmol_from_string(input_string: str, inp_fmt: str):
 
 
 def remove_rdmol_atom_mapping(rdmol: Mol) -> Mol:
+    """ To remove atom mapping from an RDKit Mol object"""
     rdmol_unmapped = copy.deepcopy(rdmol)
     [a.SetAtomMapNum(0) for a in rdmol_unmapped.GetAtoms()]
     return rdmol_unmapped
@@ -403,15 +405,14 @@ def mapping_diagnosis(chemical_equation, desired_product):
         :return: unmapped_fragments: a list of smiles referring to the unmapped atoms of each reactant
     """
 
-    if (unmapped_atoms_in_desired_product := [a for a in desired_product.rdmol_mapped.GetAtoms()
-                                          if a.GetAtomMapNum() in [0, -1]]):
+    if [a for a in desired_product.rdmol_mapped.GetAtoms() if a.GetAtomMapNum() in [0, -1]]:
         logger.warning('Some atoms in the desired product remain unmapped: possible important reactants are missing')
 
     for uid in chemical_equation.role_map['reactants']:
         mols = [m.rdmol_mapped for u, m in chemical_equation.catalog.items() if u == uid]
         unamapped_fragments = []
         for m in mols:
-            if (unmapped_atoms := [a for a in m.GetAtoms() if a.GetAtomMapNum() in [0, -1]]):
+            if unmapped_atoms := [a for a in m.GetAtoms() if a.GetAtomMapNum() in [0, -1]]:
                 atoms_indices = [a.GetIdx() for a in unmapped_atoms]
                 fragment = Chem.rdmolfiles.MolFragmentToSmiles(m, atomsToUse=atoms_indices,
                                                                atomSymbols=[a.GetSymbol() for a in m.GetAtoms()])
