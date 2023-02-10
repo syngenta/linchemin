@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
+
 import linchemin.cheminfo.functions as cif
 from linchemin import settings
 
 """
 Module containing functions and classes for computing chemical fingerprints and similarity
 """
+
 
 def generate_rdkit_fp(params):
     return cif.rdFingerprintGenerator.GetRDKitFPGenerator(
@@ -34,6 +36,7 @@ def generate_topological_fp(params):
         fpSize=params.get('fpSize', 2048))
 
 # Reaction fingerprint factory
+
 
 class ReactionFingerprint(ABC):
     """ Definition of the abstract class for reaction fingerprints """

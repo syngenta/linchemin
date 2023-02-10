@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
-from linchemin.services.rxnmapper import service as rxn_service
 from linchemin.services.namerxn import service
+from linchemin.services.rxnmapper import service as rxn_service
 from linchemin.utilities import console_logger
 
 """

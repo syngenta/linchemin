@@ -1,8 +1,8 @@
-from linchemin.cgu.syngraph import SynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph, BipartiteSynGraph
-from linchemin.cgu.convert import converter
-from linchemin.cheminfo.models import Disconnection
-
 from collections import defaultdict
+
+from linchemin.cgu.convert import converter
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
+from linchemin.cheminfo.models import Disconnection
 
 
 class MissingAtomMapping(Exception):
@@ -74,4 +74,3 @@ class DisconnectionGraph:
             else:
                 text = text + '{}\n'.format(r)
         return text
-

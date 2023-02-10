@@ -1,6 +1,5 @@
 from linchemin.interfaces.facade import facade, facade_helper
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph
-from linchemin.cheminfo.models import ChemicalEquation, Template
 from rdkit.Chem import rdChemReactions
 import pandas as pd
 

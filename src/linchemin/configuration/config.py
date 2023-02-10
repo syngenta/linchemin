@@ -65,8 +65,9 @@ we do not encode the secrets value in the code!
 
 """
 from pathlib import Path
-from dynaconf import Dynaconf
+
 import yaml
+from dynaconf import Dynaconf
 
 from . import defaults
 

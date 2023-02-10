@@ -1,6 +1,6 @@
-import string
-from typing import Optional, List, ClassVar
 from enum import Enum
+from typing import ClassVar, List, Optional
+
 from pydantic import BaseModel
 
 
@@ -106,10 +106,10 @@ class RunBatchOut(BaseModel):
                     'ci_toolkit': {'name': 'RDKit', 'version': '2022.09.1'},
                     'a2a_mapper': {'name': 'rxnmapper', 'version': '0.2.4'}},
                 'query_parameters': {'inp_fmt': 'smiles', 'out_fmt': 'smiles'},
-                'output': {'successes_list':
-                               [{'query_id': '1',
-                                 'output_string': 'CC#N.Cl[C:3]([CH3:4])=[O:5].[CH3:1][NH2:2]>>[CH3:1][NH:2][C:3]([CH3:4])=[O:5].[OH2:6]',
-                                 'confidence': 0.981, 'notes': {}, 'success': True}], 'failure_list': []},
+                'output': {'successes_list': [
+                    {'query_id': '1',
+                     'output_string': 'CC#N.Cl[C:3]([CH3:4])=[O:5].[CH3:1][NH2:2]>>[CH3:1][NH:2][C:3]([CH3:4])=[O:5].[OH2:6]',
+                     'confidence': 0.981, 'notes': {}, 'success': True}], 'failure_list': []},
                 'outcome': {}
             }
         }

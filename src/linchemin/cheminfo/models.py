@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from collections import namedtuple
 
 import linchemin.cheminfo.functions as cif
 
@@ -193,7 +192,6 @@ class ChemicalEquation:
         else:
             return '>>'.join(['.'.join([self.catalog.get(uid).smiles for uid in self.role_map[role]]) for role in
                              ['reactants', 'products']])
-
 
     def to_dict(self) -> dict:
         """ To return a dictionary with all the attributes of the ChemicalEquation instance """

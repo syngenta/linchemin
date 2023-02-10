@@ -1,7 +1,7 @@
-from rdkit import Chem
 from collections import namedtuple
 from typing import List, Tuple
 
+from rdkit import Chem
 from rdkit.Chem import Draw
 from rdkit.Chem.Draw import DrawingOptions, rdMolDraw2D
 

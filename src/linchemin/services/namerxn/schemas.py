@@ -1,5 +1,6 @@
-from typing import Optional, List, Dict, Union, ClassVar
 from enum import Enum
+from typing import ClassVar, Dict, List, Optional, Union
+
 from pydantic import BaseModel
 
 
@@ -72,6 +73,7 @@ class ResultsReactionString(BaseModel):
                 "notes": {}
             }
         }
+
 
 ## endpoints I/O
 class Metadata(BaseModel):

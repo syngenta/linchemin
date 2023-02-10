@@ -1,14 +1,15 @@
-from linchemin.rem.graph_distance import SingleRouteClustering, compute_distance_matrix
-from linchemin.rem.route_descriptors import descriptor_calculator
-from linchemin.utilities import console_logger
-from linchemin import settings
-
-import pandas as pd
-import numpy as np
 import abc
+
 import hdbscan
+import numpy as np
+import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
+
+from linchemin import settings
+from linchemin.rem.graph_distance import compute_distance_matrix
+from linchemin.rem.route_descriptors import descriptor_calculator
+from linchemin.utilities import console_logger
 
 """
 Module containing classes and functions to compute the clustering of routes based on the distance matrix.
@@ -16,24 +17,28 @@ Module containing classes and functions to compute the clustering of routes base
 
 logger = console_logger(__name__)
 
+
 class ClusteringError(Exception):
     """ Base class for exceptions leading to unsuccessful clustering. """
     pass
+
 
 class OnlyNoiseClustering(ClusteringError):
     """ Raised if only noise was found while clustering"""
     pass
 
+
 class NoClustering(ClusteringError):
     """ Raised if the clustering was not successful """
     pass
+
 
 class UnavailableClusteringAlgorithm(ClusteringError):
     """ Raised if the selected clustering algorithm is not among the available ones """
     pass
 
+
 class SingleRouteClustering(ClusteringError):
-    """ Raised if less than 2 routes were given as input """
     pass
 
 
@@ -97,7 +102,7 @@ class AgglomerativeClusterCalculator(ClusterCalculator):
         print(f'The number of clusters with the best Silhouette score is {best_n_cluster}')
 
         print('The Silhouette score is {:.3f}'.format(round(s_score, 3)))
-        return (clustering, s_score, dist_matrix) if save_dist_matrix == True else (clustering, s_score)
+        return (clustering, s_score, dist_matrix) if save_dist_matrix is True else (clustering, s_score)
 
 
 class ClusterFactory:
@@ -120,7 +125,7 @@ class ClusterFactory:
                                      save_dist_matrix=False, parallelization=False, n_cpu=None, **kwargs):
         if clustering_method not in self.available_clustering_algorithms:
             logger.error(f"Invalid clustering algorithm. Available algorithms are:"
-                           f"{self.available_clustering_algorithms.keys()}")
+                         f"{self.available_clustering_algorithms.keys()}")
             raise UnavailableClusteringAlgorithm
 
         selector = self.available_clustering_algorithms[clustering_method]['value']
@@ -218,7 +223,6 @@ def get_clustered_routes_metrics(syngraphs: list, clustering_output) -> pd.DataF
         :return:
              df1: a pandas DataFrame with columns ['routes_id', 'cluster', 'n_steps', 'n_branch']
     """
-    labels = clustering_output.labels_
     unique_labels = set(clustering_output.labels_)
 
     col = ['routes_id', 'cluster', 'n_steps', 'n_branch']
@@ -226,7 +230,6 @@ def get_clustered_routes_metrics(syngraphs: list, clustering_output) -> pd.DataF
 
     for k in unique_labels:
         cluster_routes = np.where(clustering_output.labels_ == k)[0].tolist()
-        ids = [syngraphs[i].source for i in cluster_routes]
         graphs = [syngraphs[i] for i in cluster_routes]
         d = pd.DataFrame(columns=col)
         for n, graph in enumerate(graphs):

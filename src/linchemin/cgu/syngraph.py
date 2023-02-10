@@ -1,12 +1,12 @@
-# Standard library import
-from collections import defaultdict
 from abc import ABC, abstractmethod
-import datetime
-# Local import
-from linchemin.cheminfo.constructors import ChemicalEquationConstructor, MoleculeConstructor
-from linchemin.cheminfo.models import ChemicalEquation, Molecule
-from linchemin.cgu.iron import Iron
+from collections import defaultdict
+from typing import List, Union
+
 import linchemin.utilities as utilities
+from linchemin.cgu.iron import Iron
+from linchemin.cheminfo.constructors import (ChemicalEquationConstructor,
+                                             MoleculeConstructor)
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
 
 """
 Module containing the implementation of the SynGraph data model and its sub-types: bipartite, monopartite reactions
@@ -14,12 +14,12 @@ and monopartite molecules.
 
     Abstract classes:
         SynGraph
-        
+
     Classes:
         BipartiteSynGraph(SynGraph)
         MonopartiteReacSynGraph(SynGraph)
         MonopartiteMolSynGraph(SynGraph)
-        
+
 """
 
 
@@ -80,9 +80,11 @@ class SynGraph(ABC):
             h = ''.join(['MPM', str(h)])
         return h
 
+    @abstractmethod
     def builder_from_iron(self, iron_graph):
         pass
 
+    @abstractmethod
     def builder_from_reaction_list(self, chemical_equations: list):
         pass
 
@@ -90,6 +92,7 @@ class SynGraph(ABC):
         """ To retrieve the list of 'root' nodes of a SynGraph instance """
         return [tup[0] for tup in self if tup[1] == set()]
 
+    @abstractmethod
     def get_leaves(self) -> list:
         """ To retrieve the list of 'leaf' nodes of a SynGraph instance """
         pass
@@ -150,7 +153,7 @@ class BipartiteSynGraph(SynGraph):
             for reactant in reactants:
                 self.add_node((reactant, [ch_equation]))
 
-        roots = []
+        roots: List[Molecule] = []
         for products in self.graph.values():
             roots.extend(
                 prod for prod in products if prod not in list(self.graph.keys()) and isinstance(prod, Molecule))
@@ -215,7 +218,7 @@ class MonopartiteReacSynGraph(SynGraph):
     def builder_from_reaction_list(self, chemical_equations: list):
         """ To build a MonopartiteReacSynGraph from a list of ChemicalEquation objects """
         for ch_equation in chemical_equations:
-            next_ch_equations = []
+            next_ch_equations: List[ChemicalEquation] = []
             for c in chemical_equations:
                 next_ch_equations.extend(c for m in c.role_map['reactants'] if m in ch_equation.role_map['products'])
 
@@ -264,7 +267,7 @@ class MonopartiteReacSynGraph(SynGraph):
 
     def get_molecule_roots(self) -> list:
         """ To get the list of Molecules roots in a MonopartiteReacSynGraph. """
-        roots = []
+        roots: List[Molecule] = []
         root_reactions = [tup[0] for tup in self if tup[1] == set()]
         for reaction in root_reactions:
             roots = roots + [mol for h, mol in reaction.catalog.items() if h in reaction.role_map['products']]
@@ -273,7 +276,7 @@ class MonopartiteReacSynGraph(SynGraph):
 
     def get_molecule_leaves(self) -> list:
         """ To get the list of Molecule leaves in a MonopartiteReacSynGraph. """
-        leaves = []
+        leaves: List[Molecule] = []
         for reac in self.graph:
 
             if reac not in self.graph.values():
@@ -293,7 +296,7 @@ class MonopartiteMolSynGraph(SynGraph):
             for reactant in reactants:
                 self.add_node((reactant, products))
 
-        roots = []
+        roots: List[Molecule] = []
         for products in self.graph.values():
             roots.extend(
                 prod for prod in products if prod not in list(self.graph.keys()) and isinstance(prod, Molecule))
@@ -376,6 +379,7 @@ def merge_syngraph(list_syngraph: list) -> SynGraph:
                 The new SynGraph object resulting from the merging of the input graphs;
                 keys and connections are unique (no duplicates)
     """
+    merged: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
     if all(isinstance(x, MonopartiteReacSynGraph) for x in list_syngraph):
         merged = MonopartiteReacSynGraph()
     elif all(isinstance(x, BipartiteSynGraph) for x in list_syngraph):
@@ -434,7 +438,7 @@ class ReactionsExtractorFromMonopartiteReaction(ReactionsExtractor):
 class ReactionsExtractorFromMonopartiteMolecules(ReactionsExtractor):
     """ ReactionsExtractor subclass to handle MonopartiteMolSynGraph objects """
 
-    ## TODO: check behavior when the same reactant appears twice (should be solved once the stoichiometry attribute is developed)
+    # TODO: check behavior when the same reactant appears twice (should be solved once the stoichiometry attribute is developed)
     def extract(self, syngraph: MonopartiteMolSynGraph) -> list:
         unique_reactions = set()
         for parent, children in syngraph.graph.items():

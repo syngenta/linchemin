@@ -1,5 +1,6 @@
-from linchemin.cheminfo.models import ChemicalEquation
 import abc
+
+from linchemin.cheminfo.models import ChemicalEquation
 
 """
 Module containing functions and classes for computing score and metrics of single nodes of a route.

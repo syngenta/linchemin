@@ -1,14 +1,14 @@
 import hashlib
-import operator
 import itertools
-from dataclasses import dataclass, field
-from typing import List
 import logging
 import logging.handlers
+import operator
 import sys
+from dataclasses import dataclass, field
+from typing import List
 
 
-def list_of_dict_groupby(data_input: List[dict], keys: List):
+def list_of_dict_groupby(data_input: List[dict], keys: List) -> dict:
     """function to group a list of dictionaries by the value of one or more keys"""
     input_data_sorted = sorted(data_input, key=operator.itemgetter(*keys))
     return {i: list(g) for i, g in itertools.groupby(input_data_sorted, key=operator.itemgetter(*keys))}
@@ -61,4 +61,3 @@ def file_logger(name):
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
-

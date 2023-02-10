@@ -1,14 +1,17 @@
-from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph, SynGraph
+import abc
+from collections import defaultdict
+from typing import Union
+
 from linchemin.cgu.convert import converter
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteReacSynGraph,
+                                    SynGraph)
 from linchemin.cheminfo.models import ChemicalEquation
 from linchemin.rem.node_metrics import node_score_calculator
 from linchemin.utilities import console_logger
-import abc
-from collections import defaultdict
 
 """
 Module containing functions and classes for computing SynGraph descriptors
-        
+
 """
 
 logger = console_logger(__name__)
@@ -126,9 +129,9 @@ class Branchedness(DescriptorCalculator):
 class LongestSequence(DescriptorCalculator):
     """ Subclass of DescriptorCalculator representing the longest linear sequence in a SynGraph. """
 
-    def compute_descriptor(self, graph: SynGraph) -> list:
-        """ Takes a SynGraph and returns the longest sequence of ChemicalEquation between the SynRoot and the
-            SynLeaves. """
+    def compute_descriptor(self, graph: SynGraph) -> int:
+        """ Takes a SynGraph and returns the length of the longest sequence of ChemicalEquation between the SynRoot
+            and the SynLeaves. """
         if type(graph) == BipartiteSynGraph:
             mp_graph = converter(graph, 'monopartite_reactions')
         elif type(graph) == MonopartiteReacSynGraph:
@@ -140,7 +143,7 @@ class LongestSequence(DescriptorCalculator):
 
         root = mp_graph.get_roots()
         leaves = mp_graph.get_leaves()
-        longest_sequence = []
+        longest_sequence: list = []
         for leaf in leaves:
             path = find_path(mp_graph, leaf, root[0])
             reaction_path = list(path)
@@ -169,7 +172,7 @@ class NrReactionSteps(DescriptorCalculator):
 class PathFinder(DescriptorCalculator):
     """ Subclass of DescriptorCalculator representing the list of paths (ReactionStep nodes only) in a SynGraph. """
 
-    def compute_descriptor(self, graph: SynGraph):
+    def compute_descriptor(self, graph: SynGraph) -> list:
         """ Takes a SynGraph/MonopartiteSynGraph and returns all the paths between the SynRoot and the SynLeaves
             (only ReactionStep nodes). """
         if type(graph) not in [BipartiteSynGraph, MonopartiteReacSynGraph]:
@@ -317,7 +320,7 @@ def get_available_descriptors():
     return {f: additional_info['info'] for f, additional_info in DescriptorsCalculatorFactory.route_descriptors.items()}
 
 
-def find_path(graph: SynGraph, leaf: str, root: str, path: list = None) -> list:
+def find_path(graph: SynGraph, leaf: str, root: str, path: Union[list, None] = None) -> list:
     """ Returns the path between two nodes in a SynGraph.
 
             :param:
@@ -359,9 +362,7 @@ def is_subset(syngraph1, syngraph2) -> bool:
         mp_graph2 = converter(syngraph2, 'monopartite_reactions')
     else:
         mp_graph2 = syngraph2
-
-    return mp_graph1.get_leaves() != mp_graph2.get_leaves() and mp_graph1.get_roots() == mp_graph2.get_roots() \
-           and mp_graph1.graph.items() <= mp_graph2.graph.items()
+    return mp_graph2.get_leaves() != mp_graph1.get_leaves() and mp_graph1.get_roots() == mp_graph2.get_roots() and mp_graph1.graph.items() <= mp_graph2.graph.items()
 
 
 def find_duplicates(syngraphs1: list, syngraphs2: list):
@@ -375,7 +376,7 @@ def find_duplicates(syngraphs1: list, syngraphs2: list):
                 It contains the id/source of identical routes;
                 if there are no duplicates, nothing is returned and a message appears
     """
-    if type(syngraphs1[0]) != type(syngraphs2[0]):
+    if {type(s) for s in syngraphs1} != {type(s) for s in syngraphs2}:
         logger.error('The two input lists should contain graphs of the same type')
         raise MismatchingGraphType
 

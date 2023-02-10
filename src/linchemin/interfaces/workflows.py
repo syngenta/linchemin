@@ -1,17 +1,20 @@
-from linchemin.interfaces.facade import facade
-import linchemin.IO.io as lio
-from linchemin.cgu.translate import get_available_data_models
-from linchemin.rem.route_descriptors import get_available_descriptors
-from linchemin.rem.graph_distance import (get_available_ged_algorithms, get_ged_parameters)
-from linchemin.rem.clustering import get_available_clustering
-from linchemin.cgu.syngraph import SynGraph
-from linchemin.cheminfo.atom_mapping import get_available_mappers
-from linchemin.utilities import console_logger
-from linchemin import settings
-
 from abc import ABC, abstractmethod
-import pandas as pd
 from dataclasses import dataclass, field
+from typing import Union
+
+import pandas as pd
+
+import linchemin.IO.io as lio
+from linchemin import settings
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+from linchemin.cgu.translate import get_available_data_models
+from linchemin.cheminfo.atom_mapping import get_available_mappers
+from linchemin.interfaces.facade import facade
+from linchemin.rem.clustering import get_available_clustering
+from linchemin.rem.graph_distance import (get_available_ged_algorithms,
+                                          get_ged_parameters)
+from linchemin.rem.route_descriptors import get_available_descriptors
+from linchemin.utilities import console_logger
 
 """
 Module containing out-of-the-box "workflow", consisting of a sequence of facade functions.
@@ -60,7 +63,7 @@ class WorkflowOutput:
     clustering: tuple = field(default_factory=tuple)
     clustered_descriptors: pd.DataFrame = field(default_factory=pd.DataFrame)
     distance_matrix: pd.DataFrame = field(default_factory=pd.DataFrame)
-    tree: SynGraph = field(default_factory=SynGraph)
+    tree: Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph] | None = None
     reaction_strings: list = field(default_factory=list)
     log: dict = field(default_factory=dict)
 

@@ -25,8 +25,7 @@ def test_clusterer(az_path):
     with pytest.raises(ClusteringError) as ke:
         clusterer([syngraphs[0]], ged_method='nx_optimized_ged',
                   clustering_method='hdbscan',
-                  ged_params={'reaction_fp': 'structure_fp',
-                              })
+                  ged_params={'reaction_fp': 'structure_fp'})
     assert "SingleRouteClustering" in str(ke.type)
 
     # If everything works, the distance matrix, the clustering algorithm output and the silhouette score are
