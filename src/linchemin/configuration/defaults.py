@@ -1,4 +1,5 @@
 import multiprocessing as mp
+
 """
 Module containing the definition of the default values for all functionalities in LinChemIn.
 """

@@ -33,7 +33,9 @@ dependencies = [
         "scikit-learn",
         "joblib==1.1.0",
         "dynaconf",
-        "pyyaml"
+        "pyyaml",
+        "flake8",
+        "isort"
         ]
 # TODO: newer versions of joblib create problems with hdbscan https://github.com/scikit-learn-contrib/hdbscan/issues/565
 

@@ -1,7 +1,8 @@
-import requests
 import logging
-from typing import Optional, Callable, Any
-from functools import wraps, partial
+from functools import partial, wraps
+from typing import Any, Callable, Optional
+
+import requests
 
 from .callbacks import default_on_success
 from .response_handler import ResponseHandler

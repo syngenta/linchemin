@@ -1,18 +1,19 @@
-from linchemin.cgu.translate import translator
-from linchemin.cheminfo.models import ChemicalEquation, Molecule
-from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph
-from linchemin.cheminfo.chemical_similarity import (compute_reaction_fingerprint, compute_similarity,
-                                                    compute_mol_fingerprint)
-from linchemin.utilities import console_logger
-
 import abc
-import networkx as nx
-from functools import partial
-import pandas as pd
-import numpy as np
 import multiprocessing as mp
+from functools import partial
+
+import networkx as nx
+import numpy as np
+import pandas as pd
+
 from linchemin import settings
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
+from linchemin.cgu.translate import translator
+from linchemin.cheminfo.chemical_similarity import (
+    compute_mol_fingerprint, compute_reaction_fingerprint, compute_similarity)
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.configuration.defaults import DEFAULT_GED
+from linchemin.utilities import console_logger
 
 """
 Module containing classes and functions to compute the similarity between pairs of routes.
@@ -39,10 +40,6 @@ class MismatchingGraph(GraphDistanceError):
 
 class TooFewRoutes(GraphDistanceError):
     """ Raised if fewer than 2 routes are passed when computing the distance matrix """
-    pass
-
-
-class SingleRouteClustering(Exception):
     pass
 
 
@@ -556,4 +553,3 @@ def get_ged_default_parameters():
 
 def get_ged_parameters():
     return {f: additional_info['general_info'] for f, additional_info in DEFAULT_GED.items()}
-

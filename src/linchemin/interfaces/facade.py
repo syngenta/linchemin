@@ -1,22 +1,34 @@
-# standard library imports
-from abc import ABC, abstractmethod
-import pandas as pd
 import multiprocessing as mp
-# local imports
-from linchemin.cgu.translate import (translator, get_available_data_models, get_output_formats,
-                                     get_input_formats, TranslationError)
-from linchemin.rem.route_descriptors import (descriptor_calculator, is_subset, find_duplicates,
-                                             get_available_descriptors, DescriptorError)
-from linchemin.rem.clustering import (clusterer, get_clustered_routes_metrics, get_available_clustering,
-                                      ClusteringError)
-from linchemin.rem.graph_distance import (get_available_ged_algorithms,
-                                          compute_distance_matrix, get_ged_parameters, GraphDistanceError)
-from linchemin.cgu.syngraph import MonopartiteReacSynGraph, SynGraph, merge_syngraph, extract_reactions_from_syngraph
-from linchemin.cgu.convert import converter, Converter
-from linchemin.cheminfo.atom_mapping import pipeline_atom_mapping, perform_atom_mapping, get_available_mappers
+from abc import ABC, abstractmethod
+from typing import Union
 
-from linchemin.configuration.defaults import DEFAULT_FACADE
+import pandas as pd
+
 from linchemin import settings
+from linchemin.cgu.convert import Converter, converter
+from linchemin.cgu.syngraph import (MonopartiteReacSynGraph, SynGraph,
+                                    extract_reactions_from_syngraph,
+                                    merge_syngraph)
+from linchemin.cgu.translate import (TranslationError,
+                                     get_available_data_models,
+                                     get_input_formats, get_output_formats,
+                                     translator)
+from linchemin.cheminfo.atom_mapping import (get_available_mappers,
+                                             perform_atom_mapping,
+                                             pipeline_atom_mapping)
+from linchemin.configuration.defaults import DEFAULT_FACADE
+from linchemin.rem.clustering import (ClusteringError, clusterer,
+                                      get_available_clustering,
+                                      get_clustered_routes_metrics)
+from linchemin.rem.graph_distance import (GraphDistanceError,
+                                          compute_distance_matrix,
+                                          get_available_ged_algorithms,
+                                          get_ged_parameters)
+from linchemin.rem.route_descriptors import (DescriptorError,
+                                             descriptor_calculator,
+                                             find_duplicates,
+                                             get_available_descriptors,
+                                             is_subset)
 
 """
 Module containing high level functionalities/"user stories" to work in stream; it provides a simplified interface for the user.
@@ -277,7 +289,7 @@ class GedFacade(Facade):
                       for the ged calculations and the parameters for chemical similarity and fingerprints
         """
 
-        exceptions = []
+        exceptions: list = []
         checked_routes = [r for r in routes if r is not None]
         try:
             dist_matrix = compute_distance_matrix(checked_routes, ged_method=ged_method, ged_params=ged_params,
@@ -294,8 +306,7 @@ class GedFacade(Facade):
                     'invalid_routes': len(routes) - len(checked_routes),
                     'errors': exceptions}
             dist_matrix = pd.DataFrame()
-        finally:
-            return dist_matrix, meta
+        return dist_matrix, meta
 
     def get_available_options(self) -> dict:
         """
@@ -402,7 +413,7 @@ class ClusteringFacade:
         if clustering_method is None:
             clustering_method = 'hdbscan' if len(routes) > 15 else 'agglomerative_cluster'
 
-        exceptions = []
+        exceptions: list = []
         checked_routes = [r for r in routes if r is not None]
         try:
 
@@ -428,8 +439,7 @@ class ClusteringFacade:
             results = None
             metrics = pd.DataFrame()
 
-        finally:
-            return (results, metrics, meta) if compute_metrics else (results, meta)
+        return (results, metrics, meta) if compute_metrics else (results, meta)
 
     def get_available_options(self) -> dict:
         """
@@ -649,8 +659,8 @@ class ReactionExtractionFacade(Facade):
         """
         checked_routes = [r for r in routes if r != {}]
 
-        exceptions = []
-        output = []
+        exceptions: list = []
+        output: list = []
         try:
             for route in checked_routes:
                 reactions = extract_reactions_from_syngraph(route)
@@ -718,9 +728,9 @@ class AtomMappingFacade(Facade):
 
                 meta: a dictionary storing information about the run
         """
-        out_syngraphs = []
+        out_syngraphs: list = []
         out_syngraph_type = Converter.out_datamodels[out_data_model]
-        tot_success_rate = 0
+        tot_success_rate: Union[float, int] = 0
         for route in routes:
             source = route.source
             reaction_list = extract_reactions_from_syngraph(route)
@@ -739,7 +749,7 @@ class AtomMappingFacade(Facade):
             out_syngraphs.append(mapped_route)
             tot_success_rate += mapping_out.success_rate
 
-        tot_success_rate = tot_success_rate / len(routes)
+        tot_success_rate = float(tot_success_rate / len(routes))
 
         meta = {'mapper': mapper,
                 'mapping_success_rate': tot_success_rate}

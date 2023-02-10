@@ -1,14 +1,15 @@
-from typing import List, Dict, Tuple, Union
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from dataclasses import dataclass
+from typing import Dict, List, Tuple, Union
 
-from linchemin.cheminfo.models import (Molecule, ChemicalEquation, Ratam, Disconnection, Template, Pattern)
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
 from linchemin import settings
+from linchemin.cheminfo.models import (ChemicalEquation, Disconnection,
+                                       Molecule, Pattern, Ratam, Template)
 
-""" 
+"""
 Module containing the constructor classes of relevant cheminformatics models defined in 'models' module
 """
 
@@ -143,8 +144,8 @@ class RatamConstructor:
         ratam.atom_transformations = self.get_atom_transformations(molecules_catalog, ratam.full_map_info)
         return ratam
 
-    def get_full_map_info(self, molecules_catalog: dict):
-        full_map_info = {}
+    def get_full_map_info(self, molecules_catalog: dict) -> dict:
+        full_map_info: dict = {}
         all_molecules = molecules_catalog['reactants_reagents'] + molecules_catalog['products']
         for mol in all_molecules:
             full_map_info[mol.uid] = []
@@ -184,8 +185,7 @@ class RatamConstructor:
                     reactant_maps = full_map_info[reactant.uid]
                     for reactant_map in reactant_maps:
                         if matching_map_num := [map_num for map_num in reactant_map.values() if
-                                                map_num in prod_map.values()
-                                                and map_num not in [0, -1]]:
+                                                map_num in prod_map.values() and map_num not in [0, -1]]:
                             atom_transformations.update(build_atom_transformations(matching_map_num, prod_map,
                                                                                    product.uid, reactant_map,
                                                                                    reactant.uid))
@@ -401,7 +401,7 @@ class RXNReactiveCenter:
     @staticmethod
     def get_mapped_neighbors(atom: cif.Atom):
         """ test all mapped neighbors of a mapped atom"""
-        res = {}
+        res: dict = {}
         amap = atom.GetAtomMapNum()
         if not amap:
             return res
@@ -771,7 +771,7 @@ class Builder:
         return ce
 
 
-def calculate_molecular_hash_values(rdmol: cif.Mol, hash_list: set = None) -> dict:
+def calculate_molecular_hash_values(rdmol: cif.Mol, hash_list: Union[set, None] = None) -> dict:
     """ To compute the hash_map dictionary containing molecular properties/representations names and the
         corresponding hash values """
     molhashf = cif.HashFunction.names
@@ -837,8 +837,7 @@ def calculate_disconnection_hash_values(disconnection):
     }
 
     """
-    | separates properties and is followded by the name and a :
-    
+    | separates properties and is followded by the name and a:  
     """
     changes_str = '|'.join([f'{k}:{",".join(map(str, v))}' for k, v in changes_map.items()])
 

@@ -1,8 +1,9 @@
 #############SDK####################
 from urllib.parse import urljoin
-from pydantic import BaseModel, ValidationError
 
 import requests
+from pydantic import ValidationError
+
 from . import schemas
 
 
@@ -64,4 +65,3 @@ class EndPoint:
         self.validate_output(data=request_results)
 
         return request_results
-

@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-import os
 from typing import Optional
+
+import requests
+
 from linchemin.services.callbacks import default_on_success
 from linchemin.services.decorators import response_handling
-import requests
 
 
 class ServiceRoute():
@@ -124,17 +125,17 @@ class ServiceEndPoint(ABC):
     @abstractmethod
     def input(self):
         ...
+
     pass
 
     def output(self):
         ...
+
     pass
+
 
 class Service(ABC):
     pass
-
-
-
 
 
 if __name__ == '__main__':

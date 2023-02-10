@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
-from linchemin.cgu.syngraph import SynGraph, BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
-from linchemin.cheminfo.models import Molecule, ChemicalEquation
+
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph, SynGraph)
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
 
 """
 Module containing all the functions to convert from and into different SynGraph data models:
@@ -164,8 +166,7 @@ class MonopartiteReactionsToBipartite(Converter):
 class Conversion:
 
     def __init__(self, input_data_model, output_data_model):
-        c = [subclass for subclass in Converter.__subclasses__() if subclass.input_data_model == input_data_model and
-             subclass.output_data_model == output_data_model][0]
+        c = [subclass for subclass in Converter.__subclasses__() if subclass.input_data_model == input_data_model and subclass.output_data_model == output_data_model][0]
         self.converter = c()
 
     def apply_conversion(self, graph):
@@ -198,4 +199,3 @@ def converter(graph: SynGraph, out_data_model: str):
 
     c = Conversion(in_data_model, out_dm)
     return c.apply_conversion(graph)
-

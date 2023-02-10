@@ -1,5 +1,6 @@
-from linchemin.rem.route_descriptors import descriptor_calculator
 from abc import ABC, abstractmethod
+
+from linchemin.rem.route_descriptors import descriptor_calculator
 
 """
 Module containing classes and functions to score SynRoutes.

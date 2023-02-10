@@ -1,15 +1,17 @@
 import copy
-from typing import Callable, List, Dict
-from functools import partial
 import re
+from functools import partial
+from typing import Callable, Dict, List, Tuple, Union
+
 import rdkit
-from rdkit import Chem
-from rdkit.Chem import rdchem, rdChemReactions, DataStructs, rdFingerprintGenerator, Draw
-from rdkit.Chem.rdchem import Mol, Atom
-from rdkit.Chem.rdMolHash import HashFunction, MolHash
-from rdkit import RDLogger
-import linchemin.utilities as utilities
 from rdchiral import template_extractor
+from rdkit import Chem, RDLogger
+from rdkit.Chem import (DataStructs, Draw, rdchem, rdChemReactions,
+                        rdFingerprintGenerator)
+from rdkit.Chem.rdchem import Atom, Mol
+from rdkit.Chem.rdMolHash import HashFunction, MolHash
+
+import linchemin.utilities as utilities
 
 # RDLogger.DisableLog('rdApp.*')
 
@@ -108,6 +110,7 @@ def canonicalize_rdmol(rdmol: rdkit.Chem.rdchem.Mol) -> rdkit.Chem.rdchem.Mol:
             rdmol_canonicalized: a rdkit.Chem.rdchem.Mol object with the atoms in canonical order
         """
     task_name = 'canonicalize_rdmol'
+    message: Union[str, Exception]
     if rdmol:
         try:
             new_order = get_canonical_order(rdmol=rdmol)
@@ -162,7 +165,7 @@ def canonicalize_mapped_rdmol(mapped_rdmol: rdkit.Chem.rdchem.Mol) -> rdkit.Chem
     # the map numbers are mapped onto the new indices with a lookup through the old indices
     mapping = {}
     for new_id, old_id in canon_idx_old_idx:
-        if (mapping_n := [m for old, m in d.items() if old == old_id]):
+        if mapping_n := [m for old, m in d.items() if old == old_id]:
             mapping[new_id] = int(mapping_n[0])
         else:
             mapping[new_id] = 0
@@ -421,7 +424,7 @@ def mapping_diagnosis(chemical_equation, desired_product):
     return unamapped_fragments
 
 
-def rdchiral_extract_template(reaction_string: str, inp_fmt: str, reaction_id: int = None):
+def rdchiral_extract_template(reaction_string: str, inp_fmt: str, reaction_id: Union[int, None] = None):
     if inp_fmt != 'smiles':
         raise NotImplementedError
     mapped_smiles_split = reaction_string.split('>')
@@ -468,11 +471,11 @@ def canonicalize_rdrxn(rdrxn: rdChemReactions.ChemicalReaction) -> rdChemReactio
     return rdrxn
 
 
-def activate_rdrxn(rdrxn: rdChemReactions.ChemicalReaction) -> (rdChemReactions.ChemicalReaction, dict):
+def activate_rdrxn(rdrxn: rdChemReactions.ChemicalReaction) -> Tuple[rdChemReactions.ChemicalReaction, dict]:
     # TODO: the whole error handling logic can be better
     # http://www.rdkit.org/Python_Docs/rdkit.Chem.SimpleEnum.Enumerator-module.html#PreprocessReaction
     # http://www.rdkit.org/Python_Docs/rdkit.Chem.rdChemReactions-module.html
-
+    exception: Union[str, Exception]
     try:
 
         rdChemReactions.SanitizeRxn(rdrxn)
@@ -533,8 +536,7 @@ def calculate_atom_oxidation_number_by_EN(atom: Atom) -> int:
     # and we avoid problems with the implicit/explicit H definition in rdkit
 
     neighbors_nonHs_contribution = [sf(en_map.get(a_atomic_number) - en_map.get(bond.GetOtherAtom(atom).GetAtomicNum()))
-                                    * bond.GetBondTypeAsDouble()
-                                    for bond in bonds_neighbor if bond.GetOtherAtom(atom).GetAtomicNum() != 1]
+                                    * bond.GetBondTypeAsDouble() for bond in bonds_neighbor if bond.GetOtherAtom(atom).GetAtomicNum() != 1]
 
     neighbors_Hs_contribution = [sf(en_map.get(a_atomic_number) - en_map.get(1)) for x in range(atom.GetTotalNumHs())]
 
