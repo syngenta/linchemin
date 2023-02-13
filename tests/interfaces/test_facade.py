@@ -183,8 +183,8 @@ def test_reaction_extraction(mit_path):
 def test_mapping(mock_pipeline, mock_rxnmapper, ibm1_path):
     graph = json.loads(open(ibm1_path).read())
     routes, meta = facade('translate', 'ibm_retro', graph, out_data_model='monopartite_reactions')
-    # with default values
-    mapped_routes, meta = facade('atom_mapping', routes)
+    # with mapping pipeline
+    mapped_routes, meta = facade('atom_mapping', routes,  mapper=None)
     mock_pipeline.assert_called()
     assert meta['mapping_success_rate']
     for r in mapped_routes:

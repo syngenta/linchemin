@@ -161,9 +161,7 @@ Atom Mapping
     :toctree: generated
 
     perform_atom_mapping
-    pipeline_atom_mapping
     MappingOutput
-    get_available_mappers
     Mapper
     Mapper.map_chemical_equations
 

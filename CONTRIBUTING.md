@@ -51,6 +51,15 @@ If you would like to contribute to the package, we recommend the following devel
     cd linchemin/tests 
     python -m pytest 
     ```
+   
+   And add style checks (be aware that running isort might change your files!):
+   ```sh
+    cd linchemin
+    # sorting the imports
+    python -m isort src/linchemin
+    # checking flake8
+    python -m flake8 --ignore E501 src/linchemin
+    ```
 
 8. Once the tests and checks passes, but most importantly you are happy with the implemented feature, commit your changes.
 
@@ -67,6 +76,4 @@ If you would like to contribute to the package, we recommend the following devel
     ```
 
 9. From your fork, open a pull request via the "_Contribute_" button, the maintainers will be happy to review it.
-
-## Contributing to LinChemIn documentation
 
