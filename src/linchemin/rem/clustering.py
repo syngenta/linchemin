@@ -1,37 +1,44 @@
-from linchemin.rem.graph_distance import SingleRouteClustering, compute_distance_matrix
-from linchemin.rem.route_descriptors import descriptor_calculator
-import pandas as pd
-import numpy as np
 import abc
 
 import hdbscan
+import numpy as np
+import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 
+from linchemin import settings
+from linchemin.rem.graph_distance import compute_distance_matrix
+from linchemin.rem.route_descriptors import descriptor_calculator
+from linchemin.utilities import console_logger
+
 """
 Module containing classes and functions to compute the clustering of routes based on the distance matrix.
-
-    AbstractClasses:
-        ClusterCalculator
-        
-    Classes:
-        HdbscanClusterCalculator(ClusterCalculator)
-        AgglomerativeClusterCalculator(ClusterCalculator)
-        
-    Functions:
-        clusterer(syngraphs: list, ged_method: str, clustering_method: str, ged_params=None, save_dist_matrix=False, **kwargs)
-        
-        
-        compute_silhouette_score(dist_matrix, clusterer_labels)
-        optimize_agglomerative_cluster(dist_matrix, linkage:str)
-        
-        get_clustered_routes_metrics(syngraphs:list, clustering_output)
-        
-        get_available_clustering
 """
 
+logger = console_logger(__name__)
 
-class NoClustering(Exception):
+
+class ClusteringError(Exception):
+    """ Base class for exceptions leading to unsuccessful clustering. """
+    pass
+
+
+class OnlyNoiseClustering(ClusteringError):
+    """ Raised if only noise was found while clustering"""
+    pass
+
+
+class NoClustering(ClusteringError):
+    """ Raised if the clustering was not successful """
+    pass
+
+
+class UnavailableClusteringAlgorithm(ClusteringError):
+    """ Raised if the selected clustering algorithm is not among the available ones """
+    pass
+
+
+class SingleRouteClustering(ClusteringError):
     pass
 
 
@@ -42,7 +49,7 @@ class ClusterCalculator(metaclass=abc.ABCMeta):
     def get_clustering(self, dist_matrix: pd.DataFrame, save_dist_matrix: bool, **kwargs):
         """ Applies the clustering algorithm to the provided distance matrix
 
-            Parameters:
+            :param:
                 dist_matrix: a pandas.DataFrame
                     It contains the symmetric distance matrix for the routes
 
@@ -59,17 +66,19 @@ class HdbscanClusterCalculator(ClusterCalculator):
 
     def get_clustering(self, dist_matrix, save_dist_matrix, **kwargs):
         """ Applies the Hdbscan algorithm. Possible optional arguments: min_cluster_size """
-        min_cluster_size = kwargs.get("min_cluster_size", 2)
+        min_cluster_size = kwargs.get("min_cluster_size", settings.CLUSTERING.min_cluster_size)
 
         clustering = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, metric='precomputed').fit(
             dist_matrix.to_numpy(dtype=float))
 
         if clustering is None:
-            raise NoClustering('Clustering was not successful')
+            logger.error('The clustering algorithm did not return any result.')
+            raise NoClustering
 
         if 0 not in clustering.labels_:
             # hdbscan: with less than 15 datapoints, only noise is found
-            raise (Exception('Bad clustering. Only noise was found'))
+            logger.error('Hdbscan found only noise. This can occur if less than 15 routes were given')
+            raise OnlyNoiseClustering
         s_score = compute_silhouette_score(dist_matrix, clustering.labels_)
         print('The Silhouette score is {:.3f}'.format(round(s_score, 3)))
         return (clustering, s_score, dist_matrix) if save_dist_matrix is True else (clustering, s_score)
@@ -80,18 +89,20 @@ class AgglomerativeClusterCalculator(ClusterCalculator):
 
     def get_clustering(self, dist_matrix, save_dist_matrix, **kwargs):
         """ Applies the Agglomerative Clustering algorithm. Possible optional arguments: linkage """
-        linkage = kwargs.get("linkage", 'single')
+        linkage = kwargs.get("linkage", settings.CLUSTERING.linkage)
         clustering, s_score, best_n_cluster = optimize_agglomerative_cluster(dist_matrix, linkage)
 
         if clustering is None:
-            raise NoClustering('Clustering was not successful')
+            logger.error('The clustering algorithm did not return any result.')
+            raise NoClustering
 
         if 0 not in clustering.labels_:
-            raise (Exception('Bad clustering: only noise was found'))
+            logger.error('The algorithm found only noise.')
+            raise OnlyNoiseClustering
         print(f'The number of clusters with the best Silhouette score is {best_n_cluster}')
 
         print('The Silhouette score is {:.3f}'.format(round(s_score, 3)))
-        return (clustering, s_score, dist_matrix) if save_dist_matrix == True else (clustering, s_score)
+        return (clustering, s_score, dist_matrix) if save_dist_matrix is True else (clustering, s_score)
 
 
 class ClusterFactory:
@@ -113,8 +124,9 @@ class ClusterFactory:
     def select_clustering_algorithms(self, syngraphs: list, ged_method: str, clustering_method: str, ged_params=None,
                                      save_dist_matrix=False, parallelization=False, n_cpu=None, **kwargs):
         if clustering_method not in self.available_clustering_algorithms:
-            raise KeyError(f"Invalid clustering algorithm. Available algorithms are:"
-                           f"{self.available_clustering_algorithms.keys()}")
+            logger.error(f"Invalid clustering algorithm. Available algorithms are:"
+                         f"{self.available_clustering_algorithms.keys()}")
+            raise UnavailableClusteringAlgorithm
 
         selector = self.available_clustering_algorithms[clustering_method]['value']
         dist_matrix = compute_distance_matrix(syngraphs, ged_method, ged_params, parallelization, n_cpu)
@@ -126,7 +138,7 @@ def clusterer(syngraphs: list, ged_method: str, clustering_method: str, ged_para
               parallelization=False, n_cpu=None, **kwargs):
     """ Gives access to the Cluster factory
 
-        Parameters:
+        :param:
             syngraphs: a list of SynGraph objects
                 The routes to be clustered
             ged_method: a string
@@ -145,12 +157,13 @@ def clusterer(syngraphs: list, ged_method: str, clustering_method: str, ged_para
             **kwargs:
                 The optional parameters specific of the selected clustering algorithm
 
-        Returns:
+        :return:
             clustering, score, (dist_matrix): the output of the clustering, a float and a pandas DataFrame
                 The clustering algorithm output, the silhouette score and the distance matrix (save_dist_matrix=True)
     """
     if len(syngraphs) < 2:
-        raise (SingleRouteClustering('Less than 2 routes were found: clustering not possible'))
+        logger.error('Less than 2 routes were found: clustering not possible')
+        raise SingleRouteClustering
 
     clustering_calculator = ClusterFactory()
     return clustering_calculator.select_clustering_algorithms(syngraphs, ged_method, clustering_method, ged_params,
@@ -160,11 +173,11 @@ def clusterer(syngraphs: list, ged_method: str, clustering_method: str, ged_para
 def compute_silhouette_score(dist_matrix, clusterer_labels) -> float:
     """ To compute the silhouette score for the clustering of a distance matrix.
 
-        Parameters:
+        :param:
             dist_matrix: a np.array containg a distance matrix
             clusterer_labels: the labels assigned by a clutering algorithm
 
-        Returns:
+        :return:
             score: a float
     """
     return silhouette_score(dist_matrix, clusterer_labels, metric='precomputed')
@@ -173,11 +186,11 @@ def compute_silhouette_score(dist_matrix, clusterer_labels) -> float:
 def optimize_agglomerative_cluster(dist_matrix, linkage: str) -> tuple:
     """ To optimize the number of clusters for the AgglomerativeClustering method.
 
-        Parameters:
+        :param:
             dist_matrix: the distance matrix of the analzyed routes as numpy array
             linkage: a string indicating which type of linkage to use in the clustering
 
-        Returns:
+        :return:
             best_clustering: the output of the clustering algorithm with the best silhouette score
             max_score: a float indicating the silhouette score relative to the best_clustering
             best_n_cluster: an integer indicating the number of clusters used to get the best silhouette score
@@ -203,14 +216,13 @@ def optimize_agglomerative_cluster(dist_matrix, linkage: str) -> tuple:
 def get_clustered_routes_metrics(syngraphs: list, clustering_output) -> pd.DataFrame:
     """ To compute the metrics of the routes in the input list grouped by cluster.
 
-        Parameters:
+        :param:
             syngraphs: a list containing the SynGraph/MonopartiteSynGraph for which the metrics should be computed
             clustering_output: the output of a clustering algorithm
 
-        Returns:
+        :return:
              df1: a pandas DataFrame with columns ['routes_id', 'cluster', 'n_steps', 'n_branch']
     """
-    labels = clustering_output.labels_
     unique_labels = set(clustering_output.labels_)
 
     col = ['routes_id', 'cluster', 'n_steps', 'n_branch']
@@ -218,7 +230,6 @@ def get_clustered_routes_metrics(syngraphs: list, clustering_output) -> pd.DataF
 
     for k in unique_labels:
         cluster_routes = np.where(clustering_output.labels_ == k)[0].tolist()
-        ids = [syngraphs[i].source for i in cluster_routes]
         graphs = [syngraphs[i] for i in cluster_routes]
         d = pd.DataFrame(columns=col)
         for n, graph in enumerate(graphs):

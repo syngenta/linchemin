@@ -1,22 +1,26 @@
 import copy
-from collections import namedtuple
-from typing import Callable, List, Dict
-from functools import partial
-import abc
 import re
-import rdkit
-from rdkit import Chem
-from rdkit.Chem import rdchem, rdChemReactions, DataStructs, rdFingerprintGenerator, Draw
-from rdkit.Chem.rdchem import Mol, Atom
-from rdkit.Chem.Draw import DrawingOptions, rdMolDraw2D
-from rdkit.Chem.rdMolHash import HashFunction, MolHash
-from rdkit import RDLogger
+from functools import partial
+from typing import Callable, Dict, List, Tuple, Union
 
-RDLogger.DisableLog('rdApp.*')
+import rdkit
+from rdchiral import template_extractor
+from rdkit import Chem, RDLogger
+from rdkit.Chem import (DataStructs, Draw, rdchem, rdChemReactions,
+                        rdFingerprintGenerator)
+from rdkit.Chem.rdchem import Atom, Mol
+from rdkit.Chem.rdMolHash import HashFunction, MolHash
+
+import linchemin.utilities as utilities
+
+# RDLogger.DisableLog('rdApp.*')
+
+logger = utilities.console_logger(__name__)
 
 
 # RDMOLECULE
-def rdmol_from_string(input_string: str, inp_fmt: str):
+def rdmol_from_string(input_string: str, inp_fmt: str) -> Mol:
+    """ To generate an RDKit Mol object from a molecular string """
     function_map = {'smiles': Chem.MolFromSmiles,
                     'smarts': Chem.MolFromSmarts}
     func = function_map.get(inp_fmt)
@@ -24,10 +28,10 @@ def rdmol_from_string(input_string: str, inp_fmt: str):
 
 
 def remove_rdmol_atom_mapping(rdmol: Mol) -> Mol:
+    """ To remove atom mapping from an RDKit Mol object"""
     rdmol_unmapped = copy.deepcopy(rdmol)
     [a.SetAtomMapNum(0) for a in rdmol_unmapped.GetAtoms()]
     return rdmol_unmapped
-
 
 
 def detect_rdmol_problems(rdmol):
@@ -67,8 +71,11 @@ def get_canonical_order(rdmol: rdkit.Chem.rdchem.Mol) -> tuple:
     """
         https://gist.github.com/ptosco/36574d7f025a932bc1b8db221903a8d2
 
-        :param rdmol:
+        :param
+            rdmol: an RDKit Mol object
+
         :return:
+            a tuple containing the canonical order of the atoms
         """
     canon_idx_old_idx = [(j, i) for i, j in enumerate(Chem.CanonicalRankAtoms(rdmol))]
     old_idcs_sorted_by_canon_idcs = tuple(zip(*sorted(canon_idx_old_idx)))
@@ -96,10 +103,14 @@ def canonicalize_rdmol(rdmol: rdkit.Chem.rdchem.Mol) -> rdkit.Chem.rdchem.Mol:
             https://github.com/rdkit/rdkit/issues/2006
             https://sourceforge.net/p/rdkit/mailman/message/34923617/
 
-        :param rdmol:
-        :return: rdmol_canonicalized
+        :param:
+            rdmol: a rdkit.Chem.rdchem.Mol object
+
+        :return:
+            rdmol_canonicalized: a rdkit.Chem.rdchem.Mol object with the atoms in canonical order
         """
     task_name = 'canonicalize_rdmol'
+    message: Union[str, Exception]
     if rdmol:
         try:
             new_order = get_canonical_order(rdmol=rdmol)
@@ -124,6 +135,50 @@ def canonicalize_rdmol_lite(rdmol: rdkit.Chem.rdchem.Mol, is_pattern: bool = Fal
         return Chem.MolFromSmarts(Chem.MolToSmarts(rdmol))
     else:
         return Chem.MolFromSmiles(Chem.MolToSmiles(rdmol))
+
+
+def canonicalize_mapped_rdmol(mapped_rdmol: rdkit.Chem.rdchem.Mol) -> rdkit.Chem.rdchem.Mol:
+    """ To ensure that the atom ids in a mapped rdkit Mol object are independent from the mapping.
+        The presence of the atom mapping has an impact on the atom ids, so that for the same molecule
+        they can be different. This is not acceptable for us, as we use those ids to track an atom along a route
+        and to do so we need them to be always identical for a given mapped molecule.
+
+        Function taken from:
+        https://sourceforge.net/p/rdkit/mailman/message/35862258/
+        https://gist.github.com/ptosco/36574d7f025a932bc1b8db221903a8d2
+    """
+    # the map numbers are extracted and stored in the dictionary mapping them onto the 'original' atom indices
+    d = {}
+    for atom in mapped_rdmol.GetAtoms():
+        if atom.HasProp('molAtomMapNumber'):
+            d[atom.GetIdx()] = atom.GetAtomMapNum()
+            # the map numbers are removed, so that they do not impact the atom ordering
+            atom.SetAtomMapNum(0)
+
+    # the new indices are mapped onto the old ones
+    canon_idx_old_idx = [(j, i) for i, j in
+                         enumerate(Chem.CanonicalRankAtoms(mapped_rdmol))]  # [(0, 0), (2, 1), (1, 2)]
+    # the old indices are sorted according to the new ones
+    old_idcs_sorted_by_canon_idcs = tuple(zip(*sorted(canon_idx_old_idx)))  # ((0, 1, 2), (0, 2, 1))
+    # the canonical order to be used is extracted
+    canonical_order = old_idcs_sorted_by_canon_idcs[1]  # (0, 2, 1)
+    # the map numbers are mapped onto the new indices with a lookup through the old indices
+    mapping = {}
+    for new_id, old_id in canon_idx_old_idx:
+        if mapping_n := [m for old, m in d.items() if old == old_id]:
+            mapping[new_id] = int(mapping_n[0])
+        else:
+            mapping[new_id] = 0
+    # a new rdkit Mol object is created with the atoms in canonical order
+    new_mapped_rdmol = Chem.RenumberAtoms(mapped_rdmol, canonical_order)
+    # the map numbers are reassigned to the correct atoms
+    for atom in new_mapped_rdmol.GetAtoms():
+        i = atom.GetIdx()
+        for aid, d in mapping.items():
+            if aid == i:
+                atom.SetAtomMapNum(d)
+
+    return new_mapped_rdmol
 
 
 def rdmol_to_bstr(rdmol: rdkit.Chem.rdchem.Mol):
@@ -156,98 +211,17 @@ def get_mol_property_function(property_name: str) -> MolPropertyFunction:
     return mol_property_function_factory.get(property_name)
 
 
-def draw_mol(smiles: str, filename: str):
-    """
-        Produces an file with the picture of a molecule using RDKit
-
-        Parameters:
-            smiles: string indicating the smiles of the molecule
-            filename: string indicated the name of the output file
-
-        Returns:
-            None. The image file is produced and stored in the directory
-        """
-    rdmol = rdmol_from_string(smiles, inp_fmt='smiles')
-
-    DrawingOptions.atomLabelFontSize = 55
-    DrawingOptions.dotsPerAngstrom = 100
-    DrawingOptions.bondLineWidth = 3.0
-    Draw.MolToFile(rdmol, filename)
+def is_mapped_molecule(rdmol):
+    """ To check whether a rdmol is mapped """
+    mapped_atoms = [a.GetAtomMapNum() for a in rdmol.GetAtoms()]
+    if not mapped_atoms or set(mapped_atoms) == {0} or set(mapped_atoms) == {-1}:
+        return False
+    else:
+        return True
 
 
 ####################################################################################################
-# Reaction / Chemical Equation
-# Reaction fingerprint factory
-
-class ReactionFingerprint(metaclass=abc.ABCMeta):
-    """ Definition of the abstract class for reaction fingerprints """
-
-    @abc.abstractmethod
-    def compute_reac_fingerprint(self, rdrxn, params):
-        pass
-
-
-class DiffReactionFingerprint(ReactionFingerprint):
-    def compute_reac_fingerprint(self, rdrxn, params):
-        # Setting the parameters of the reaction fingerprint; if they are not specified, the default parameters as
-        # specified in the link below are used:
-        # https://github.com/rdkit/rdkit/blob/master/Code/GraphMol/ChemReactions/ReactionFingerprints.cpp#L123
-        if params is None:
-            params = {}
-        fp_params = rdChemReactions.ReactionFingerprintParams()
-        fp_params.includeAgents = params.get('includeAgents', True)
-        fp_params.fpSize = params.get('fpSize', 2048)
-        fp_params.nonAgentWeight = params.get('nonAgentWeight', 10)
-        fp_params.agentWeight = params.get('agentWeight', 1)
-        fp_params.bitRatioAgents = params.get('bitRatioAgents', 0.0)
-        fp_params.fpType = params.get('fpType', rdChemReactions.FingerprintType.AtomPairFP)
-
-        return rdChemReactions.CreateDifferenceFingerprintForReaction(rdrxn, ReactionFingerPrintParams=fp_params)
-
-
-class StructReactionFingerprint(ReactionFingerprint):
-    def compute_reac_fingerprint(self, rdrxn, params):
-        # Setting the parameters of the reaction fingerprint; if they are not specified, the default parameters as
-        # specified in the link below are used:
-        # https://github.com/rdkit/rdkit/blob/master/Code/GraphMol/ChemReactions/ReactionFingerprints.cpp#L123
-        if params is None:
-            params = {}
-        fp_params = rdChemReactions.ReactionFingerprintParams()
-        fp_params.includeAgents = params.get('includeAgents', True)
-        fp_params.fpSize = params.get('fpSize', 4096)
-        fp_params.nonAgentWeight = params.get('nonAgentWeight', 1)
-        fp_params.agentWeight = params.get('agentWeight', 1)
-        fp_params.bitRatioAgents = params.get('bitRatioAgents', 0.2)
-        fp_params.fpType = params.get('fpType', rdChemReactions.FingerprintType.PatternFP)
-
-        return rdChemReactions.CreateStructuralFingerprintForReaction(rdrxn, ReactionFingerPrintParams=fp_params)
-
-
-def compute_reaction_fingerprint(rdrxn, fp_name: str, params=None):
-    """ To compute the reaction fingerprint with the selected method and the optional parameters.
-
-        Parameters:
-            rdrxn: an rdkit rdChemReactions.ChemicalReaction instance
-            fp_name: a string representing the selected type of fingerprint to be used
-            params: an optional dictionary to change the default parameters
-
-        Returns:
-            fp: the fingerprint of the reaction
-    """
-    # control the behavior of fingerprint generation via the parameters
-    #  https://www.rdkit.org/docs/source/rdkit.Chem.rdChemReactions.html#rdkit.Chem.rdChemReactions.ReactionFingerprintParams
-
-    fingerprint_map = {'structure_fp': StructReactionFingerprint(),
-                       'difference_fp': DiffReactionFingerprint()
-                       }
-
-    if fp_name in fingerprint_map:
-        return fingerprint_map.get(fp_name).compute_reac_fingerprint(rdrxn, params)
-    else:
-        raise KeyError(
-            f'Invalid fingerprint type: {fp_name} is not available.\nAvailable options are: {fingerprint_map.keys()}')
-
-
+# RDRXN
 def rdrxn_from_string(input_string: str, inp_fmt: str) -> rdChemReactions.ChemicalReaction:
     format_function_map = {'smiles': partial(Chem.rdChemReactions.ReactionFromSmarts, useSmiles=True),
                            'smarts': partial(Chem.rdChemReactions.ReactionFromSmarts, useSmiles=False),
@@ -257,9 +231,12 @@ def rdrxn_from_string(input_string: str, inp_fmt: str) -> rdChemReactions.Chemic
     return func(input_string)
 
 
-def rdrxn_to_string(rdrxn: rdChemReactions.ChemicalReaction, out_fmt: str, use_atom_mapping: bool=False) -> str:
+def rdrxn_to_string(rdrxn: rdChemReactions.ChemicalReaction, out_fmt: str, use_atom_mapping: bool = False) -> str:
     if not use_atom_mapping:
-        Chem.rdChemReactions.RemoveMappingNumbersFromReactions(rdrxn)
+        rdrxn_ = copy.deepcopy(rdrxn)
+        Chem.rdChemReactions.RemoveMappingNumbersFromReactions(rdrxn_)
+    else:
+        rdrxn_ = rdrxn
     function_map = {'smiles': partial(Chem.rdChemReactions.ReactionToSmiles, canonical=True),
                     'smarts': Chem.rdChemReactions.ReactionToSmarts,
                     # 'rxn': partial(Chem.rdChemReactions.ReactionToRxnBlock, forceV3000=True),
@@ -267,16 +244,18 @@ def rdrxn_to_string(rdrxn: rdChemReactions.ChemicalReaction, out_fmt: str, use_a
                     # 'rxn': Chem.rdChemReactions.ReactionToV3KRxnBlock,
                     }
     func = function_map.get(out_fmt)
-    return func(rdrxn)
+    return func(rdrxn_)
 
 
 def rdrxn_to_rxn_mol_catalog(rdrxn: rdChemReactions.ChemicalReaction) -> Dict[str, List[Mol]]:
+    """ To build from a rdkit rdrxn a dictionary in the form {'role': [Mol]}"""
     return {'reactants': list(rdrxn.GetReactants()),
             'reagents': list(rdrxn.GetAgents()),
             'products': list(rdrxn.GetProducts())}
 
 
 def rdrxn_from_rxn_mol_catalog(rxn_mol_catalog: Dict[str, List[Mol]]) -> rdChemReactions.ChemicalReaction:
+    """ To build a dictionary in the form {'role': [Mol]} a rdkit rdrxn """
     reaction_smiles_empty = '>>'
     rdrxn = rdChemReactions.ReactionFromSmarts(reaction_smiles_empty, useSmiles=True)
     for rdmol in rxn_mol_catalog.get('reactants'):
@@ -289,27 +268,177 @@ def rdrxn_from_rxn_mol_catalog(rxn_mol_catalog: Dict[str, List[Mol]]) -> rdChemR
     return rdrxn
 
 
-def unpack_rdrxn(rdrxn: rdChemReactions.ChemicalReaction, identity_property_name: str, constructor):
+def rdrxn_to_molecule_catalog(rdrxn: rdChemReactions.ChemicalReaction, constructor):
+    """ To build from a rdkit rdrxn a dictionary in the form {'role': [Molecule]}"""
     reaction_rdmols = rdrxn_to_rxn_mol_catalog(rdrxn=rdrxn)
+    mol_catalog = {}
+    for role, rdmols in reaction_rdmols.items():
+        mol_catalog[role] = [constructor.build_from_rdmol(rdmol=rdmol) for r, rdmol_list in reaction_rdmols.items()
+                             if r == role for rdmol in rdmol_list]
+    return mol_catalog
 
-    catalog = {}
-    role_map = {}
-    stoichiometry_coefficients = {}
-    for role, rdmol_list in reaction_rdmols.items():
-        list_tmp = [constructor.build_from_rdmol(rdmol=rdmol) for rdmol in rdmol_list]
-        set_tmp = set(list_tmp)
-        stoichiometry_coefficients_tmp = {m.uid: list_tmp.count(m) for m in set_tmp}
-        stoichiometry_coefficients[role] = stoichiometry_coefficients_tmp
-        _tmp = {m.uid: m for m in set_tmp}
-        # the sorting provides the arbitrary canonicalization on the ordering  of molecules for each role
-        role_map[role] = sorted(list(stoichiometry_coefficients_tmp.keys()))
-        catalog = {**catalog, **_tmp}
-    return catalog, role_map, stoichiometry_coefficients
+
+def has_mapped_products(rdrxn: rdChemReactions.ChemicalReaction) -> bool:
+    """ To check if a rdrxn has any mapped product """
+    if any([is_mapped_molecule(mol) for mol in list(rdrxn.GetProducts())]):
+        return True
+    else:
+        return False
+
+
+def select_desired_product(mol_catalog: dict):
+    """ To select the 'desired product' among the products of a reaction.
+
+        :param:
+            mol_catalog: a dictionary with Molecule instances {'reactants_reagents': [Molecule], 'products': [Molecule]}
+
+        :return:
+            the Molecule instance of the desired product
+    """
+    return mol_catalog['products'][0]
+
+
+def rdrxn_role_reassignment(rdrxn: rdChemReactions.ChemicalReaction,
+                            desired_product_idx: int = 0) -> rdChemReactions.ChemicalReaction:
+    """function to reassign the reactant/reagent role in a ChemicalReaction by identifying
+    1) reactant molecules that should be reagent
+    2) reagent molecules that should be reactants
+    and reconstructing a ChemicalReaction with correct roles
+    this role reassignment is requires reaction atom to atom mapping to identify reactants/reagents
+
+    a reactant contributes with at least one heavy atom to the desired product of a reaction
+    a reagent does not contribute with any heavy atom to the desired product of a reaction
+    either reactant or reagents can contribute to by-products
+
+        :param:
+            rdrxn: the rdChemReactions.ChemicalReaction object for which the role reassignment should be performed
+
+            desired_product_idx: the integer index of the reference product used to assess the reactant contribution, default: 0
+
+        :return: the rdChemReactions.ChemicalReaction object with reassigned roles
+    """
+    if not rdChemReactions.HasReactionAtomMapping(rdrxn):
+        return rdrxn
+    molecule_catalog = {'reactants': [{'rdmol': rdmol,
+                                       'role_molecule_idx': i,
+                                       'matam': {atom.GetIdx(): atom.GetAtomMapNum() for atom in rdmol.GetAtoms()}} for
+                                      i, rdmol in enumerate(rdrxn.GetReactants())],
+                        'reagents': [{'rdmol': rdmol,
+                                      'role_molecule_idx': i,
+                                      'matam': {atom.GetIdx(): atom.GetAtomMapNum() for atom in rdmol.GetAtoms()}} for
+                                     i, rdmol in enumerate(rdrxn.GetAgents())],
+                        'products': [{'rdmol': rdmol,
+                                      'role_molecule_idx': i,
+                                      'matam': {atom.GetIdx(): atom.GetAtomMapNum() for atom in rdmol.GetAtoms()}} for
+                                     i, rdmol in enumerate(rdrxn.GetProducts())]}
+
+    rxn_mol_catalog = {'reactants': [],
+                       'reagents': [],
+                       'products': [item.get('rdmol') for item in molecule_catalog.get('products')]}
+
+    keys_output = set(molecule_catalog.get('products')[desired_product_idx].get('matam').values())
+
+    for input_item in molecule_catalog.get('reactants') + molecule_catalog.get('reagents'):
+        keys_input = set(input_item.get('matam').values())
+        x = keys_input.intersection(keys_output) - {0} - {-1}
+        rdmol = input_item.get('rdmol')
+        if len(x) == 0:
+            rxn_mol_catalog.get('reagents').append(rdmol)
+        else:
+            rxn_mol_catalog.get('reactants').append(rdmol)
+    return rdrxn_from_rxn_mol_catalog(rxn_mol_catalog=rxn_mol_catalog)
+
+
+def role_reassignment(reaction_mols: dict, ratam, desired_product):
+    """ To reassign the roles of reactants and reagents based on the mapping on the desired product.
+
+        :param:
+            reaction_mols: a dictionary in the form {'reactants_reagents': [Molecule], 'products': [Molecule]}
+
+            ratam: a Ratam object containing the mapping information of the reaction of interest
+
+            desired_product: the Molecule instance of the desired product
+
+        :return: a dictionary in the form {'reactants': [Molecule], 'reagents': [Molecule], 'products': [Molecule]}
+                 with the new roles based on atom mapping
+
+
+    """
+    if desired_product not in reaction_mols['products']:
+        logger.error('The selected product is not among the reaction products.')
+        return None
+    desired_product_transformations = [at for at in ratam.atom_transformations if at.product_uid == desired_product.uid]
+    true_reactants_uid = {at.reactant_uid for at in desired_product_transformations}
+    true_reagents = {r.uid for r in reaction_mols['reactants_reagents'] if r.uid not in true_reactants_uid}
+    true_reactants = {r.uid for r in reaction_mols['reactants_reagents'] if r.uid in true_reactants_uid}
+    products = [m.uid for m in reaction_mols['products']]
+    reagents = check_reagents(ratam.full_map_info, true_reagents)
+    return {'reactants': sorted(list(true_reactants)),
+            'reagents': sorted(list(reagents)),
+            'products': sorted(products)}
+
+
+def check_reagents(full_map_info, reagents):
+    """ To add unmapped molecule as reagents of a chemical equation.
+
+        :param:
+            full_map_info: a dictionary in the form {uid: [map]} [attribute of the Ratam class]
+
+            reagents: a set containing the uid of the already discovered reagents
+
+        :return: reagents: an updated set, containing the uid of unmapped reagents.
+    """
+    for uid, map_list in full_map_info.items():
+        for d in map_list:
+            map_nums = list(d.values())
+            if not map_nums or set(map_nums) == {0} or set(map_nums) == {-1}:
+                reagents.add(uid)
+    return reagents
+
+
+def mapping_diagnosis(chemical_equation, desired_product):
+    """ To check possible issues in the atom mapping: (i) if there are unmapped atoms in the desired product (issues
+        in computing route metrics); (ii) if there are unmapped atoms in the reactants (possible hint for leaving groups)
+
+        :param:
+            chemical_equation: the ChemicalEquation instance of interest
+
+            desired_product: the Molecule instance of the desired product
+
+        :return: unmapped_fragments: a list of smiles referring to the unmapped atoms of each reactant
+    """
+
+    if [a for a in desired_product.rdmol_mapped.GetAtoms() if a.GetAtomMapNum() in [0, -1]]:
+        logger.warning('Some atoms in the desired product remain unmapped: possible important reactants are missing')
+
+    for uid in chemical_equation.role_map['reactants']:
+        mols = [m.rdmol_mapped for u, m in chemical_equation.catalog.items() if u == uid]
+        unamapped_fragments = []
+        for m in mols:
+            if unmapped_atoms := [a for a in m.GetAtoms() if a.GetAtomMapNum() in [0, -1]]:
+                atoms_indices = [a.GetIdx() for a in unmapped_atoms]
+                fragment = Chem.rdmolfiles.MolFragmentToSmiles(m, atomsToUse=atoms_indices,
+                                                               atomSymbols=[a.GetSymbol() for a in m.GetAtoms()])
+
+                unamapped_fragments.append(fragment)
+    return unamapped_fragments
+
+
+def rdchiral_extract_template(reaction_string: str, inp_fmt: str, reaction_id: Union[int, None] = None):
+    if inp_fmt != 'smiles':
+        raise NotImplementedError
+    mapped_smiles_split = reaction_string.split('>')
+    rdchiral_input = {'_id': reaction_id,
+                      'reactants': mapped_smiles_split[0],
+                      'agents': mapped_smiles_split[1],
+                      'products': mapped_smiles_split[2]}
+    return template_extractor.extract_from_reaction(reaction=rdchiral_input)
 
 
 def build_rdrxn(catalog: Dict,
                 role_map: Dict,
                 stoichiometry_coefficients: Dict,
+                use_reagents: bool,
                 use_smiles: bool,
                 use_atom_mapping: bool) -> rdChemReactions.ChemicalReaction:
     reaction_smiles_empty = '>>'
@@ -318,10 +447,13 @@ def build_rdrxn(catalog: Dict,
         if rdmol_mapped := catalog.get(mol_id).rdmol_mapped:
             for _ in range(stoichiometry_coefficients.get('reactants').get(mol_id)):
                 rdrxn_new.AddReactantTemplate(rdmol_mapped)
-    for mol_id in role_map.get('reagents'):
-        if rdmol_mapped := catalog.get(mol_id).rdmol_mapped:
-            for _ in range(stoichiometry_coefficients.get('reagents').get(mol_id)):
-                rdrxn_new.AddAgentTemplate(rdmol_mapped)
+
+    if use_reagents:
+        for mol_id in role_map.get('reagents'):
+            if rdmol_mapped := catalog.get(mol_id).rdmol_mapped:
+                for _ in range(stoichiometry_coefficients.get('reagents').get(mol_id)):
+                    rdrxn_new.AddAgentTemplate(rdmol_mapped)
+
     for mol_id in role_map.get('products'):
         if rdmol_mapped := catalog.get(mol_id).rdmol_mapped:
             for _ in range(stoichiometry_coefficients.get('products').get(mol_id)):
@@ -339,11 +471,11 @@ def canonicalize_rdrxn(rdrxn: rdChemReactions.ChemicalReaction) -> rdChemReactio
     return rdrxn
 
 
-def activate_rdrxn(rdrxn: rdChemReactions.ChemicalReaction) -> (rdChemReactions.ChemicalReaction, dict):
+def activate_rdrxn(rdrxn: rdChemReactions.ChemicalReaction) -> Tuple[rdChemReactions.ChemicalReaction, dict]:
     # TODO: the whole error handling logic can be better
     # http://www.rdkit.org/Python_Docs/rdkit.Chem.SimpleEnum.Enumerator-module.html#PreprocessReaction
     # http://www.rdkit.org/Python_Docs/rdkit.Chem.rdChemReactions-module.html
-
+    exception: Union[str, Exception]
     try:
 
         rdChemReactions.SanitizeRxn(rdrxn)
@@ -367,180 +499,8 @@ def activate_rdrxn(rdrxn: rdChemReactions.ChemicalReaction) -> (rdChemReactions.
     return rdrxn, log
 
 
-def rdrxn_role_reassignment(rdrxn: rdChemReactions.ChemicalReaction,
-                            desired_product_idx: int = 0) -> rdChemReactions.ChemicalReaction:
-    """function to reassign the reactant/reagent role in a ChemicalReaction by identifying
-    1) reactant molecules that should be reagent
-    2) reagent molecules that should be reactants
-    and reconstructing a ChemicalReaction with correct roles
-    this role reassignment is requires reaction atom to atom to atom mapping to identify reactants/reagents
-
-    a reactant contributes with at least one heavy atom to the desired product of a reaction
-    a reagent does not contribute with any heavy atom to the desired product of a reaction
-    either reactant or reagents can contribute to by-products
-
-        Parameters:
-        rdrxn: RDKit ChemicalReaction
-        desired_product_idx: integer index of the reference product used to assess the reactant contribution
-
-    Returns:
-        rdrxn: RDKit ChemicalReaction
-
-    """
-    if not rdChemReactions.HasReactionAtomMapping(rdrxn):
-        return rdrxn
-    molecule_catalog = {'reactants': [{'rdmol': rdmol, 'role_molecule_idx': i,
-                                       'matam': {atom.GetIdx(): atom.GetAtomMapNum() for atom in rdmol.GetAtoms()}} for
-                                      i, rdmol in enumerate(rdrxn.GetReactants())], 'reagents': [
-        {'rdmol': rdmol, 'role_molecule_idx': i,
-         'matam': {atom.GetIdx(): atom.GetAtomMapNum() for atom in rdmol.GetAtoms()}} for i, rdmol in
-        enumerate(rdrxn.GetAgents())], 'products': [{'rdmol': rdmol, 'role_molecule_idx': i,
-                                                     'matam': {atom.GetIdx(): atom.GetAtomMapNum() for atom in
-                                                               rdmol.GetAtoms()}} for i, rdmol in
-                                                    enumerate(rdrxn.GetProducts())]}
-
-    rxn_mol_catalog = {'reactants': [], 'reagents': [],
-                       'products': [item.get('rdmol') for item in molecule_catalog.get('products')]}
-
-    keys_output = set(molecule_catalog.get('products')[desired_product_idx].get('matam').values())
-
-    for input_item in molecule_catalog.get('reactants') + molecule_catalog.get('reagents'):
-        keys_input = set(input_item.get('matam').values())
-        x = keys_input.intersection(keys_output) - {0}
-        rdmol = input_item.get('rdmol')
-        if len(x) == 0:
-            rxn_mol_catalog.get('reagents').append(rdmol)
-        else:
-            rxn_mol_catalog.get('reactants').append(rdmol)
-    return rdrxn_from_rxn_mol_catalog(rxn_mol_catalog=rxn_mol_catalog)
-
-
-def compute_similarity(fp1, fp2, similarity_name: str) -> float:
-    """
-    Computes the chemical similarity between the input pair of fingerprints using the selected similarity algorithm
-
-    Parameters:
-        fp1, fp2: pair of molecular or reaction fingerprints
-        similarity_name: string indicating the selected similarity algorithm
-
-    Returns:
-        a float, output of the similarity algorithm
-    """
-    similarity_map = {'tanimoto': DataStructs.TanimotoSimilarity,
-                      'kulczynski': DataStructs.KulczynskiSimilarity,
-                      'dice': DataStructs.DiceSimilarity,
-                      'mcconnaughey': DataStructs.McConnaugheySimilarity}
-
-    metric = similarity_map.get(similarity_name)
-    # The syntax below is not compatible with count vectors fingerprints generated by GetCountFingerprint and with the
-    # difference fingerprints for reactions
-    # similarity = DataStructs.FingerprintSimilarity(fp1, fp2, metric=metric)
-    return metric(fp1, fp2)
-
-
-# Molecular fingerprints factory
-class MolFingerprint(metaclass=abc.ABCMeta):
-    """ Definition of the abstract class for molecular fingerprints """
-
-    @abc.abstractmethod
-    def compute_molecular_fingerprint(self, rdmol: Mol, parameters, count_fp_vector):
-        pass
-
-
-class RDKitMolFingerprint(MolFingerprint):
-    def compute_molecular_fingerprint(self, rdmol: Mol, params, count_fp_vector):
-        if params is None:
-            params = {}
-        fpgen = rdFingerprintGenerator.GetRDKitFPGenerator(
-            minPath=params.get('minPath', 1),
-            maxPath=params.get('maxPath', 7),
-            countSimulation=params.get('countSimulation', False),
-            numBitsPerFeature=params.get('numBitsPerFeature', 2),
-            fpSize=params.get('fpSize', 2048))
-        fp_builder = select_fp_vector(fpgen, count_fp_vector)
-        return fp_builder(rdmol)
-
-
-class MorganMolFingerprint(MolFingerprint):
-    def compute_molecular_fingerprint(self, rdmol: Mol, params, count_fp_vector):
-        if params is None:
-            params = {}
-        fpgen = rdFingerprintGenerator.GetMorganGenerator(
-            radius=params.get('radius', 3),
-            useCountSimulation=params.get('countSimulation', False),
-            includeChirality=params.get('includeChirality', False),
-            useBondTypes=params.get('useBondTypes', True),
-            countBounds=params.get('countBounds', None),
-            fpSize=params.get('fpSize', 2048))
-        fp_builder = select_fp_vector(fpgen, count_fp_vector)
-        return fp_builder(rdmol)
-
-
-class TopologicalMolFingerprint(MolFingerprint):
-    def compute_molecular_fingerprint(self, rdmol: Mol, params, count_fp_vector):
-        if params is None:
-            params = {}
-        fpgen = rdFingerprintGenerator.GetTopologicalTorsionGenerator(
-            includeChirality=params.get('includeChirality', False),
-            torsionAtomCount=params.get('torsionAtomCount', 4),
-            countSimulation=params.get('countSimulation', True),
-            countBounds=params.get('countBounds', None),
-            fpSize=params.get('fpSize', 2048))
-
-        fp_builder = select_fp_vector(fpgen, count_fp_vector)
-        return fp_builder(rdmol)
-
-
-def compute_mol_fingerprint(rdmol: Mol, fp_name: str, parameters=None, count_fp_vector=False):
-    """ Takes an rdmol object, the fingerprint type, an optional dictionary to change the default
-        parameters and a boolean and returns the selected fingerprint of the given rdmol.
-
-        Parameters:
-            rdmol: a molecule as rdkit object
-            fp_name: a string representing the name of the fingerprint generator
-            parameters: an optional dictionary
-            count_fp_vector: an option boolean indicating whether the 'GetCountFingerprint' should be used
-
-        Returns:
-            fp: the fingerprint of the molecule
-    """
-    fp_generators_map = {'rdkit': RDKitMolFingerprint(),
-                         'morgan': MorganMolFingerprint(),
-                         'topological': TopologicalMolFingerprint()
-                         }
-    if fp_name in fp_generators_map:
-        return fp_generators_map.get(fp_name).compute_molecular_fingerprint(rdmol, parameters, count_fp_vector)
-
-    else:
-        raise KeyError(
-            f'Invalid fingerprint type: {fp_name} is not available.\nAvailable options are: {fp_generators_map.keys()}')
-
-
-def select_fp_vector(fpgen, count_fp_vector):
-    return fpgen.GetCountFingerprint if count_fp_vector else fpgen.GetFingerprint
-
-
-def draw_reaction(smiles: str, filename: str):
-    """
-    Produces a file with the picture of a reaction using RDKit
-
-    Parameters:
-        smiles: string indicating the smiles of the reaction
-        filename: string indicated the name of the output file
-
-    Returns:
-        None. The image file is produced and stored in the directory
-    """
-    rxn = rdrxn_from_string(smiles, inp_fmt='smiles')
-
-    DrawingOptions.atomLabelFontSize = 55
-    DrawingOptions.dotsPerAngstrom = 100
-    DrawingOptions.bondLineWidth = 3.0
-    rimage = Draw.ReactionToImage(rxn)
-    rimage.save(filename)
-
-
-###### descriptors
+####################################################################################################
+# Descriptors
 def calculate_atom_oxidation_number_by_EN(atom: Atom) -> int:
     pauling_en_map = {1: 2.2, 3: 0.98, 4: 1.57, 5: 2.04, 6: 2.55, 7: 3.04, 8: 3.44, 9: 3.98, 11: 0.93, 12: 1.31,
                       13: 1.61,
@@ -576,8 +536,7 @@ def calculate_atom_oxidation_number_by_EN(atom: Atom) -> int:
     # and we avoid problems with the implicit/explicit H definition in rdkit
 
     neighbors_nonHs_contribution = [sf(en_map.get(a_atomic_number) - en_map.get(bond.GetOtherAtom(atom).GetAtomicNum()))
-                                    * bond.GetBondTypeAsDouble()
-                                    for bond in bonds_neighbor if bond.GetOtherAtom(atom).GetAtomicNum() != 1]
+                                    * bond.GetBondTypeAsDouble() for bond in bonds_neighbor if bond.GetOtherAtom(atom).GetAtomicNum() != 1]
 
     neighbors_Hs_contribution = [sf(en_map.get(a_atomic_number) - en_map.get(1)) for x in range(atom.GetTotalNumHs())]
 
@@ -595,37 +554,6 @@ def compute_oxidation_numbers(rdmol: Mol) -> Mol:
         oxidation_number = calculate_atom_oxidation_number_by_EN(atom_)
         atom.SetIntProp('_OxidationNumber', oxidation_number)
     return rdmol
-
-
-def calculate_molecular_hash_values(rdmol: Mol, hash_list: List[str] = None) -> dict:
-    molhashf = HashFunction.names
-    if hash_list:
-        hash_list += ['CanonicalSmiles']
-    else:
-        hash_list = list(molhashf.keys()) + ['inchi_key', 'inchikey_KET_15T', 'noiso_smiles', 'cx_smiles']
-
-    hash_map = {k: MolHash(rdmol, v) for k, v in molhashf.items() if k in hash_list}
-
-    hash_map['smiles'] = hash_map.get('CanonicalSmiles')
-    if 'inchi_key' in hash_list:
-        hash_map['inchi'] = Chem.MolToInchi(rdmol)
-        hash_map['inchi_key'] = Chem.InchiToInchiKey(hash_map['inchi'])
-    if 'inchikey_KET_15T' in hash_list:
-        hash_map['inchi_KET_15T'] = Chem.MolToInchi(rdmol, options='-KET -15T')
-        hash_map['inchikey_KET_15T'] = Chem.InchiToInchiKey(hash_map['inchi_KET_15T'])
-    if 'noiso_smiles' in hash_list:
-        hash_map['noiso_smiles'] = Chem.MolToSmiles(rdmol, isomericSmiles=False)
-    if 'cx_smiles' in hash_list:
-        hash_map['cx_smiles'] = Chem.MolToCXSmiles(rdmol)
-    """
-    
-    hash_map['ExtendedMurcko_AG'] = smiles_to_anonymus_graph(hash_map['ExtendedMurcko'])
-    hash_map['ExtendedMurcko_EG'] = smiles_to_element_graph(hash_map['ExtendedMurcko'])
-    hash_map['MurckoScaffold_AG'] = smiles_to_anonymus_graph(hash_map['MurckoScaffold'])
-    hash_map['MurckoScaffold_EG'] = smiles_to_element_graph(hash_map['MurckoScaffold'])
-    """
-
-    return hash_map
 
 
 def smiles_to_anonymus_graph(r):

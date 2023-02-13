@@ -1,6 +1,6 @@
 from linchemin.rem.graph_distance import (graph_distance_factory, compute_nodes_fingerprints, build_similarity_matrix,
                                           get_available_ged_algorithms, get_ged_default_parameters,
-                                          compute_distance_matrix, get_ged_parameters)
+                                          compute_distance_matrix, get_ged_parameters, GraphDistanceError)
 from linchemin.cgu.translate import translator
 from linchemin.cgu.convert import converter
 
@@ -31,16 +31,16 @@ def test_similarity_factory(az_path):
     assert ged_matrix == ged
 
     # Test that passing two different types of syngraphs raises an error "
-    with pytest.raises(Exception) as ke:
+    with pytest.raises(GraphDistanceError) as ke:
         syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='bipartite') for g in graph_az]
         graph_distance_factory(mp_syngraphs[0], syngraphs[0], ged_method='nx_ged')
-    assert "TypeError" in str(ke.type)
+    assert "MismatchingGraph" in str(ke.type)
 
     # Test that asking for a ged method not available raises an error
-    with pytest.raises(KeyError) as ke:
+    with pytest.raises(GraphDistanceError) as ke:
         syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='bipartite') for g in graph_az]
         graph_distance_factory(mp_syngraphs[0], syngraphs[0], ged_method='non_available_method')
-    assert "KeyError" in str(ke.type)
+    assert "UnavailableGED" in str(ke.type)
 
 
 def test_bipartite_graph(az_path):

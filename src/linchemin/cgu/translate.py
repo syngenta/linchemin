@@ -1,36 +1,55 @@
-from linchemin.cgu.iron import Iron, Edge, Node, Direction
-from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph, SynGraph
-from linchemin.cheminfo import functions as cf
-from linchemin.cheminfo.reaction import ChemicalEquation
-from linchemin.cgu.convert import converter
-import pydot
-import networkx as nx
+import datetime
 import os
 from abc import ABC, abstractmethod
-import datetime
+from typing import List, Union
+
+import networkx as nx
+import pydot
+
+import linchemin.cheminfo.depiction as cid
+import linchemin.cheminfo.functions as cif
+from linchemin.cgu.convert import converter
+from linchemin.cgu.iron import Direction, Edge, Iron, Node
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
+from linchemin.IO import io as lio
+from linchemin.utilities import console_logger
 
 """
 Module containing functions and classes to transform a graph from an input format to a different output format.
 """
 
+logger = console_logger(__name__)
 
-class BadData(Exception):
-    """ Base class for exceptions due to bad data """
+
+class TranslationError(Exception):
+    """ Base class for exceptions leading to unsuccessful translation."""
     pass
 
 
-class EmptyRoute(BadData):
-    """ Raised if the input graph in """
+class EmptyRoute(TranslationError):
+    """ Raised if an empty route is found """
     pass
 
 
-class NoneRoute(BadData):
-    """ Raised if a None route is found"""
-    pass
-
-
-class InvalidRoute(BadData):
+class InvalidRoute(TranslationError):
     """ Raised if the route does not contain at least two molecules connected by an edge"""
+
+
+class UnavailableInputFormat(TranslationError):
+    """ Raised if the selected input format is not among the available ones"""
+    pass
+
+
+class UnavailableOutputFormat(TranslationError):
+    """ Raised if the selected output format is not among the available ones """
+    pass
+
+
+class UnavailableTranslation(TranslationError):
+    """ Raised if the required translation cannot be performed """
+    pass
 
 
 class AbsTranslator(ABC):
@@ -46,30 +65,30 @@ class AbsTranslator(ABC):
                          If not implemented: as_output = None
     """
 
-    as_input = None
-    as_output = None
+    as_input: Union[str, None] = None
+    as_output: Union[str, None] = None
 
     @abstractmethod
     def from_iron(self, graph: Iron):
         """ Translates an Iron instance into a graph object of another type.
 
-            Parameters:
+            :param:
                 graph: an Iron instance
                     It is the graph of interest as an Ion instance
 
-            Returns:
+            :return:
                 The same graph as another object type
         """
         pass
 
     @abstractmethod
-    def to_iron(self, graph) -> Iron:
+    def to_iron(self, graph) -> Union[Iron, None]:
         """ Translates a graph object of a specific type into an Iron instance.
 
-            Parameters:
+            :param:
                 graph: a graph object os a specific type
 
-            Returns:
+            :return:
                 The same graph as Iron instance
 
         """
@@ -81,31 +100,36 @@ class TranslatorMonopartiteReacSynGraph(AbsTranslator):
     as_input = 'implemented'
     as_output = 'implemented'
 
-    def from_iron(self, iron_route: Iron) -> MonopartiteReacSynGraph:
+    def from_iron(self, iron_route: Iron) -> Union[MonopartiteReacSynGraph, None]:
         """ Translates an Iron instance into a MonopartiteReacSynGraph instance """
         try:
             if iron_route is None:
-                raise NoneRoute
-            syngraph = MonopartiteReacSynGraph(iron_route)
-            return syngraph
-        except NoneRoute:
-            print('"None" route found. "None" returned')
+                raise EmptyRoute
+            return MonopartiteReacSynGraph(iron_route)
+        except EmptyRoute:
+            logger.warning(
+                'While translating from Iron to monopartite-reactions SynGraph object an empty route was found: '
+                '"None" returned')
             return None
 
-    def to_iron(self, mp_syngraph: MonopartiteReacSynGraph) -> Iron:
+    def to_iron(self, mp_syngraph: MonopartiteReacSynGraph) -> Union[Iron, None]:
         """ Translates a MonopartiteReacSynGraph instance into an Iron instance """
         try:
             if mp_syngraph is None:
-                raise NoneRoute
+                raise EmptyRoute
             iron = Iron()
             id_n = 0
             id_e = 0
             for reac, connections in mp_syngraph.graph.items():
+                # if the smiles 'reac' is not yet among the nodes of the Iron instance,
+                # the corresponding node is created and added to Iron
                 if reac not in [n.properties['node_class'] for id, n in iron.nodes.items()]:
-                    # if the smiles 'reac' is not yet among the nodes of the Iron instance,
-                    # the corresponding node is created and added to Iron
-                    prop = {'node_smiles': reac.smiles,
-                            'node_class': reac}
+                    # the unmapped smiles is built so that the route is suitable to be correctly displayed in a png file
+                    unmapped_smiles = cif.rdrxn_to_string(reac.rdrxn, out_fmt='smiles', use_atom_mapping=False)
+                    prop = {
+                        'node_unmapped_smiles': unmapped_smiles,
+                        'node_smiles': reac.smiles,
+                        'node_class': reac}
                     node1 = [(id_n, Node(iid=str(id_n), properties=prop, labels=[]))]
                     iron.add_node(str(node1[0][0]), node1[0][1])
                     id_n += 1
@@ -115,8 +139,11 @@ class TranslatorMonopartiteReacSynGraph(AbsTranslator):
                     node1 = [(id, n) for id, n in iron.nodes.items() if n.properties['node_class'] == reac]
                 for c in connections:
                     if c.smiles not in [n.properties['node_smiles'] for id, n in iron.nodes.items()]:
-                        prop = {'node_smiles': c.smiles,
-                                'node_class': c}
+                        unmapped_smiles = cif.rdrxn_to_string(c.rdrxn, out_fmt='smiles', use_atom_mapping=False)
+                        prop = {
+                            'node_unmapped_smiles': unmapped_smiles,
+                            'node_smiles': c.smiles,
+                            'node_class': c}
                         node2 = [(id_n, Node(iid=str(id_n), properties=prop, labels=[]))]
                         iron.add_node(str(node2[0][0]), node2[0][1])
                         id_n += 1
@@ -129,10 +156,12 @@ class TranslatorMonopartiteReacSynGraph(AbsTranslator):
                              labels=[])
                     iron.add_edge(str(id_e), e)
                     id_e += 1
-                iron.source = mp_syngraph.source
+            iron.source = mp_syngraph.source
             return iron
-        except NoneRoute:
-            print('"None" route found. "None" returned')
+        except EmptyRoute:
+            logger.warning(
+                'While translating from a monopartite-reactions SynGraph to Iron an empty route was found: "None" '
+                'returned')
             return None
 
 
@@ -141,31 +170,40 @@ class TranslatorBipartiteSynGraph(AbsTranslator):
     as_input = 'implemented'
     as_output = 'implemented'
 
-    def from_iron(self, iron_route: Iron):
+    def from_iron(self, iron_route: Iron) -> Union[BipartiteSynGraph, None]:
         """ Translates an Iron instance into a BipartiteSynGraph instance """
         try:
             if iron_route is None:
-                raise NoneRoute
-            syngraph = BipartiteSynGraph(iron_route)
-            return syngraph
-        except NoneRoute:
-            print('"None" route found. "None" returned')
+                raise EmptyRoute
+            return BipartiteSynGraph(iron_route)
+        except EmptyRoute:
+            logger.warning(
+                'While translating from Iron to bipartite SynGraph object an empty route was found: "None" returned')
+            return None
 
-    def to_iron(self, syngraph: BipartiteSynGraph) -> Iron:
+    def to_iron(self, syngraph: BipartiteSynGraph) -> Union[Iron, None]:
         """ Translates a BipartiteSynGraph instance into an Iron instance """
         try:
             if syngraph is None:
-                raise NoneRoute
+                raise EmptyRoute
             iron = Iron()
             id_n = 0
             id_e = 0
             for reac, connections in syngraph.graph.items():
+                # if the smiles 'reac' is not yet among the nodes of the Iron instance,
+                # the corresponding node is created and added to Iron
                 if reac.smiles not in [n.properties['node_smiles'] for id, n in iron.nodes.items()]:
-                    prop = {'node_smiles': reac.smiles,
-                            'node_class': reac
-                            }
-                    # if the smiles 'reac' is not yet among the nodes of the Iron instance,
-                    # the corresponding node is created and added to Iron
+                    if type(reac) == ChemicalEquation:
+                        unmapped_smiles = cif.rdrxn_to_string(reac.rdrxn, out_fmt='smiles', use_atom_mapping=False)
+                    elif type(reac) == Molecule:
+                        unmapped_smiles = reac.smiles
+
+                    prop = {
+                        'node_unmapped_smiles': unmapped_smiles,
+                        'node_smiles': reac.smiles,
+                        'node_class': reac
+                    }
+
                     node1 = [(id_n, Node(iid=str(id_n), properties=prop, labels=[]))]
                     iron.add_node(str(node1[0][0]), node1[0][1])
                     id_n += 1
@@ -175,9 +213,16 @@ class TranslatorBipartiteSynGraph(AbsTranslator):
                     node1 = [(id, n) for id, n in iron.nodes.items() if n.properties['node_smiles'] == reac.smiles]
                 for c in connections:
                     if c.smiles not in [n.properties['node_smiles'] for id, n in iron.nodes.items()]:
-                        prop = {'node_smiles': c.smiles,
-                                'node_class': c
-                                }
+                        if type(c) == ChemicalEquation:
+                            unmapped_smiles = cif.rdrxn_to_string(c.rdrxn, out_fmt='smiles', use_atom_mapping=False)
+                        elif type(c) == Molecule:
+                            unmapped_smiles = c.smiles
+
+                        prop = {
+                            'node_unmapped_smiles': unmapped_smiles,
+                            'node_smiles': c.smiles,
+                            'node_class': c
+                        }
                         node2 = [(id_n, Node(iid=str(id_n), properties=prop, labels=[]))]
                         iron.add_node(str(node2[0][0]), node2[0][1])
                         id_n += 1
@@ -192,8 +237,9 @@ class TranslatorBipartiteSynGraph(AbsTranslator):
 
             iron.source = syngraph.source
             return iron
-        except NoneRoute:
-            print('"None" route found. "None" returned')
+        except EmptyRoute:
+            logger.warning(
+                'While translating from a bipartite SynGraph to Iron an empty route was found: "None" returned')
             return None
 
 
@@ -202,22 +248,23 @@ class TranslatorMonopartiteMolSynGraph(AbsTranslator):
     as_input = 'implemented'
     as_output = 'implemented'
 
-    def from_iron(self, iron_route: Iron) -> MonopartiteMolSynGraph:
+    def from_iron(self, iron_route: Iron) -> Union[MonopartiteMolSynGraph, None]:
         """ Translates an Iron instance into a MonopartiteMolSynGraph instance """
         try:
             if iron_route is None:
-                raise NoneRoute
-            syngraph = MonopartiteMolSynGraph(iron_route)
-            return syngraph
-        except NoneRoute:
-            print('"None" route found. "None" returned')
+                raise EmptyRoute
+            return MonopartiteMolSynGraph(iron_route)
+        except EmptyRoute:
+            logger.warning(
+                'While translating from Iron to a monopartite-molecules SynGraph object an empty route was found: '
+                '"None" returned')
             return None
 
-    def to_iron(self, mp_syngraph: MonopartiteMolSynGraph) -> Iron:
+    def to_iron(self, mp_syngraph: MonopartiteMolSynGraph) -> Union[Iron, None]:
         """ Translates a MonopartiteReacSynGraph instance into an Iron instance """
         try:
             if mp_syngraph is None:
-                raise NoneRoute
+                raise EmptyRoute
             iron = Iron()
             id_n = 0
             id_e = 0
@@ -252,8 +299,10 @@ class TranslatorMonopartiteMolSynGraph(AbsTranslator):
                     id_e += 1
             iron.source = mp_syngraph.source
             return iron
-        except NoneRoute:
-            print('"None" route found. "None" returned')
+        except EmptyRoute:
+            logger.warning(
+                'While translating from a monopartite-molecules SynGraph to Iron an empty route was found: "None" '
+                'returned')
             return None
 
 
@@ -262,23 +311,23 @@ class TranslatorNetworkx(AbsTranslator):
     as_input = 'implemented'
     as_output = 'implemented'
 
-    def from_iron(self, route_iron: Iron) -> nx.classes.digraph.DiGraph:
+    def from_iron(self, route_iron: Iron) -> Union[nx.classes.digraph.DiGraph, None]:
         """ Translates an Iron instance into a Networkx object """
         try:
             if route_iron is None:
-                raise NoneRoute
+                raise EmptyRoute
             elif route_iron.i_edge_number() == 0:
                 nx_graph = nx.DiGraph()
+                nx_graph.graph['source'] = route_iron.source
                 for id, node in route_iron.nodes.items():
                     nx_graph.add_node(node.properties['node_smiles'])
-                    attrs_n = {node.properties['node_smiles']:
-                                   {'properties': node.properties, 'labels': node.labels,
-                                    'source': route_iron.source}}
+                    attrs_n = {node.properties['node_smiles']: {'properties': node.properties, 'labels': node.labels,
+                                                                'source': route_iron.source}}
 
                     nx.set_node_attributes(nx_graph, attrs_n, 'attributes')
             else:
                 nx_graph = nx.DiGraph()
-
+                nx_graph.graph['source'] = route_iron.source
                 # Translating iron edges in networkx edges; nodes are automatically added
                 for id_e, edge in route_iron.edges.items():
                     a = [n.properties['node_smiles'] for id, n in route_iron.nodes.items() if id == edge.a_iid]
@@ -296,11 +345,11 @@ class TranslatorNetworkx(AbsTranslator):
 
                     nx.set_node_attributes(nx_graph, attrs_n, 'attributes')
             return nx_graph
-        except NoneRoute:
-            print('"None" route found. "None" returned')
+        except EmptyRoute:
+            logger.warning('While translating from Iron to NetworkX object an empty route was found: "None" returned')
             return None
 
-    def to_iron(self, route: nx.classes.digraph.DiGraph) -> Iron:
+    def to_iron(self, route: nx.classes.digraph.DiGraph) -> Union[Iron, None]:
         """ Translates a Networkx object into an Iron instance """
         iron = Iron()
 
@@ -326,11 +375,11 @@ class TranslatorDot(AbsTranslator):
     as_input = 'implemented'
     as_output = 'implemented'
 
-    def from_iron(self, route_iron: Iron):
+    def from_iron(self, route_iron: Iron) -> Union[pydot.Dot, None]:
         """ Translates an Iron instance into a Pydot object """
         try:
             if route_iron is None:
-                raise NoneRoute
+                raise EmptyRoute
             dot_graph = pydot.Dot(route_iron.source, graph_type='digraph')
             # Translating iron nodes into dot nodes
             for id_n, node in route_iron.nodes.items():
@@ -344,11 +393,11 @@ class TranslatorDot(AbsTranslator):
                 b = [n.properties['node_smiles'] for id, n in route_iron.nodes.items() if id == edge.b_iid]
                 dot_graph.add_edge(pydot.Edge(a[0], b[0]))
             return dot_graph
-        except NoneRoute:
-            print('"None" route found. "None" returned')
+        except EmptyRoute:
+            logger.warning('While translating from Iron to PyDot object an empty route was found: "None" returned')
             return None
 
-    def to_iron(self, route: pydot.Dot) -> Iron:
+    def to_iron(self, route: pydot.Dot) -> Union[Iron, None]:
         """ Translates a Pydot object into an Iron instance """
         iron = Iron()
 
@@ -375,14 +424,14 @@ class TranslatorIbm(AbsTranslator):
     as_input = 'implemented'
     as_output = None
 
-    def from_iron(self, graph: Iron):
+    def from_iron(self, graph: Iron) -> Union[list, None]:
         pass
 
-    def to_iron(self, route: dict) -> Iron:
+    def to_iron(self, route: dict) -> Union[Iron, None]:
         """ Translates a dictionary generated by the IBM CASP tool into an Iron instance"""
         prop = {'node_smiles': 'smiles'}
         try:
-            if route == {}:
+            if not route:
                 raise EmptyRoute
             iron_graph = ibm_dict_to_iron(route, prop, iron=None, parent=None)
 
@@ -393,10 +442,12 @@ class TranslatorIbm(AbsTranslator):
             return iron_graph
 
         except EmptyRoute:
-            print('Empty route found. "None" returned')
+            logger.warning('While translating from IBM to Iron an empty route was found: "None" returned')
             return None
         except InvalidRoute:
-            print('The route contains only one molecule and it is not a valid route.')
+            logger.warning(
+                'While translating from IBM to Iron an invalid route containing only one molecule was found: '
+                '"None" returned')
             return None
 
 
@@ -408,17 +459,17 @@ class TranslatorAz(AbsTranslator):
     def from_iron(self, graph: Iron):
         pass
 
-    def to_iron(self, route: dict) -> Iron:
+    def to_iron(self, route: dict) -> Union[Iron, None]:
         """ Translates a dictionary generated by the AZ CASP tool into an Iron instance """
         prop = {'node_smiles': 'smiles'}  # properties mapping: {iron_term: casp_term}
         try:
-            if route == {}:
+            if not route:
                 raise EmptyRoute
             iron_graph = az_dict_to_iron(route, prop, iron=None, parent=None)
             iron_graph.source = 'az_' + datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
             return iron_graph
         except EmptyRoute:
-            print('Empty route found. "None" returned')
+            logger.warning('While translating from AZ to Iron an empty route was found: "None" returned')
             return None
 
 
@@ -430,17 +481,17 @@ class TranslatorMit(AbsTranslator):
     def from_iron(self, graph: Iron):
         pass
 
-    def to_iron(self, route: dict):
+    def to_iron(self, route: dict) -> Union[Iron, None]:
         """ Translates a dictionary generated by the Askcos CASP tool into an Iron instance """
         prop = {'node_smiles': 'smiles'}  # properties mapping: {iron_term: casp_term}
         try:
-            if route == {}:
+            if not route:
                 raise EmptyRoute
             iron_graph = mit_dict_to_iron(route, prop, iron=None, parent=None)
             iron_graph.source = 'mit_' + datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
             return iron_graph
         except EmptyRoute:
-            print('Empty route found. "None" returned')
+            logger.warning('While translating from Asckos to Iron an empty route was found: "None" returned')
             return None
 
 
@@ -449,14 +500,14 @@ class TranslatorNOC(AbsTranslator):
     as_input = None
     as_output = 'implemented'
 
-    def from_iron(self, route_iron: Iron) -> dict:
+    def from_iron(self, route_iron: Iron) -> Union[dict, None]:
         """ Translates an Iron instance into an NOC-compatible document """
         try:
             if route_iron is None:
-                raise NoneRoute
+                raise EmptyRoute
             nodes = route_iron.nodes
-            node_documents = []
-            edge_documents = []
+            node_documents: List = []
+            edge_documents: List = []
             for iid, n in nodes.items():
                 node_instance = n.properties.get('node_class')
                 node_dict = node_instance.to_dict()
@@ -468,15 +519,15 @@ class TranslatorNOC(AbsTranslator):
 
                 if type(node_instance) is ChemicalEquation:
                     # append role edges
-                    for item in node_instance.roles.get('reactants'):
+                    for item in node_instance.role_map.get('reactants'):
                         edge_doc = {'type': 'REACTANT', 'source': item, 'destination': node_instance.uid,
                                     'properties': {}}
                         edge_documents.append(edge_doc)
-                    for item in node_instance.roles.get('reagents'):
+                    for item in node_instance.role_map.get('reagents'):
                         edge_doc = {'type': 'REAGENT', 'source': item, 'destination': node_instance.uid,
                                     'properties': {}}
                         edge_documents.append(edge_doc)
-                    for item in node_instance.roles.get('products'):
+                    for item in node_instance.role_map.get('products'):
                         edge_doc = {'type': 'PRODUCT', 'source': node_instance.uid, 'destination': item,
                                     'properties': {}}
                         edge_documents.append(edge_doc)
@@ -485,13 +536,12 @@ class TranslatorNOC(AbsTranslator):
                     # append Template - ChemicalEquation relationships
                     # append Template - Patterns relationships
                     # append Patterns - Molecules relationships (to be calculated while constructing chemical equation!!!!)
-            document = {'nodes': node_documents, 'edges': edge_documents}
-            return document
-        except NoneRoute:
-            print('"None" route found. "None" returned')
+            return {'nodes': node_documents, 'edges': edge_documents}
+        except EmptyRoute:
+            logger.warning('While translating from Iron to NOC format an empty route was found: "None" returned')
             return None
 
-    def to_iron(self, graph: dict) -> Iron:
+    def to_iron(self, graph: dict) -> Union[Iron, None]:
         pass
 
 
@@ -500,30 +550,31 @@ class TranslatorDotVisualization(AbsTranslator):
     as_input = None
     as_output = 'implemented'
 
-    def from_iron(self, route_iron: Iron):
+    def from_iron(self, route_iron: Iron) -> None:
         """ Translates an Iron instance into a PNG picture """
         try:
             if route_iron is None:
-                raise NoneRoute
+                raise EmptyRoute
             dot_graph = pydot.Dot(route_iron.source, graph_type='digraph')
             # Translating iron nodes into dot nodes
             for id_n, node in route_iron.nodes.items():
-                node_smiles = node.properties['node_smiles']
+                node_instance = node.properties['node_class']
 
-                if node_smiles.count('>') > 1:
-                    fname = f'{id_n}.png'
-                    cf.draw_reaction(node_smiles, filename=fname)
+                if type(node_instance) == ChemicalEquation:
+                    depiction_data = cid.draw_reaction(node_instance.rdrxn)
 
                 else:
-                    fname = f'{id_n}.png'
-                    cf.draw_mol(node_smiles, filename=fname)
+                    depiction_data = cid.draw_molecule(node_instance.rdmol)
 
-                dot_graph.add_node(pydot.Node(node.properties['node_smiles'], image=f'{id_n}.png', label=''))
+                lio.write_rdkit_depict(data=depiction_data, file_path=f'{id_n}.png')
+
+                dot_graph.add_node(pydot.Node(node.properties['node_unmapped_smiles'], image=f'{id_n}.png', label=''))
 
             # Translating iron edges into dot edges
             for id_e, edge in route_iron.edges.items():
-                a = [n.properties['node_smiles'] for id, n in route_iron.nodes.items() if id == edge.a_iid]
-                b = [n.properties['node_smiles'] for id, n in route_iron.nodes.items() if id == edge.b_iid]
+                # the unmapped smiles is used to avoid the pydot issues in dealing with nodes' name with numbers
+                a = [n.properties['node_unmapped_smiles'] for id, n in route_iron.nodes.items() if id == edge.a_iid]
+                b = [n.properties['node_unmapped_smiles'] for id, n in route_iron.nodes.items() if id == edge.b_iid]
                 dot_graph.add_edge(pydot.Edge(a[0], b[0]))
 
             dot_graph.write(f'route_{route_iron.source}.dot')
@@ -532,8 +583,9 @@ class TranslatorDotVisualization(AbsTranslator):
             for id_n in route_iron.nodes.keys():
                 os.remove(f'{id_n}.png')
 
-        except NoneRoute:
-            print('"None" route found. "None" returned')
+        except EmptyRoute:
+            logger.warning(
+                'While translating from Iron to PyDot-visualization format- an empty route was found: "None" returned')
             return None
 
     def to_iron(self, graph):
@@ -580,8 +632,9 @@ class TranslatorFactory:
     def select_translation_to_iron(self, input_format: str, graph, out_data_model: str):
         """ Calls the correct translator to transform the selected input graph object into an Iron instance """
         if input_format not in self.translators:
-            raise KeyError(
+            logger.error(
                 f"'{input_format}' is not a valid input format. Possible formats are: {self.translators.keys()}")
+            raise UnavailableInputFormat
 
         elif input_format == 'iron':
             return graph
@@ -595,8 +648,10 @@ class TranslatorFactory:
     def select_translation_from_iron(self, out_format: str, iron_graph, out_data_model: str):
         """ Calls the correct translator to transform an Iron instance into the selected output graph object """
         if out_format not in self.translators:
-            raise KeyError(
+            logger.error(
                 f"'{out_format}' is not a valid output format. Possible formats are: {self.translators.keys()}")
+            raise UnavailableOutputFormat
+
         elif out_format == 'iron':
             # if the output format is iron, the same iron graph is returned
             return iron_graph
@@ -630,6 +685,8 @@ class InputToIron(Handler):
         graph = factory.select_translation_to_iron(input_format, graph, out_data_model)
         if output_format == 'iron':
             graph = graph
+        elif graph is None:
+            return None
         else:
             graph = IronToSynGraph().translate(input_format, graph, output_format, out_data_model)
         return graph
@@ -641,8 +698,10 @@ class IronToSynGraph(Handler):
     def translate(self, input_format, graph, output_format, out_data_model):
         factory = TranslatorFactory()
         graph = factory.select_translation_from_iron('syngraph', graph, out_data_model)
-        graph = graph if 'syngraph' in output_format else SynGraphToIron().translate(input_format, graph, output_format,
-                                                                                     out_data_model)
+        if output_format == 'syngraph' or graph is None:
+            return graph
+        else:
+            graph = SynGraphToIron().translate(input_format, graph, output_format, out_data_model)
         return graph
 
 
@@ -678,7 +737,7 @@ def translator(input_format: str, original_graph, output_format: str, out_data_m
     """ Takes a graph object in an input format and translate it into a graph object in the desired output format
         and data model.
 
-            Parameters:
+            :param:
 
                 input_format: a string
                     It indicates the format of the input graph object
@@ -692,11 +751,12 @@ def translator(input_format: str, original_graph, output_format: str, out_data_m
                 out_data_model: a string
                     It indicates the desired type of output graph (monopartite, bipartite...)
 
-            Returns:
+            :return:
                 out_graph: a graph object in the specified output format
     """
     if 'syngraph' in input_format and 'syngraph' in output_format:
-        raise ValueError('To convert between data models, please use the "converter" function.')
+        logger.error('To convert between data models, please use the "converter" function.')
+        raise UnavailableTranslation
 
     translation = Translation()
 
@@ -733,10 +793,10 @@ def get_input_formats():
     return available_input
 
 
-def az_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> Iron:
+def az_dict_to_iron(route: dict, properties: dict, iron: Union[Iron, None], parent: Union[int, None]) -> Iron:
     """ Takes a nested dictionary and returns an Iron instance. Recursive function.
 
-            Parameters:
+            :param:
                 route: a nested dictionary
                     The nested dictionary representing the input route
 
@@ -749,7 +809,7 @@ def az_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> I
                 parent: an integer
                     It represents the id of the parent node
 
-            Returns:
+            :return:
                 iron: an Iron instance
                     The output Iron instance
     """
@@ -783,18 +843,17 @@ def az_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> I
                 az_dict_to_iron(child, properties, iron, id_n)
 
     # if the node is a reaction node, ignore it and proceed with the next level
-    else:
-        if 'children' in route:
-            for child in route['children']:
-                az_dict_to_iron(child, properties, iron, parent)
+    elif 'children' in route:
+        for child in route['children']:
+            az_dict_to_iron(child, properties, iron, parent)
 
     return iron
 
 
-def mit_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> Iron:
+def mit_dict_to_iron(route: dict, properties: dict, iron: Union[Iron, None], parent: Union[int, None]) -> Iron:
     """ Takes a nested dictionary and returns an Iron instance. Recursive function.
 
-                Parameters:
+                :param:
                     route: a nested dictionary
                         The nested dictionary representing the input route
 
@@ -807,7 +866,7 @@ def mit_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> 
                     parent: an integer
                         It represents the id of the parent node
 
-                Returns:
+                :return:
                     iron: an Iron instance
                         The output Iron instance
         """
@@ -845,18 +904,17 @@ def mit_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> 
                     mit_dict_to_iron(child, properties, iron, id_n)
 
     # if the node is a reaction node, ignore it and proceed with the next level
-    else:
-        if 'children' in route:
-            for child in route['children']:
-                mit_dict_to_iron(child, properties, iron, parent)
+    elif 'children' in route:
+        for child in route['children']:
+            mit_dict_to_iron(child, properties, iron, parent)
 
     return iron
 
 
-def ibm_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> Iron:
+def ibm_dict_to_iron(route: dict, properties: dict, iron: Union[Iron, None], parent: Union[int, None]) -> Iron:
     """ Takes a nested dictionary and returns an Iron instance. Recursive function.
 
-            Parameters:
+            :param:
                 route: a nested dictionary
                     The nested dictionary representing the input route
 
@@ -869,7 +927,7 @@ def ibm_dict_to_iron(route: dict, properties: dict, iron: Iron, parent: int) -> 
                 parent: an integer
                     It represents the id of the parent node
 
-            Returns:
+            :return:
                 iron: an Iron instance
                     The output Iron instance
     """

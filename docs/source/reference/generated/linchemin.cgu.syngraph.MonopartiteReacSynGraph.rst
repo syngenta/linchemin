@@ -27,4 +27,10 @@
 
    
    
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~MonopartiteReacSynGraph.uid
+   
    

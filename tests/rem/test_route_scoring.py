@@ -19,6 +19,6 @@ def test_branch_score(ibm2_path):
     branch_score = route_scorer(r, 'branch_score')
     assert branch_score == 0.0
 
-    mp_route = translator('ibm_retro', f[2], 'mp_syngraph', out_data_model='monopartite_reactions')
+    mp_route = translator('ibm_retro', f[2], 'syngraph', out_data_model='monopartite_reactions')
     branch_score_mp = route_scorer(mp_route, 'branch_score')
     assert branch_score_mp == 0.1

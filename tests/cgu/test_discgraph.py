@@ -1,5 +1,5 @@
 from linchemin.cgu.discgraph import DisconnectionGraph, MissingAtomMapping
-from linchemin.cheminfo.reaction import ChemicalEquationConstructor
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph
 import pytest
 
@@ -8,7 +8,7 @@ mapped_reactions = {'r1': 'CN(C)C=O.F[c:5]1[n:6][cH:7][cH:8][cH:9][c:10]1[F:11].
 
 
 def test_basic_disconnectionGraph():
-    chemical_equation_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(
         reaction_string=mapped_reactions['r1'],
         inp_fmt='smiles')
@@ -17,7 +17,7 @@ def test_basic_disconnectionGraph():
     discgraph = DisconnectionGraph(syngraph)
     assert discgraph
 
-    ce_constructor = ChemicalEquationConstructor(identity_property_name='smiles')
+    ce_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     no_mapping_ce = ce_constructor.build_from_reaction_string(
         reaction_string='CCN.CCOC(=O)CC>>CCNC(=O)CC',
         inp_fmt='smiles')
