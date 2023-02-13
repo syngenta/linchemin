@@ -65,9 +65,9 @@ DEFAULT_FACADE = {
                            'calculation'},
     'merging': {'value': {'out_data_model': 'bipartite'},
                 'info': 'A new, "merged", bipartite SynGraph'},
-    'atom_mapping': {'value': {'mapper': None,
+    'atom_mapping': {'value': {'mapper': 'rxnmapper',
                                'out_data_model': 'bipartite'},
-                     'info': 'The full atom mapping pipeline is used; a list of bipartite SynGraph is generated'},
+                     'info': 'The rxnmapper tool is used; a list of bipartite SynGraph is generated'},
 }
 
 DEFAULT_CONSTRUCTORS = {'molecular_identity_property_name': 'smiles',

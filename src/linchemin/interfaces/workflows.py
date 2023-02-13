@@ -6,7 +6,8 @@ import pandas as pd
 
 import linchemin.IO.io as lio
 from linchemin import settings
-from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cgu.translate import get_available_data_models
 from linchemin.cheminfo.atom_mapping import get_available_mappers
 from linchemin.interfaces.facade import facade
@@ -266,7 +267,7 @@ class WorkflowStarter(WorkflowHandler):
             the reactions' atom mapping
         """
         try:
-            output = self.get_translatation(params, output)
+            output = self.get_translation(params, output)
             if params['mapping'] is True:
                 output = self.get_mapped_routes(params, output)
 
@@ -274,7 +275,7 @@ class WorkflowStarter(WorkflowHandler):
         except NoValidRoute:
             return None
 
-    def get_translatation(self, params: dict, output: WorkflowOutput) -> WorkflowOutput:
+    def get_translation(self, params: dict, output: WorkflowOutput) -> WorkflowOutput:
         """ Calls the translation step of the workflow """
         output = TranslationStep().perform_step(params, output)
         return output
