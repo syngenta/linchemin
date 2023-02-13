@@ -22,8 +22,8 @@ the correct ``ClusterCalculator`` subclass based on the user's input.
 
 The factory is wrapped by the facade function :func:`~clusterer`.
 It takes a list of graph objects, the 'name' of the clustering algorithm that should be used
-and a series of parameters related to the molecular and reaction fingerprints to be used
-and to the chemical similarity calculation.
+and a series of parameters related to the molecular and reaction fingerprints
+and to the chemical similarity calculation to be used.
 
 
 Implementing a new clustering algorithm
@@ -60,7 +60,7 @@ to make it available to the factory.
     }
 
 
-You can now compute your newly developed descriptor by calling the
+You can now use your newly developed clustering algorithm by calling the
 :func:`~clusterer` function:
 
 .. code-block:: python

@@ -25,4 +25,10 @@
 
    
    
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~MonopartiteMolSynGraph.uid
+   
    

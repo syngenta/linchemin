@@ -19,4 +19,3 @@ def test_cli(capfd, cli, mit_path):
     assert 'Translating the routes in the input file to a list of SynGraph....' in out
     os.remove('routes.json')
     os.remove('tree.json')
-

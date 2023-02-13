@@ -11,7 +11,7 @@ Welcome to LinChemIn's documentation!
     :Release: |version|
 
 The Linked Chemical Information (LinChemIn)
-package is a python toolkit that allows chemoinformatics operations on synthetic routes and reaction networks.
+package is a python toolkit that allows cheminformatics operations on synthetic routes and reaction networks.
 Wrapping some third-party packages for handling graph arithmetic and cheminformatics and
 implementing new data models and functionalities, LinChemIn allows the interconversion between
 data formats and data models and enables route-level analysis and operations,
@@ -25,10 +25,12 @@ Contents
    :maxdepth: 1
 
    Installation
+   Configuration
    Tutorial
    code_customization/index
    data_structure
    chemical_objects_classes
+   atom_mapping
    reference/index
 
 License

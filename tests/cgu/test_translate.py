@@ -1,13 +1,15 @@
 from linchemin.cgu.iron import Iron, Node, Edge, Direction
 from linchemin.cgu.translate import (translator, ibm_dict_to_iron, get_available_formats, az_dict_to_iron,
-                                     get_available_data_models, get_output_formats, get_input_formats)
-from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph, merge_syngraph, MonopartiteMolSynGraph
-from linchemin.cheminfo.reaction import ChemicalEquation
+                                     get_available_data_models, get_output_formats, get_input_formats, TranslationError)
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
+from linchemin.cheminfo.models import ChemicalEquation
 import json
 import pydot
 import networkx as nx
 import pytest
 import os
+import unittest.mock
+import logging
 
 
 def generate_iron_test_graph():
@@ -116,15 +118,15 @@ def test_translating_into_nx_returns_nx_object(ibm1_path):
 
 def test_wrong_format_name(ibm1_path):
     """ To test that the correct exception is raised when an unavailable input format is requested. """
-    with pytest.raises(KeyError) as ke:
+    with pytest.raises(TranslationError) as ke:
         graph = json.loads(open(ibm1_path).read())
         translator('wrong_input_format', graph[1], 'iron', out_data_model='bipartite')
-    assert "KeyError" in str(ke.type)
+    assert "UnavailableInputFormat" in str(ke.type)
 
-    with pytest.raises(KeyError) as ke:
+    with pytest.raises(TranslationError) as ke:
         graph = json.loads(open(ibm1_path).read())
         translator('ibm_retro', graph[1], 'wrong_output_format', out_data_model='bipartite')
-    assert "KeyError" in str(ke.type)
+    assert "UnavailableOutputFormat" in str(ke.type)
 
 
 def testing_dict_to_iron(az_path, ibm1_path):
@@ -182,8 +184,11 @@ def test_translating_into_iron_and_into_dot_returns_isomorphic_graphs(az_path):
 def test_none_returned_if_empty_route():
     """ To test that 'None' is returned if an empty route is passed. """
     graph = {}
-    t_graph_iron = translator('az_retro', graph, 'iron', out_data_model='monopartite_molecules')
+    with unittest.TestCase().assertLogs('linchemin.cgu.translate', level='WARNING') as cm:
+        t_graph_iron = translator('az_retro', graph, 'iron', out_data_model='bipartite')
     assert t_graph_iron is None
+    unittest.TestCase().assertEqual(len(cm.records), 1)
+    unittest.TestCase().assertIn('While translating from AZ', cm.records[0].getMessage())
 
     t_graph_nx = translator('az_retro', graph, 'networkx', out_data_model='monopartite_molecules')
     assert t_graph_nx is None
@@ -192,9 +197,9 @@ def test_none_returned_if_empty_route():
 def test_syngraph_to_syngraph(az_path):
     graph_az = json.loads(open(az_path).read())
     bp_syngraph = translator('az_retro', graph_az[2], 'syngraph', out_data_model='bipartite')
-    with pytest.raises(ValueError) as ke:
+    with pytest.raises(TranslationError) as ke:
         translator('syngraph', bp_syngraph, 'syngraph', out_data_model='monopartite_reactions')
-    assert "ValueError" in str(ke.type)
+    assert 'UnavailableTranslation' in str(ke.type)
 
 
 def test_iron_to_syngraph(ibm1_path):
@@ -228,13 +233,13 @@ def test_one_node_iron_to_nx(ibm1_path):
     one_node_nx = translator('syngraph', mp_syngraph, 'networkx', out_data_model='monopartite_reactions')
     assert one_node_nx.number_of_nodes() == 1
     assert one_node_nx.number_of_edges() == 0
+    assert one_node_nx.graph['source']
 
 
 def test_route_depiction(az_path):
     graph_az = json.loads(open(az_path).read())
     syngraph = translator('az_retro', graph_az[0], 'syngraph', out_data_model='bipartite')
-    translator('syngraph', syngraph, 'pydot_visualization', out_data_model='monopartite_reactions')
-
+    translator('syngraph', syngraph, 'pydot_visualization', out_data_model='bipartite')
     fname_png = f'route_{syngraph.source}.png'
     assert os.path.exists(fname_png)
     fname_dot = f'route_{syngraph.source}.dot'

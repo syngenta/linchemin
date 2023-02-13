@@ -1,8 +1,8 @@
-from linchemin.cgu.syngraph import SynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph, BipartiteSynGraph
-from linchemin.cgu.convert import converter
-from linchemin.cheminfo.disconnection import Disconnection
-
 from collections import defaultdict
+
+from linchemin.cgu.convert import converter
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
+from linchemin.cheminfo.models import Disconnection
 
 
 class MissingAtomMapping(Exception):
@@ -31,7 +31,7 @@ class DisconnectionGraph:
                                 "can be used to build a DisconnectionGraph.")
 
             if type(syngraph) == BipartiteSynGraph:
-                syngraph = converter(syngrpah, 'monopartite_reactions')
+                syngraph = converter(syngraph, 'monopartite_reactions')
 
             for parent, children in syngraph.graph.items():
                 if parent.disconnection is None:
@@ -74,4 +74,3 @@ class DisconnectionGraph:
             else:
                 text = text + '{}\n'.format(r)
         return text
-

@@ -1,10 +1,8 @@
-from rdkit import Chem
 from collections import namedtuple
-from typing import List, Tuple, Dict
-import collections
+from typing import List, Tuple
 
+from rdkit import Chem
 from rdkit.Chem import Draw
-from rdkit.Chem import AllChem
 from rdkit.Chem.Draw import DrawingOptions, rdMolDraw2D
 
 # Local imports
@@ -700,16 +698,45 @@ class ColorMap:
         raise NotImplementedError
 
 
-def draw_reaction(rdrxn):
+def draw_molecule(rdmol):
+    """
+        Produces the data necessary to create a picture of a molecule with RDKit
+
+        :param:
+            rdmol: an RDKit Mol object
+
+        :return:
+            The data in text format of the picture. It can be converted into a png file using the
+            linchemin.IO.io.write_rdkit_depict function
+    """
     DrawingOptions.atomLabelFontSize = 55
     DrawingOptions.dotsPerAngstrom = 100
     DrawingOptions.bondLineWidth = 3.0
 
-    d2d = Draw.MolDraw2DCairo(800, 300)
-    d2d.DrawReaction(rdrxn, highlightByReactant=True)
-    image_text = d2d.GetDrawingText()
+    d2d = Draw.rdMolDraw2D.MolDraw2DCairo(350, 300)
+    draw_rdmol = rdMolDraw2D.PrepareMolForDrawing(rdmol)
+    d2d.DrawMolecule(draw_rdmol)
+    return d2d.GetDrawingText()
 
-    return image_text
+
+def draw_reaction(rdrxn):
+    """
+        Produces the data necessary to create a picture of a molecule with RDKit
+
+        :param:
+            rdrxn: an RDKit ChemicalReaction object
+
+        :return:
+            The data in text format of the picture. It can be converted into a png file using the
+            linchemin.IO.io.write_rdkit_depict function
+    """
+    DrawingOptions.atomLabelFontSize = 55
+    DrawingOptions.dotsPerAngstrom = 100
+    DrawingOptions.bondLineWidth = 3.0
+
+    d2d = Draw.MolDraw2DCairo(800, 200)
+    d2d.DrawReaction(rdrxn, highlightByReactant=True)
+    return d2d.GetDrawingText()
 
 
 def draw_disconnection(rdmol, reacting_atoms, new_bonds, modified_bonds, show_atom_maps: bool = False):

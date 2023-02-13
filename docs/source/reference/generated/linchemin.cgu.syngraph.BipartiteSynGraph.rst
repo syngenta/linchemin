@@ -26,4 +26,10 @@
 
    
    
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~BipartiteSynGraph.uid
+   
    

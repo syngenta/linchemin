@@ -14,7 +14,7 @@ Translate overview
 -------------------
 
 
-The module is composed by a factory structure in which the subclasses of the abstract class
+The module is composed of a factory structure in which the subclasses of the abstract class
 :class:`~linchemin.cgu.translate.AbsTranslator` implement the concrete translators for each format,
 so that, for example, there is a ``TranslatorNetworkx``, a ``TranslatorIbm``, a ``TranslatorBipartiteSynGraph``,
 etc... For each subclass the concrete implementation of at least one of two abstract methods
@@ -32,8 +32,8 @@ from the selected input format to the output format. The steps of the sequence a
 - Iron is translated to the output format
 
 Forcing the translation to pass through SynGraph ensures that the chemical information is handled
-correctly, as :class:`~linchemin.cheminfo.molecule.Molecule` and/or
-:class:`~linchemin.cheminfo.reaction.ChemicalEquation` instances are built while constructing
+correctly, as :class:`~linchemin.cheminfo.models.Molecule` and/or
+:class:`~linchemin.cheminfo.models.ChemicalEquation` instances are built while constructing
 the SynGraph objects. Moreover, the conversion between data models (i.e., bipartite graph, monopartite
 graph with only reactions or monopartite graph with only molecules) is handled exclusively by
 SynGraph. This avoids the combinatorial explosion of possibilities to mix and match
@@ -73,7 +73,8 @@ in the format you are trying to add, returns an Iron instance. We recommend to a
 key in the ``properties`` dictionary of the Iron nodes, so that the Iron object is suitable
 to be translated into a SynGraph instance. Also, remember that the translators work with single graph
 objects, not list of objects.
-If you need more information regarding the Iron format, you can have a look at :doc:`../data_structure`.
+If you need more information regarding the Iron format, you can have a look at the
+:ref:`Iron <iron_link>` description.
 You should also set the ``as_input`` attribute of the subclass to ``implemented``, so that
 the new format will appear as available in the helper function.
 
@@ -119,7 +120,7 @@ of :class:`~linchemin.cgu.translate.TranslatorFactory`, to make it available to 
                       'info': 'Brief description that will appear in the helper function'}
     }
 
-That's it, you are all done! Now your newly developed format is available to all the LinChemin
+That's it, you are all done! Now your newly developed format is available to all the LinChemIn
 functionalities that use the
 :func:`~linchemin.cgu.translate.translator` function. For example, you can use it to translate a
 single route with the :func:`~linchemin.cgu.translate.translator` function:
@@ -163,6 +164,6 @@ return a graph object in the new format.
         def to_iron(self, route) -> Iron:
             pass
 
-Of course, if you want that your format is available as both input and output,
+Of course, if you want your format to be available as both input and output,
 you will need to implement both methods and to set as ``'implemented'`` both the
 ``as_input`` and ``as_output`` attributes.

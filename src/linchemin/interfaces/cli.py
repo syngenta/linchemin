@@ -1,10 +1,8 @@
 import argparse
-import pprint
-import sys
 from dataclasses import dataclass, field
-from typing import Union, List, Any
+from typing import List
 
-from linchemin.interfaces.workflows import process_routes, get_workflow_options
+from linchemin.interfaces.workflows import get_workflow_options, process_routes
 
 
 class keyvalue(argparse.Action):
@@ -69,7 +67,7 @@ def linchemin_cli(argv=None):
     parsed = parser.parse_args()
     # 4) pass the arguments as a dictionary to the function
 
-    output = process_routes(**vars(parsed))
+    process_routes(**vars(parsed))
 
     print('END: LinChemIn')
 

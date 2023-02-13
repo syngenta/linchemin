@@ -18,12 +18,12 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.autosummary',
               'sphinx.ext.viewcode']
 
-templates_path = ['_templates']
+templates_path = ['templates']
 exclude_patterns = ['build', 'Thumbs.db', '.DS_Store']
 
 autosummary_generate = True
 
-version = "1.0.1"
+version = "2.0.0"
 # The full version, including dev info
 release = version.replace("_", "")
 

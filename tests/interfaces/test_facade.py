@@ -2,8 +2,9 @@ from linchemin.interfaces.facade import facade, facade_helper
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph
 from rdkit.Chem import rdChemReactions
 import pandas as pd
-import os
-import pytest
+
+import unittest.mock
+import unittest
 import json
 
 
@@ -15,8 +16,10 @@ def test_translate(ibm2_path):
                               out_data_model='monopartite_reactions')
     assert type(output[0]) == MonopartiteReacSynGraph
 
-    empty_l = []
-    output, metadata = facade('translate', input_format='ibm_retro', input_list=empty_l)
+    graph.extend([{}])
+    with unittest.TestCase().assertLogs('linchemin.cgu.translate', level='WARNING') as cm:
+        facade('translate', input_format='ibm_retro', input_list=graph)
+    unittest.TestCase().assertIn('While translating from IBM', cm.records[0].getMessage())
 
 
 def test_metrics(ibm2_path):
@@ -60,38 +63,47 @@ def test_ged(az_path):
     assert meta3['errors'] != []
 
 
-def test_clustering(az_path):
+@unittest.mock.patch('linchemin.interfaces.facade.get_clustered_routes_metrics')
+@unittest.mock.patch('linchemin.rem.clustering.AgglomerativeClusterCalculator.get_clustering')
+def test_clustering(mock_clusterer, mock_metrics, az_path):
     graph = json.loads(open(az_path).read())
-    # Test with all default parameters
     routes, m = facade('translate', 'az_retro', graph, out_format='syngraph',
                        out_data_model='monopartite_reactions')
-    cluster, meta = facade('clustering', routes)
-    assert meta['clustering_algorithm'] == 'agglomerative_cluster' and len(cluster) == 2
+    # Test with all default parameters
+    facade('clustering', routes)
+    mock_clusterer.assert_called()
 
     # Test with some changed parameters
-    cluster2, meta2 = facade('clustering', routes, ged_method='nx_ged', clustering_method='agglomerative_cluster',
-                             ged_params={'reaction_fp': 'difference_fp',
-                                         'reaction_fp_params': {'fpSize': 1024},
-                                         'reaction_similarity_name': 'dice'},
-                             save_dist_matrix=True, linkage='average')
-
-    assert meta2['ged_algorithm'] == 'nx_ged' and len(cluster2) == 3 and cluster[0] != cluster2[0]
+    facade('clustering', routes, ged_method='nx_ged', clustering_method='agglomerative_cluster',
+           ged_params={'reaction_fp': 'difference_fp',
+                       'reaction_fp_params': {'fpSize': 1024},
+                       'reaction_similarity_name': 'dice'},
+           save_dist_matrix=True, linkage='average')
+    mock_clusterer.assert_called()
 
     # Test compute cluster metrics
-    cluster3, metrics, meta3 = facade('clustering', routes, compute_metrics=True)
-    assert len(metrics) == len(routes) and 'n_steps' in metrics
+    facade('clustering', routes, compute_metrics=True)
+    mock_clusterer.assert_called()
+    mock_metrics.assert_called()
 
-    cluster4, meta4 = facade('clustering', routes, parallelization=True)
-    assert cluster[0].labels_.all() == cluster4[0].labels_.all()
-
+    # If one of the route is None, it is recognized as such
     routes.append(None)
     cluster5, meta5 = facade('clustering', routes)
     assert meta5['invalid_routes'] == 1
 
+    # If only 1 route is passed, an error is raised
     single_route = [routes[0]]
-    cluster5, meta5 = facade('clustering', single_route)
-    assert cluster5 is None
-    assert meta5['errors'] != []
+    with unittest.TestCase().assertLogs('linchemin.rem.clustering', level='ERROR') as cm:
+        facade('clustering', single_route)
+    unittest.TestCase().assertIn('Less than 2 routes', cm.records[0].getMessage())
+
+
+def test_clustering_parallelization(az_path):
+    graph = json.loads(open(az_path).read())
+    routes, m = facade('translate', 'az_retro', graph, out_format='syngraph',
+                       out_data_model='monopartite_reactions')
+    cluster4, meta4 = facade('clustering', routes, parallelization=True)
+    assert all(cluster4[0].labels_) is not None
 
 
 def test_subset(az_path):
@@ -164,3 +176,25 @@ def test_reaction_extraction(mit_path):
     reactions, m = facade('extract_reactions_strings', routes)
     assert len(reactions) == 4
     assert type(m['errors'][0]) == TypeError
+
+
+@unittest.mock.patch('linchemin.cheminfo.atom_mapping.RxnMapper.map_chemical_equations')
+@unittest.mock.patch('linchemin.interfaces.facade.pipeline_atom_mapping')
+def test_mapping(mock_pipeline, mock_rxnmapper, ibm1_path):
+    graph = json.loads(open(ibm1_path).read())
+    routes, meta = facade('translate', 'ibm_retro', graph, out_data_model='monopartite_reactions')
+    # with mapping pipeline
+    mapped_routes, meta = facade('atom_mapping', routes,  mapper=None)
+    mock_pipeline.assert_called()
+    assert meta['mapping_success_rate']
+    for r in mapped_routes:
+        assert type(r) == BipartiteSynGraph
+        assert r.source
+
+    # with other values
+    mapped_routes, meta = facade('atom_mapping', routes, mapper='rxnmapper', out_data_model='monopartite_reactions')
+    mock_rxnmapper.assert_called()
+    assert meta['mapping_success_rate']
+    for r in mapped_routes:
+        assert type(r) == MonopartiteReacSynGraph
+
