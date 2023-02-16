@@ -743,7 +743,7 @@ class AtomMappingFacade(Facade):
             if mapping_out.success_rate != 1:
                 # if not all the reactions are mapped, a warning is raised and
                 # the output graph is built using all the mapped and the unmapped reactions (so that it is complete)
-                mapping_out.mapped_reactions.append(mapping_out.unmapped_reactions)
+                mapping_out.mapped_reactions.extend(mapping_out.unmapped_reactions)
             mapped_route = out_syngraph_type(mapping_out.mapped_reactions)
             mapped_route.source = source
             out_syngraphs.append(mapped_route)

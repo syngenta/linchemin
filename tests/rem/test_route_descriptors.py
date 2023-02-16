@@ -181,3 +181,11 @@ def test_branchedness(ibm2_path):
     routes = [translator('ibm_retro', g, 'syngraph', out_data_model='monopartite_reactions') for g in f[:3]]
     assert descriptor_calculator(routes[0], 'branchedness') == 0.0
     assert descriptor_calculator(routes[2], 'branchedness') == 0.5
+
+
+def test_atom_efficiency(az_path):
+    graph = json.loads(open(az_path).read())
+    az_routes_mp = translator('az_retro', graph[0], 'syngraph', out_data_model='monopartite_reactions')
+    ae = descriptor_calculator(az_routes_mp, 'atom_efficiency')
+    assert ae == 34. / 36.
+

@@ -160,6 +160,11 @@ def test_reaction_monopartite(az_path):
                         '-c2ncon2)cc1)C(=O)C1CCS(=O)(=O)CC1',
         inp_fmt='smiles')
     assert ce_root in mp_reac_syngraph.get_roots()
+    mol_roots = mp_reac_syngraph.get_molecule_roots()
+    assert 'Cc1cccc(C)c1N(CC(=O)Nc1ccc(-c2ncon2)cc1)C(=O)C1CCS(=O)(=O)CC1' in [m.smiles for m in mol_roots]
+    mol_leaves = mp_reac_syngraph.get_molecule_leaves()
+    leaves_smiles = ['O=C(O)C1CCS(=O)(=O)CC1', 'Cc1cccc(C)c1NCC(=O)O', 'Nc1ccc(-c2ncon2)cc1']
+    assert [m.smiles for m in mol_leaves] == leaves_smiles
 
 
 def test_get_reaction_leaves(az_path):
