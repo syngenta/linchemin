@@ -411,9 +411,10 @@ def mapping_diagnosis(chemical_equation, desired_product):
     if [a for a in desired_product.rdmol_mapped.GetAtoms() if a.GetAtomMapNum() in [0, -1]]:
         logger.warning('Some atoms in the desired product remain unmapped: possible important reactants are missing')
 
+    unamapped_fragments = []
     for uid in chemical_equation.role_map['reactants']:
         mols = [m.rdmol_mapped for u, m in chemical_equation.catalog.items() if u == uid]
-        unamapped_fragments = []
+
         for m in mols:
             if unmapped_atoms := [a for a in m.GetAtoms() if a.GetAtomMapNum() in [0, -1]]:
                 atoms_indices = [a.GetIdx() for a in unmapped_atoms]

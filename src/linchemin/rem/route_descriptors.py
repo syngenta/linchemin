@@ -46,7 +46,7 @@ class DescriptorCalculator(metaclass=abc.ABCMeta):
     """ Abstract class for DescriptorCalculator. """
 
     @abc.abstractmethod
-    def compute_descriptor(self, graph):
+    def compute_descriptor(self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]):
         """ Calculates the descriptor for the given graph.
 
             :param:
@@ -61,8 +61,9 @@ class DescriptorCalculator(metaclass=abc.ABCMeta):
 
 class NrBranches(DescriptorCalculator):
     """ Subclass of DescriptorCalculator representing the number of "AND" branches in a SynRoute. """
-
-    def compute_descriptor(self, graph: SynGraph):
+    info = 'Computes the number of branches in the input SynGraph'
+    def compute_descriptor(self,
+                           graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]) -> int:
         """ Takes a SynGraph and returns the number of ChemicalEquation nodes that are "parents" of more than one
             node. 0 corresponds to a linear route. """
 
@@ -70,9 +71,9 @@ class NrBranches(DescriptorCalculator):
             logger.error('The input route is None.')
             raise InvalidInput
 
-        if type(graph) == BipartiteSynGraph:
+        if isinstance(graph, BipartiteSynGraph):
             mp_graph = converter(graph, 'monopartite_reactions')
-        elif type(graph) == MonopartiteReacSynGraph:
+        elif isinstance(graph, MonopartiteReacSynGraph):
             mp_graph = graph
         else:
             logger.error(
@@ -92,13 +93,15 @@ class NrBranches(DescriptorCalculator):
 
 class Branchedness(DescriptorCalculator):
     """ Subclass of DescriptorCalculator representing the "branchedness" of a SynGraph """
+    info = 'Computes the "branchedness" of the input SynGraph, weighting the number of branching nodes with their ' \
+           'distance from the root '
 
-    def compute_descriptor(self, graph: SynGraph):
+    def compute_descriptor(self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]):
         """ Takes a SynGraph and returns the "branchedness" computed as the number of branching nodes weighted by their
             distance from the root (the closer to the root, the better). 0 indicates a linear SynGraph"""
-        if type(graph) == BipartiteSynGraph:
+        if isinstance(graph, BipartiteSynGraph):
             mp_graph = converter(graph, 'monopartite_reactions')
-        elif type(graph) == MonopartiteReacSynGraph:
+        elif isinstance(graph, MonopartiteReacSynGraph):
             mp_graph = graph
         else:
             logger.error(
@@ -128,13 +131,15 @@ class Branchedness(DescriptorCalculator):
 
 class LongestSequence(DescriptorCalculator):
     """ Subclass of DescriptorCalculator representing the longest linear sequence in a SynGraph. """
+    info = 'Computes the longest linear sequence in the input SynGraph'
 
-    def compute_descriptor(self, graph: SynGraph) -> int:
+    def compute_descriptor(self,
+                           graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]) -> int:
         """ Takes a SynGraph and returns the length of the longest sequence of ChemicalEquation between the SynRoot
             and the SynLeaves. """
-        if type(graph) == BipartiteSynGraph:
+        if isinstance(graph, BipartiteSynGraph):
             mp_graph = converter(graph, 'monopartite_reactions')
-        elif type(graph) == MonopartiteReacSynGraph:
+        elif isinstance(graph, MonopartiteReacSynGraph):
             mp_graph = graph
         else:
             logger.error(
@@ -154,12 +159,13 @@ class LongestSequence(DescriptorCalculator):
 
 class NrReactionSteps(DescriptorCalculator):
     """ Subclass of DescriptorCalculator representing the number of ReactionStep nodes in a SynGraph. """
-
-    def compute_descriptor(self, graph: SynGraph) -> int:
+    info = 'Computes the number of chemical reactions in the input SynGraph'
+    def compute_descriptor(self,
+                           graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]) -> int:
         """ Takes a SynGraph and returns the number of ReactionStep nodes in it. """
-        if type(graph) == BipartiteSynGraph:
+        if isinstance(graph, BipartiteSynGraph):
             mp_graph = converter(graph, 'monopartite_reactions')
-        elif type(graph) == MonopartiteReacSynGraph:
+        elif isinstance(graph, MonopartiteReacSynGraph):
             mp_graph = graph
         else:
             logger.error(
@@ -171,11 +177,12 @@ class NrReactionSteps(DescriptorCalculator):
 
 class PathFinder(DescriptorCalculator):
     """ Subclass of DescriptorCalculator representing the list of paths (ReactionStep nodes only) in a SynGraph. """
-
-    def compute_descriptor(self, graph: SynGraph) -> list:
+    info = 'Computes all the paths between the SynRoots and the SynLeaves in the input SynGraph'
+    def compute_descriptor(self,
+                           graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]) -> list:
         """ Takes a SynGraph/MonopartiteSynGraph and returns all the paths between the SynRoot and the SynLeaves
             (only ReactionStep nodes). """
-        if type(graph) not in [BipartiteSynGraph, MonopartiteReacSynGraph]:
+        if not isinstance(graph, (BipartiteSynGraph, MonopartiteReacSynGraph)):
             logger.error(
                 f'{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted.')
             raise WrongGraphType
@@ -193,9 +200,12 @@ class PathFinder(DescriptorCalculator):
 
 
 class Convergence(DescriptorCalculator):
-    """ Subclass of DescriptorCalculator representing the 'branchedness' of a SynGraph. """
+    """ Subclass of DescriptorCalculator representing the convergence of a SynGraph. """
+    info = 'Computes the "convergence" of the input SynGraph, as the ratio between the longest linear sequence and ' \
+           'the number of steps '
 
-    def compute_descriptor(self, graph: SynGraph) -> float:
+    def compute_descriptor(self,
+                           graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]) -> float:
         """ Takes a SynGraph and returns its convergence as the ratio between the longest linear sequence and the
             number of steps computed in the monopartite representation. """
 
@@ -207,13 +217,14 @@ class Convergence(DescriptorCalculator):
 
 class AvgBranchingFactor(DescriptorCalculator):
     """ Subclass of DescriptorCalculator representing the average branching factor of a SynGraph. """
-
-    def compute_descriptor(self, graph: SynGraph) -> float:
+    info = 'Computes the average branching factor of the input SynGraph'
+    def compute_descriptor(self,
+                           graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]) -> float:
         """ Takes a SynGraph and returns the average branching factor as the ratio between the number of non-root
             reaction nodes and the number of non-leaf reaction nodes. """
-        if type(graph) == BipartiteSynGraph:
+        if isinstance(graph, BipartiteSynGraph):
             mp_graph = converter(graph, 'monopartite_reactions')
-        elif type(graph) == MonopartiteReacSynGraph:
+        elif isinstance(graph, MonopartiteReacSynGraph):
             mp_graph = graph
         else:
             logger.error(
@@ -233,13 +244,15 @@ class CDScore(DescriptorCalculator):
     """ Subclass of DescriptorCalculator representing the Convergent Disconnection Score of a SynGraph.
         https://pubs.acs.org/doi/10.1021/acs.jcim.1c01074
     """
+    info = 'Computes the Convergent Disconnection Score of the input SynGraph'
 
-    def compute_descriptor(self, graph: SynGraph) -> float:
+    def compute_descriptor(self,
+                           graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]) -> float:
         """ Takes a SynGraph and returns the average CDScore computing the score for each reaction involved. """
 
-        if type(graph) == BipartiteSynGraph:
+        if isinstance(graph, BipartiteSynGraph):
             mp_graph = converter(graph, 'monopartite_reactions')
-        elif type(graph) == MonopartiteReacSynGraph:
+        elif isinstance(graph, MonopartiteReacSynGraph):
             mp_graph = graph
         else:
             logger.error(
@@ -261,6 +274,28 @@ class CDScore(DescriptorCalculator):
         return route_score / len(unique_reactions)
 
 
+class AtomEfficiency(DescriptorCalculator):
+    """ Subclass of DescriptorCalculator representing the atom efficiency of a SynGraph. """
+    info = 'Computes the atom efficiency of the input SynGraph, as the ratio between the number of atoms in the ' \
+           'target and the number of atoms in the starting materials '
+
+    def compute_descriptor(self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]) -> float:
+        """ Takes a SynGraph and returns its atom efficiency """
+        if isinstance(graph, BipartiteSynGraph):
+            root = graph.get_roots()[0]
+            leaves = graph.get_leaves()
+        elif isinstance(graph, MonopartiteReacSynGraph):
+            root = graph.get_molecule_roots()[0]
+            leaves = graph.get_molecule_leaves()
+        else:
+            logger.error(
+                f'{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted.')
+            raise WrongGraphType
+        target_n_atoms = root.rdmol.GetNumAtoms()
+        all_atoms_leaves = sum(leaf.rdmol.GetNumAtoms() for leaf in leaves)
+        return target_n_atoms / all_atoms_leaves
+
+
 class DescriptorsCalculatorFactory:
     """ DescriptorCalculator Factory to give access to the descriptors.
 
@@ -270,23 +305,23 @@ class DescriptorsCalculatorFactory:
     """
     route_descriptors = {
         'longest_seq': {'value': LongestSequence,
-                        'info': 'Computes the longest linear sequence in the input SynGraph'},
+                        'info': LongestSequence.info},
         'nr_steps': {'value': NrReactionSteps,
-                     'info': 'Computes the number of chemical reactions in the input SynGraph'},
+                     'info': NrReactionSteps.info},
         'all_paths': {'value': PathFinder,
-                      'info': 'Computes all the paths between the SynRoots and the SynLeaves in the input SynGraph'},
+                      'info': PathFinder.info},
         'nr_branches': {'value': NrBranches,
-                        'info': 'Computes the number of branches in the input SynGraph'},
+                        'info': NrBranches.info},
         'branchedness': {'value': Branchedness,
-                         'info': 'Computes the "branchedness" of the input SynGraph, weighting the number of '
-                                 'branching nodes with their distance from the root'},
+                         'info': Branchedness.info},
         'branching_factor': {'value': AvgBranchingFactor,
-                             'info': 'Computes the average branching factor of the input SynGraph'},
+                             'info': AvgBranchingFactor.info},
         'convergence': {'value': Convergence,
-                        'info': 'Computes the "convergence" of the input SynGraph, as the ratio between the '
-                                'longest linear sequence and the number of steps'},
+                        'info': Convergence.info},
         'cdscore': {'value': CDScore,
-                    'info': 'Computes the Convergent Disconnection Score of the input SynGraph'}
+                    'info': CDScore.info},
+        'atom_efficiency': {'value': AtomEfficiency,
+                            'info': AtomEfficiency.info}
     }
 
     def select_route_descriptor(self, graph, descriptor: str):

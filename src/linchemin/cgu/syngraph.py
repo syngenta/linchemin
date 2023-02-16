@@ -267,22 +267,29 @@ class MonopartiteReacSynGraph(SynGraph):
 
     def get_molecule_roots(self) -> list:
         """ To get the list of Molecules roots in a MonopartiteReacSynGraph. """
-        roots: List[Molecule] = []
-        root_reactions = [tup[0] for tup in self if tup[1] == set()]
-        for reaction in root_reactions:
-            roots = roots + [mol for h, mol in reaction.catalog.items() if h in reaction.role_map['products']]
+        all_reactants = set()
+        all_products = set()
+        for parent, children in self.graph.items():
+            all_reactants |= {mol for h, mol in parent.catalog.items() if h in parent.role_map['reactants']}
+            all_products |= {mol for h, mol in parent.catalog.items() if h in parent.role_map['products']}
 
-        return roots
+            for child in children:
+                all_reactants |= {mol for h, mol in child.catalog.items() if h in child.role_map['reactants']}
+                all_products |= {mol for h, mol in child.catalog.items() if h in child.role_map['products']}
+        return [m for m in all_products if m not in all_reactants]
 
     def get_molecule_leaves(self) -> list:
         """ To get the list of Molecule leaves in a MonopartiteReacSynGraph. """
-        leaves: List[Molecule] = []
-        for reac in self.graph:
+        all_reactants = set()
+        all_products = set()
+        for parent, children in self.graph.items():
+            all_reactants |= {mol for h, mol in parent.catalog.items() if h in parent.role_map['reactants']}
+            all_products |= {mol for h, mol in parent.catalog.items() if h in parent.role_map['products']}
 
-            if reac not in self.graph.values():
-                leaves = leaves + [mol for h, mol in reac.catalog.items() if h in reac.role_map['reactants']]
-
-        return leaves
+            for child in children:
+                all_reactants |= {mol for h, mol in child.catalog.items() if h in child.role_map['reactants']}
+                all_products |= {mol for h, mol in child.catalog.items() if h in child.role_map['products']}
+        return [m for m in all_reactants if m not in all_products]
 
 
 class MonopartiteMolSynGraph(SynGraph):
