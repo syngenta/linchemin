@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "linchemin"
-version = "2.0.2"
+version = "2.0.3"
 description = "Toolkit to create, manipulate, and query networks of Chemical Reactions and Chemicals"
 license = { file = "LICENSE" }
 
@@ -57,7 +57,7 @@ linchemin = "linchemin.interfaces.cli:linchemin_cli"
 linchemin_configure = "linchemin.configuration.config:configure"
 
 [tool.bumpver]
-current_version = "2.0.2"
+current_version = "2.0.3"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message  = "Bump version {old_version} -> {new_version}"
 commit          = true
