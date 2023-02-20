@@ -1,21 +1,39 @@
 import abc
 
 from linchemin.cheminfo.models import ChemicalEquation
+from linchemin.utilities import console_logger
 
 """
 Module containing functions and classes for computing score and metrics of single nodes of a route.
 """
 
+logger = console_logger(__name__)
 
-class NodeScore(metaclass=abc.ABCMeta):
+
+class ChemicalEquationDescriptor(metaclass=abc.ABCMeta):
     """ Definition of the abstract class for NodeScore. """
 
     @abc.abstractmethod
-    def compute_score(self, node):
+    def compute_score(self, node: ChemicalEquation):
         pass
 
 
-class CDNodeScore(NodeScore):
+class CEAtomEfficiency(ChemicalEquationDescriptor):
+    """ Subclass of atom efficiency at ChemicalEquation level """
+
+    def compute_score(self, reaction: ChemicalEquation) -> float:
+        """ Takes a ChemicalEquation instance and compute the atom efficiency """
+        if reaction.mapping is None:
+            logger.warning("Atom mapping not present! Roles might be incorrect.")
+
+        desired_product = [prod.rdmol for h, prod in reaction.catalog.items() if h in reaction.role_map['products']][0]
+        n_atoms_prod = desired_product.GetNumAtoms()
+        reactants = [reac.rdmol for h, reac in reaction.catalog.items() if h in reaction.role_map['reactants']]
+        n_atoms_reactants = sum(r.GetNumAtoms() for r in reactants)
+        return n_atoms_prod / n_atoms_reactants
+
+
+class CDNodeScore(ChemicalEquationDescriptor):
     """ Subclass of NodeScore representing the Convergent Disconnection Score.
         https://pubs.acs.org/doi/10.1021/acs.jcim.1c01074 """
 
@@ -40,19 +58,21 @@ class CDNodeScore(NodeScore):
         return 1 / (1 + sum(abs_error) / len(abs_error))
 
 
-class NodeScoreCalculator:
+class NodeDescriptorCalculator:
     """ Definition of the NodeScore factory. """
 
-    node_scores = {
+    node_descriptors = {
+
         'cdscore': CDNodeScore,
+        'step_efficiency': CEAtomEfficiency,
     }
 
     def select_node_score(self, node, score: str):
         """ Takes a string indicating a metrics and a SynGraph and returns the value of the metrics """
-        if score not in self.node_scores:
-            raise KeyError(f"Invalid score. Available node scores are: {self.node_scores.keys()}")
+        if score not in self.node_descriptors:
+            raise KeyError(f"Invalid score. Available node scores are: {self.node_descriptors.keys()}")
 
-        calculator = self.node_scores.get(score)
+        calculator = self.node_descriptors.get(score)
         return calculator().compute_score(node)
 
 
@@ -65,7 +85,7 @@ def node_score_calculator(node, score: str):
             :return:
                 score: a float
     """
-    score_selector = NodeScoreCalculator()
+    score_selector = NodeDescriptorCalculator()
     return score_selector.select_node_score(node, score)
 
 

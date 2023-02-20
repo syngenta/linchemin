@@ -1,7 +1,6 @@
-import pytest
-
+from linchemin.rem.node_descriptors import node_score_calculator, reaction_mapping
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
-from linchemin.rem.node_metrics import node_score_calculator, reaction_mapping
+import pytest
 
 
 def test_factory():
@@ -61,3 +60,21 @@ def test_reaction_mapping():
     assert reaction_mapping(map_dictionaries['map5'], map_dictionaries['map6'], ids_transferred_atoms=[]) == [2, 3, 4]
     # unmapped atoms (map index = 0) are ignored
     assert reaction_mapping(map_dictionaries['map7'], map_dictionaries['map8']) == [2]
+
+
+def test_atom_efficiency():
+    ce_test_set = {
+        0: {'smiles': 'N#CC1=CC=CC=C1>>NCC1=CC=CC=C1',      # fully efficient reaction (ae = 1)
+            'expected': 1.},
+        1: {'smiles': '[CH3:1][NH2:2]>>CNC(C)=O',           # reaction with missing reactants (ae > 1)
+            'expected': 2.5},
+        2: {'smiles': 'COC(C)=O.[CH3:1][NH2:2]>>CNC(C)=O',  # reaction with by/side-products (ea < 1)
+            'expected': 0.7},
+    }
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_r_p')
+    for d in ce_test_set.values():
+        ce = chemical_equation_constructor.build_from_reaction_string(
+            reaction_string=d['smiles'], inp_fmt='smiles')
+        ae = node_score_calculator(ce, 'step_efficiency')
+        assert round(ae, 1) == d['expected']

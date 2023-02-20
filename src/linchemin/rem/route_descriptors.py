@@ -6,7 +6,7 @@ from linchemin.cgu.convert import converter
 from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteReacSynGraph,
                                     SynGraph)
 from linchemin.cheminfo.models import ChemicalEquation
-from linchemin.rem.node_metrics import node_score_calculator
+from linchemin.rem.node_descriptors import node_score_calculator
 from linchemin.utilities import console_logger
 
 """
