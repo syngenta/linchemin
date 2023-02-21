@@ -6,7 +6,7 @@ from linchemin.cgu.convert import converter
 from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteReacSynGraph,
                                     SynGraph)
 from linchemin.cheminfo.models import ChemicalEquation
-from linchemin.rem.node_descriptors import node_score_calculator
+from linchemin.rem.node_descriptors import node_descriptor_calculator
 from linchemin.utilities import console_logger
 
 """
@@ -268,7 +268,7 @@ class CDScore(DescriptorCalculator):
 
         route_score = 0
         for reaction in unique_reactions:
-            score = node_score_calculator(reaction, 'cdscore')
+            score = node_descriptor_calculator(reaction, 'cdscore')
             route_score += score
 
         return route_score / len(unique_reactions)
