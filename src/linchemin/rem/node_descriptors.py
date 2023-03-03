@@ -1,6 +1,7 @@
 import abc
 
-from linchemin.cheminfo.models import ChemicalEquation
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
+import linchemin.cheminfo.functions as cif
 from linchemin.utilities import console_logger
 
 """
@@ -10,24 +11,72 @@ Module containing functions and classes for computing score and metrics of singl
 logger = console_logger(__name__)
 
 
+class NoMapping(Exception):
+    """ Raised if the atom mapping is absent but needed to compute a descriptor """
+    pass
+
+
 class ChemicalEquationDescriptor(metaclass=abc.ABCMeta):
     """ Definition of the abstract class for NodeScore. """
 
     @abc.abstractmethod
-    def compute_score(self, node: ChemicalEquation):
+    def compute_descriptor(self, reaction: ChemicalEquation):
         pass
+
+
+class CEHypsicity(ChemicalEquationDescriptor):
+    """ Subclass to compute the hypsicity of a ChemicalEquation """
+
+    def compute_descriptor(self, reaction: ChemicalEquation) -> float:
+        """ Takes a ChemicalEquation instance and returns its hypsicity, i.e., the change in the oxidation state of
+            the atoms """
+
+        if reaction.mapping is None:
+            logger.error("No atom mapping: the descriptor cannot be computed")
+            raise NoMapping
+
+        # select the desired product and add the oxidation number property to its atoms
+        desired_product = [prod for h, prod in reaction.catalog.items() if h in reaction.role_map['products']][0]
+        cif.compute_oxidation_numbers(desired_product.rdmol_mapped)
+        desired_product_at = [at for at in reaction.mapping.atom_transformations if
+                              at.product_uid == desired_product.uid]
+        # identify the involved reactants and add the oxidation number property to their atoms
+        reactants_uid = [at.reactant_uid for at in desired_product_at]
+        reactants = [mol for h, mol in reaction.catalog.items() if mol.uid in reactants_uid]
+        for r in reactants:
+            cif.compute_oxidation_numbers(r.rdmol_mapped)
+        return self.compute_oxidation_state_change(desired_product_at, desired_product, reactants)
+
+    @staticmethod
+    def compute_oxidation_state_change(atom_transformations: list, desired_product: Molecule, reactants: list) -> float:
+        """ Computes the change in oxidation state for each mapped atom in the ChemicalEquation """
+        delta = 0.0
+        # ox_nrs = []
+        for at in atom_transformations:
+            prod_ox = [atom.GetIntProp('_OxidationNumber') for atom in desired_product.rdmol_mapped.GetAtoms()
+                       if atom.GetIdx() == at.prod_atom_id][0]
+            reactant = [reac for reac in reactants if reac.uid == at.reactant_uid][0]
+            react_ox = [atom.GetIntProp('_OxidationNumber') for atom in reactant.rdmol_mapped.GetAtoms()
+                        if atom.GetIdx() == at.react_atom_id][0]
+            # ox_nrs.append((prod_ox, react_ox))
+            delta += prod_ox - react_ox
+        # print(ox_nrs)
+        return delta
 
 
 class CEAtomEfficiency(ChemicalEquationDescriptor):
     """ Subclass of atom efficiency at ChemicalEquation level """
 
-    def compute_score(self, reaction: ChemicalEquation) -> float:
+    def compute_descriptor(self, reaction: ChemicalEquation) -> float:
         """ Takes a ChemicalEquation instance and compute the atom efficiency """
         if reaction.mapping is None:
-            logger.warning("Atom mapping not present! Roles might be incorrect.")
+            logger.error("No atom mapping: the descriptor cannot be computed")
+            raise NoMapping
 
-        desired_product = [prod.rdmol for h, prod in reaction.catalog.items() if h in reaction.role_map['products']][0]
-        n_atoms_prod = desired_product.GetNumAtoms()
+        # compute the number of mapped atoms in the desired product
+        desired_product = [prod.rdmol_mapped for h, prod in reaction.catalog.items() if h in reaction.role_map['products']][0]
+        n_atoms_prod = len([a for a in desired_product.GetAtoms() if a.GetAtomMapNum() not in [0, -1]])
+        # compute the number of atoms in all the reactants
         reactants = [reac.rdmol for h, reac in reaction.catalog.items() if h in reaction.role_map['reactants']]
         n_atoms_reactants = sum(r.GetNumAtoms() for r in reactants)
         return n_atoms_prod / n_atoms_reactants
@@ -37,12 +86,10 @@ class CDNodeScore(ChemicalEquationDescriptor):
     """ Subclass of NodeScore representing the Convergent Disconnection Score.
         https://pubs.acs.org/doi/10.1021/acs.jcim.1c01074 """
 
-    def compute_score(self, reaction: ChemicalEquation) -> float:
+    def compute_descriptor(self, reaction: ChemicalEquation) -> float:
         """ Takes a ChemicalEquation instance and compute the Convergent Disconnection Score [0, 1].
             The closer the score is to 1, the more balanced is the reaction.
         """
-        if type(reaction) != ChemicalEquation:
-            raise TypeError("CDscore can be computed only on ChemicalEquation instances.")
 
         # Retrieve list of products and reactants of the input reaction
         products = [prod.rdmol for h, prod in reaction.catalog.items() if h in reaction.role_map['products']]
@@ -58,35 +105,39 @@ class CDNodeScore(ChemicalEquationDescriptor):
         return 1 / (1 + sum(abs_error) / len(abs_error))
 
 
-class NodeDescriptorCalculator:
-    """ Definition of the NodeScore factory. """
+class ChemicalEquationDescriptorCalculator:
+    """ Definition of the ChemicalEquationDescriptorCalculator factory. """
 
-    node_descriptors = {
+    ce_descriptors = {
 
         'cdscore': CDNodeScore,
-        'step_efficiency': CEAtomEfficiency,
+        'ce_efficiency': CEAtomEfficiency,
+        'ce_hypsicity': CEHypsicity,
     }
 
-    def select_node_score(self, node, score: str):
+    def select_ce_descriptor(self, reaction: ChemicalEquation, score: str):
         """ Takes a string indicating a metrics and a SynGraph and returns the value of the metrics """
-        if score not in self.node_descriptors:
-            raise KeyError(f"Invalid score. Available node scores are: {self.node_descriptors.keys()}")
+        if score not in self.ce_descriptors:
+            raise KeyError(f"Invalid score. Available node scores are: {self.ce_descriptors.keys()}")
 
-        calculator = self.node_descriptors.get(score)
-        return calculator().compute_score(node)
+        calculator = self.ce_descriptors.get(score)
+        return calculator().compute_descriptor(reaction)
 
 
-def node_score_calculator(node, score: str):
+def node_descriptor_calculator(reaction: ChemicalEquation, score: str):
     """ Gives access to the NodeScoreCalculator factory.
             :param:
-                node: a Molecule or ChemicalEquation instance
+                node: a ChemicalEquation instance
                 score: a string indicating which score should be computed
 
             :return:
                 score: a float
     """
-    score_selector = NodeDescriptorCalculator()
-    return score_selector.select_node_score(node, score)
+    if type(reaction) != ChemicalEquation:
+        raise TypeError("Step descriptors can be computed only on ChemicalEquation instances.")
+
+    score_selector = ChemicalEquationDescriptorCalculator()
+    return score_selector.select_ce_descriptor(reaction, score)
 
 
 def reaction_mapping(reactant_map: dict, product_map: dict, ids_transferred_atoms: list = None):
