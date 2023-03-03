@@ -64,11 +64,14 @@ def test_reaction_mapping():
 
 def test_atom_efficiency():
     ce_test_set = {
-        0: {'smiles': 'N#CC1=CC=CC=C1>>NCC1=CC=CC=C1',  # fully efficient reaction (ae = 1)
+        # fully efficient reaction (ae = 1)
+        0: {'smiles': '[N:8]#[C:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1>>[NH2:8][CH2:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1',
             'expected': 1.},
-        1: {'smiles': '[CH3:4][NH2:5]>>[CH3:5][NH:4][C:3]([CH3:2])=[O:1]',  # reaction with missing reactants (ae > 1)
+        # reaction with missing reactants (ae > 1)
+        1: {'smiles': '[CH3:4][NH2:5]>>[CH3:5][NH:4][C:3]([CH3:2])=[O:1]',
             'expected': 2.5},
-        2: {'smiles': 'COC(C)=O.[CH3:1][NH2:2]>>CNC(C)=O',  # reaction with by/side-products (ea < 1)
+        # reaction with by/side-products (ea < 1)
+        2: {'smiles': '[CH3:0][O:0][C:3]([CH3:2])=[O:1].[CH3:4][NH2:5]>>[CH3:4][NH:5][C:3]([CH3:2])=[O:1]',
             'expected': 0.7},
     }
     chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
@@ -82,16 +85,30 @@ def test_atom_efficiency():
 
 def test_hypsicity():
     ce_test_set = {
-        0: {'smiles': 'N#CC1=CC=CC=C1>>NCC1=CC=CC=C1',  # reaction without mapping raises error
-            'expected': 0},
-        1: {'smiles': '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:2]([CH3:1])=[O:4]',  # no ox changes
+        # reaction without mapping raises error
+        0: {'smiles': 'N#CC1=CC=CC=C1>>NCC1=CC=CC=C1',
+            'expected': None},
+        # no redox reaction
+        1: {'smiles': '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:2]([CH3:1])=[O:4]',
             'expected': 0.0},
-        2: {'smiles': '[CH3:2][C:3]([CH3:4])=[O:1]>>[CH3:2][CH:3]([CH3:4])[OH:1]',  # ox change
-            'expected': 2.0},
-        3: {'smiles': '[O-:3][C:2]([O-:4])=[O:1]>>[O:1]=[C:2]=[O:3]',   # oxygen exchange without change in ox state
+        # reduction
+        2: {'smiles': '[CH3:2][C:3]([CH3:4])=[O:1]>>[CH3:2][CH:3]([CH3:4])[OH:1]',
+            'expected': -2.0},
+        # oxygen exchange without change in ox state
+        3: {'smiles': '[O-:3][C:2]([O-:4])=[O:1]>>[O:1]=[C:2]=[O:3]',
             'expected': 0.0},
+        # reduction from triple CN bond to single CN bond
         4: {'smiles': '[N:8]#[C:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1>>[NH2:8][CH2:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1',
-            'expected': 4.0}
+            'expected': -4.0},
+        # reductive amination giving an imine -> no change detected
+        5: {'smiles': '[CH3:1][C:2]([CH3:3])=[O:4].[CH3:5][NH:6][CH3:7]>>[CH3:1][C:2]([CH3:3])=[N+:6]([CH3:5])[CH3:7]',
+            'expected': 0.0},
+        # reductive amination giving an amine -> change detected
+        6: {'smiles': '[CH3:1][C:2]([CH3:3])=[O:4].[CH3:5][NH:6][CH3:7]>>[CH3:3][CH:2]([CH3:1])[N:6]([CH3:7])[CH3:5]',
+            'expected': -2.0},
+        # oxidation from ketone to acid
+        7: {'smiles': '[CH3:1][C:2]([CH3])=[O:3]>>[CH3:1][C:2]([OH])=[O:3]',
+            'expected': 1.0}
     }
     chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
                                                                 chemical_equation_identity_name='r_r_p')
