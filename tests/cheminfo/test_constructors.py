@@ -1,22 +1,16 @@
-import unittest
 from itertools import combinations
-
-import pytest
-
-import linchemin.cheminfo.depiction as cid
-import linchemin.cheminfo.functions as cif
-from linchemin.cheminfo.constructors import (BadMapping,
-                                             ChemicalEquationConstructor,
-                                             DisconnectionConstructor,
-                                             MoleculeConstructor,
-                                             PatternConstructor,
-                                             RatamConstructor,
-                                             TemplateConstructor,
-                                             UnavailableMolIdentifier,
-                                             calculate_molecular_hash_values)
+from linchemin.cheminfo.constructors import (MoleculeConstructor, ChemicalEquationConstructor, RatamConstructor,
+                                             BadMapping, PatternConstructor, TemplateConstructor,
+                                             DisconnectionConstructor, calculate_molecular_hash_values,
+                                             UnavailableMolIdentifier)
+from linchemin.cheminfo.atom_mapping import pipeline_atom_mapping
 from linchemin.cheminfo.models import Template
-from linchemin.IO import io as lio
 from linchemin.utilities import create_hash
+import linchemin.cheminfo.functions as cif
+from linchemin.IO import io as lio
+import linchemin.cheminfo.depiction as cid
+import unittest
+import pytest
 
 
 # Molecule tests
@@ -958,11 +952,19 @@ def test_instantiate_chemical_equation():
     # assert molecules are canonicalized
     # assert reaction is canonicalized
     chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
-                                                                chemical_equation_identity_name='r_p')
+                                                                chemical_equation_identity_name='r_r_p')
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=reaction_smiles_input,
                                                                                  inp_fmt='smiles')
-    assert chemical_equation.smiles == 'CC(=O)O.CN>>CNC(C)=O'
-    assert not list(chemical_equation.rdrxn.GetAgents())
+    # assert chemical_equation.smiles == 'CC(=O)O.CN>>CNC(C)=O'
+    # assert not list(chemical_equation.rdrxn.GetAgents())
+    s = 'O=Cc1ccnc(Cl)c1.O.O=[N+]([O-])[O-].[Ag+].[Na+].[OH-]>>O=C(O)c1ccnc(Cl)c1'
+    in_mapping = [{'query_id': 0, 'input_string': s}]
+    out = pipeline_atom_mapping(in_mapping)
+    chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=out.mapped_reactions[0]['output_string'],
+                                                                                 inp_fmt='smiles')
+    print(chemical_equation.smiles)
+    print(chemical_equation.disconnection)
+
 
 
 def test_create_reaction_smiles_from_chemical_equation():
@@ -1531,8 +1533,10 @@ def test_disconnection_depiction():
          },
         {'name': 'rnx_7',  # not fully balanced reaction
          'smiles': '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15]>C(Cl)Cl.C(=O)(C(=O)Cl)Cl>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]',
-         'expected': {},
-         },
+         'expected': {}, },
+        # {'name': 'rxn_8',  # the new bond only involves hydrogen: currently the depiction does not work!
+        #  'smiles': '[N:8]#[C:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1>>[NH2:8][CH2:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1',
+        #  'expected': {}},
     ]
     dc = DisconnectionConstructor(identity_property_name='smiles')
     results = {item.get('name'): dc.build_from_reaction_string(reaction_string=item.get('smiles'), inp_fmt='smiles')

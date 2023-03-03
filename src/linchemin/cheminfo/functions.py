@@ -295,7 +295,11 @@ def select_desired_product(mol_catalog: dict):
         :return:
             the Molecule instance of the desired product
     """
-    return mol_catalog['products'][0]
+    d = {p: rdkit.Chem.rdMolDescriptors.CalcExactMolWt(p.rdmol) for p in mol_catalog.get('products')}
+    desired_prod = max(d, key=d.get)
+    # print('desired produc = ', desired_prod.smiles)
+    return desired_prod
+    # return mol_catalog['products'][0]
 
 
 def rdrxn_role_reassignment(rdrxn: rdChemReactions.ChemicalReaction,
