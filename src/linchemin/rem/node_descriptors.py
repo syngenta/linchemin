@@ -32,7 +32,7 @@ class CEHypsicity(ChemicalEquationDescriptor):
             the atoms """
 
         if reaction.mapping is None:
-            logger.error("No atom mapping: the hypsicity cannot be computed")
+            logger.error("No atom mapping: the descriptor cannot be computed")
             raise NoMapping
 
         # select the desired product and add the oxidation number property to its atoms
@@ -59,7 +59,7 @@ class CEHypsicity(ChemicalEquationDescriptor):
             react_ox = [atom.GetIntProp('_OxidationNumber') for atom in reactant.rdmol_mapped.GetAtoms()
                         if atom.GetIdx() == at.react_atom_id][0]
             # ox_nrs.append((prod_ox, react_ox))
-            delta += abs(prod_ox - react_ox)
+            delta += prod_ox - react_ox
         # print(ox_nrs)
         return delta
 
@@ -70,11 +70,12 @@ class CEAtomEfficiency(ChemicalEquationDescriptor):
     def compute_descriptor(self, reaction: ChemicalEquation) -> float:
         """ Takes a ChemicalEquation instance and compute the atom efficiency """
         if reaction.mapping is None:
-            logger.warning("Atom mapping not present! Roles might be incorrect.")
+            logger.error("No atom mapping: the descriptor cannot be computed")
+            raise NoMapping
 
-        # compute the number of atoms in the desired product
-        desired_product = [prod.rdmol for h, prod in reaction.catalog.items() if h in reaction.role_map['products']][0]
-        n_atoms_prod = desired_product.GetNumAtoms()
+        # compute the number of mapped atoms in the desired product
+        desired_product = [prod.rdmol_mapped for h, prod in reaction.catalog.items() if h in reaction.role_map['products']][0]
+        n_atoms_prod = len([a for a in desired_product.GetAtoms() if a.GetAtomMapNum() not in [0, -1]])
         # compute the number of atoms in all the reactants
         reactants = [reac.rdmol for h, reac in reaction.catalog.items() if h in reaction.role_map['reactants']]
         n_atoms_reactants = sum(r.GetNumAtoms() for r in reactants)

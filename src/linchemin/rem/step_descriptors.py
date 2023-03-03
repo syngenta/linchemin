@@ -23,7 +23,7 @@ class DescriptorCalculationOutput:
 
                 additional_info: a dictionary possibly containing additional information about the descriptor
     """
-    descriptor_value: Union[float, None] = None
+    descriptor_value: float | None = None
     additional_info: dict = field(default_factory=dict)
 
 

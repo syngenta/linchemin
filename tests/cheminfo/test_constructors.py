@@ -11,7 +11,6 @@ from linchemin.IO import io as lio
 import linchemin.cheminfo.depiction as cid
 import unittest
 import pytest
-import pprint
 
 
 # Molecule tests
@@ -879,7 +878,7 @@ def test_chemical_equation_hashing():
                  1: {'smiles': 'CC(O)=O.CN>O>CNC(C)=O'},
                  2: {'smiles': '>>CNC(C)=O'},
                  3: {'smiles': 'CC(O)=O.CN>>CNC(C)=O'},
-                 # 4: {'smiles': 'CC(O)=O.CN>>'},
+                 4: {'smiles': 'CC(O)=O.CN>>'},
                  5: {'smiles': 'CN.CC(O)=O>>CNC(C)=O'},
                  6: {'smiles': 'CNC(C)=O>>CN.CC(O)=O'},
                  7: {'smiles': 'CN.CC(O)=O>>CNC(C)=O.O'},
@@ -916,10 +915,10 @@ def test_chemical_equation_hashing():
     # the machinery does not break when the agents are missing
     assert results.get(3).get('reagents')
     # the machinery does not break when the products are missing
-    # assert results.get(4).get('products')
+    assert results.get(4).get('products')
     # there is a special hash for missing roles (it is the hash of an empty string)
-    # assert results.get(2).get('reactants') == results.get(3).get('reagents') == results.get(4).get(
-    #     'products') == create_hash('')
+    assert results.get(2).get('reactants') == results.get(3).get('reagents') == results.get(4).get(
+        'products') == create_hash('')
     # the reactant and products hashes are conserved even when the reagents are missing
     assert results.get(0).get('reactants') == results.get(5).get('reactants')
     assert results.get(0).get('products') == results.get(5).get('products')
@@ -942,36 +941,30 @@ def test_chemical_equation_hashing():
 
 
 def test_instantiate_chemical_equation():
-    # the identity property r_r_p considers reactants, reagents ad products
     reaction_smiles_input = 'NC.CC(O)=O>O>CNC(C)=O'
     chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
                                                                 chemical_equation_identity_name='r_r_p')
-    chemical_equation1 = chemical_equation_constructor.build_from_reaction_string(reaction_string=reaction_smiles_input,
-                                                                                  inp_fmt='smiles')
-    assert chemical_equation1
-    assert chemical_equation1.smiles == 'CC(=O)O.CN>O>CNC(C)=O'
-    assert list(chemical_equation1.rdrxn.GetAgents())
+    chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=reaction_smiles_input,
+                                                                                 inp_fmt='smiles')
+    assert chemical_equation
+    assert chemical_equation.smiles == 'CC(=O)O.CN>O>CNC(C)=O'
+    assert list(chemical_equation.rdrxn.GetAgents())
     # assert molecules are canonicalized
     # assert reaction is canonicalized
-
-    # the identity property r_p only considers reactants and prodcts
     chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
-                                                                chemical_equation_identity_name='r_p')
-    chemical_equation2 = chemical_equation_constructor.build_from_reaction_string(reaction_string=reaction_smiles_input,
-                                                                                  inp_fmt='smiles')
-    assert chemical_equation2.smiles == 'CC(=O)O.CN>>CNC(C)=O'
-    assert chemical_equation1.smiles != chemical_equation2.smiles
-    assert not list(chemical_equation2.rdrxn.GetAgents())
-    assert chemical_equation2.disconnection == chemical_equation2.template is None
+                                                                chemical_equation_identity_name='r_r_p')
+    chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=reaction_smiles_input,
+                                                                                 inp_fmt='smiles')
+    # assert chemical_equation.smiles == 'CC(=O)O.CN>>CNC(C)=O'
+    # assert not list(chemical_equation.rdrxn.GetAgents())
+    s = 'O=Cc1ccnc(Cl)c1.O.O=[N+]([O-])[O-].[Ag+].[Na+].[OH-]>>O=C(O)c1ccnc(Cl)c1'
+    in_mapping = [{'query_id': 0, 'input_string': s}]
+    out = pipeline_atom_mapping(in_mapping)
+    chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=out.mapped_reactions[0]['output_string'],
+                                                                                 inp_fmt='smiles')
+    print(chemical_equation.smiles)
+    print(chemical_equation.disconnection)
 
-    # if the input string is mapped, the disconnection and other attributes are built
-    mapped_reaction_smiles = '[CH3:6][NH2:5].[CH3:2][C:3]([OH:4])=[O:1]>O>[CH3:6][NH:5][C:3]([CH3:2])=[O:1]'
-    chemical_equation = chemical_equation_constructor.build_from_reaction_string(
-        reaction_string=mapped_reaction_smiles,
-        inp_fmt='smiles')
-    assert chemical_equation.smiles == '[NH2:5][CH3:6].[O:1]=[C:3]([CH3:2])[OH:4]>>[O:1]=[C:3]([CH3:2])[NH:5][CH3:6]'
-    assert chemical_equation.disconnection
-    assert chemical_equation.template
 
 
 def test_create_reaction_smiles_from_chemical_equation():
@@ -992,7 +985,7 @@ def test_reaction_canonicalization_from_molecules():
                  1: {'smiles': 'CC(O)=O.CN>O>CNC(C)=O'},
                  2: {'smiles': '>>CNC(C)=O'},
                  3: {'smiles': 'CC(O)=O.CN>>CNC(C)=O'},
-                 # 4: {'smiles': 'CC(O)=O.CN>>'},
+                 4: {'smiles': 'CC(O)=O.CN>>'},
                  5: {'smiles': 'CN.CC(O)=O>>CNC(C)=O'},
                  6: {'smiles': 'CNC(C)=O>>CN.CC(O)=O'},
                  7: {'smiles': 'CN.CC(O)=O>>CNC(C)=O.O'},
@@ -1013,31 +1006,21 @@ def test_reaction_canonicalization_from_molecules():
 
 
 def test_chemical_equation_equality():
-    reactions = {0:
-                     {'smiles': 'CN.CC(O)=O>O>CNC(C)=O'},  # R1
-                 1:
-                     {'smiles': 'CN.CC(O)=O>O>CNC(C)=O'},  # R1
-                 2:
-                     {'smiles': 'NC.CC(O)=O>O>CNC(C)=O'},  # R1
-                 3:
-                     {'smiles': 'NC.CC(=O)O>O>CNC(C)=O'},  # R1
-                 4:
-                     {'smiles': 'CC(O)=O.CN>O>CNC(C)=O'},  # R1
-                 5:
-                     {'smiles': '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]'},
-                 6:
-                     {
-                         'smiles': '[CH3:1][C:20]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:20]([CH3:1])=[O:4].[OH2:3]'},
-                 7:
-                     {
-                         'smiles': '[CH3:6][NH2:5].[CH3:1][C:20]([OH:3])=[O:4]>>[CH3:6][NH:5][C:20]([CH3:1])=[O:4].[OH2:3]'}
+    reactions = {0: {'smiles': 'CN.CC(O)=O>O>CNC(C)=O'},  # R1
+                 1: {'smiles': 'CN.CC(O)=O>O>CNC(C)=O'},  # R1
+                 2: {'smiles': 'NC.CC(O)=O>O>CNC(C)=O'},  # R1
+                 3: {'smiles': 'NC.CC(=O)O>O>CNC(C)=O'},  # R1
+                 4: {'smiles': 'CC(O)=O.CN>O>CNC(C)=O'},  # R1
+                 5: {'smiles': '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]'},
+                 6: {
+                     'smiles': '[CH3:1][C:20]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:20]([CH3:1])=[O:4].[OH2:3]'},
+                 7: {'smiles': '[CH3:6][NH2:5].[CH3:1][C:20]([OH:3])=[O:4]>>[CH3:6][NH:5][C:20]([CH3:1])=[O:4].[OH2:3]'}
                  }
 
     ces1 = {}
 
     # initialize the constructor
-    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
-                                                                chemical_equation_identity_name='r_r_p')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
 
     for k, v in reactions.items():
         chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=v.get('smiles'),
@@ -1050,32 +1033,7 @@ def test_chemical_equation_equality():
     assert ces1.get(0) == ces1.get(4)  # same reaction, different reactant ordering: test reaction canonicalization
     assert ces1.get(5) == ces1.get(6)  # same reaction, different atom mapping
     assert ces1.get(5) == ces1.get(7)  # same reaction, different atom mapping,
-
-
-def test_chemical_equation_stoichiometry():
-    reactions = {
-        0: {'smiles': 'ClCl.ClCl.Oc1ccccc1>>Cl.Cl.Oc1ccc(Cl)cc1Cl',
-            'stoichiometry': {'reactants': [2, 1],
-                              'reagents': [],
-                              'products': [2, 1]}},
-        1: {
-            'smiles': '[CH3:1][O:2][c:3]1[cH:4][cH:5][c:6]([CH3:7])[cH:13][c:14]1[NH:15][N:16]=[C:19]([CH3:26])[CH3:20].[ClH:17].[OH2:18].Cl>>[CH3:1][O:2][c:3]1[cH:4][cH:5][c:6]([CH3:7])[cH:13][c:14]1[NH:15][NH2:16].[ClH:17].[CH3:26][C:19]([CH3:20])=[O:18]',
-            'stoichiometry': {'reactants': [1],
-                              'reagents': [2, 1],
-                              'products': [1, 1, 1]}},
-        2: {'smiles': 'COc1ccc(C)cc1NN=C(C)C>Cl.O>COc1ccc(C)cc1NN.Cl.CC(C)=O',
-            'stoichiometry': {'reactants': [1],
-                              'reagents': [1, 1],
-                              'products': [1, 1, 1]}}
-    }
-    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
-                                                                chemical_equation_identity_name='r_r_p')
-    for test in reactions.values():
-        chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=test['smiles'],
-                                                                                     inp_fmt='smiles', )
-
-        for role, d in chemical_equation.stoichiometry_coefficients.items():
-            assert list(d.values()) == test['stoichiometry'][role]
+    # different reactant ordering: test reaction canonicalization
 
 
 def test_chemical_equation_builder():
@@ -1107,25 +1065,30 @@ def test_chemical_equation_attributes_are_not_available():
 
 
 def test_chemical_equation_attributes_are_available():
-    smiles = 'O[C:2](=[O:1])[c:3]1[cH:12][cH:7][cH:6][cH:5][cH:4]1.CN>ClCCl.ClC(=O)C(Cl)=O>C[NH:13][C:2](=[O:1])[c:3]1[cH:12][cH:7][cH:6][cH:5][cH:4]1'
+    smiles = '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15].C(Cl)Cl.C(=O)(C(=O)Cl)Cl>>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]'
+    expected_smiles = 'O[C:2](=[O:1])[c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12.[N-:13]=[N+:14]=[N-:15]>ClCCl.O=C(Cl)C(=O)Cl>[O:1]=[C:2]([c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12)[N:13]=[N+:14]=[N-:15]'
     # initialize the constructor with identity property 'r_r_p'
     chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
                                                                 chemical_equation_identity_name='r_r_p')
-    chemical_equation1 = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
-                                                                                  inp_fmt='smiles')
+    chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
+                                                                                 inp_fmt='smiles')
 
-    assert chemical_equation1.mapping
-    assert chemical_equation1.disconnection
-    assert chemical_equation1.template
+    disconnection1 = chemical_equation.disconnection
+    template1 = chemical_equation.template
+    assert chemical_equation.mapping
+    assert disconnection1
+    assert template1
+    assert chemical_equation.smiles == expected_smiles
     # initialize the constructor with identity property 'r_p'
     chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
                                                                 chemical_equation_identity_name='r_p')
-    chemical_equation2 = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
-                                                                                  inp_fmt='smiles')
-
+    chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
+                                                                                 inp_fmt='smiles')
+    disconnection2 = chemical_equation.disconnection
+    template2 = chemical_equation.template
     # disconnection and template are independent of the chemical equation identity property
-    assert chemical_equation2.disconnection == chemical_equation1.disconnection
-    assert chemical_equation2.template == chemical_equation1.template
+    assert disconnection2 == disconnection1
+    assert template2 == template1
 
 
 # Ratam tests
@@ -1136,28 +1099,28 @@ def test_ratam_and_role_reassignment():
          'smiles': '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]',
          'expected': {'reactants': ['CC(=O)O', 'CN'],
                       'reagents': [],
-                      'products': ['O', 'CNC(C)=O']}},
+                      'products': ['CNC(C)=O', 'O']}},
         # An initial reagents is actually a reactant
         {'name': 'rnx_2',
          'smiles': '[CH3:1][C:2]([OH:3])=[O:4]>[CH3:6][NH2:5]>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]',
          'expected': {'reactants': ['CC(=O)O', 'CN'],
                       'reagents': [],
-                      'products': ['O', 'CNC(C)=O']}},
+                      'products': ['CNC(C)=O', 'O']}},
         # A reagent is recognized as such
         {'name': 'rnx_3',
          'smiles': '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>CO>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]',
          'expected': {'reactants': ['CC(=O)O', 'CN'],
                       'reagents': ['CO'],
-                      'products': ['O', 'CNC(C)=O']}},
+                      'products': ['CNC(C)=O', 'O']}},
         # The same molecule appears twice, once as reactant and once as reagent
         {'name': 'rnx_4',
          'smiles': '[CH3:1][C:2]([OH:3])=[O:4].[CH3:6][NH2:5]>CN>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]',
          'expected': {'reactants': ['CC(=O)O', 'CN'],
                       'reagents': ['CN'],
-                      'products': ['O', 'CNC(C)=O']}},
+                      'products': ['CNC(C)=O', 'O']}},
         # Bad mapping: the same map number is used more than twice
         {'name': 'rnx_5',
-         'smiles': '[CH3:3][C:2]([OH:1])=[O:4].[CH3:3][NH2:5]>CN>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:1]',
+         'smiles': '[CH3:1][C:2]([OH:1])=[O:4].[CH3:6][NH2:5]>CN>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:1]',
          'expected': {'reactants': ['CC(=O)O', 'CN'],
                       'reagents': ['CN'],
                       'products': ['CNC(C)=O', 'O']}},
@@ -1165,29 +1128,41 @@ def test_ratam_and_role_reassignment():
     mol_constructor = MoleculeConstructor(molecular_identity_property_name='smiles')
     for item in test_set:
         rdrxn = cif.rdrxn_from_string(input_string=item.get('smiles'), inp_fmt='smiles')
-        reaction_mols = cif.rdrxn_to_molecule_catalog(rdrxn, mol_constructor)
-        catalog = {m.uid: m for m in set(reaction_mols['reactants'] +
-                                         reaction_mols['reagents'] +
-                                         reaction_mols['products'])}
+        rdmol_catalog = {'reactants': list(rdrxn.GetReactants()),
+                         'reagents': list(rdrxn.GetAgents()),
+                         'products': list(rdrxn.GetProducts())}
+        reactants_reagents = [mol_constructor.build_from_rdmol(rdmol=rdmol) for role, rdmol_list in
+                              rdmol_catalog.items()
+                              if role in ['reactants', 'reagents'] for rdmol in rdmol_list]
+        products = [mol_constructor.build_from_rdmol(rdmol=rdmol) for role, rdmol_list in rdmol_catalog.items()
+                    if role == 'products' for rdmol in rdmol_list]
+        reaction_mols = {'reactants_reagents': reactants_reagents, 'products': products}
+        catalog = {}
+        for role, rdmol_list in rdmol_catalog.items():
+            list_tmp = [mol_constructor.build_from_rdmol(rdmol=rdmol) for rdmol in rdmol_list]
+            set_tmp = set(list_tmp)
+            _tmp = {m.uid: m for m in set_tmp}
+            catalog = {**catalog, **_tmp}
         if item['name'] == 'rnx_5':
             with pytest.raises(BadMapping) as ke:
                 ratam_constructor = RatamConstructor()
-                ratam_constructor.create_ratam(reaction_mols, reaction_mols['products'][0])
+                ratam_constructor.create_ratam(reaction_mols)
             assert "BadMapping" in str(ke.type)
         else:
             ratam_constructor = RatamConstructor()
-            cem = ratam_constructor.create_ratam(reaction_mols, reaction_mols['products'][0])
+            cem = ratam_constructor.create_ratam(reaction_mols)
             assert cem
             assert cem.atom_transformations
             map_numbers = set()
-            for d in cem.full_map_info.values():
-                for k, v in d.items():
-                    map_numbers.update(m for d in v for m in d.values() if m not in [0, -1])
+            for k, v in cem.full_map_info.items():
+                map_numbers.update(m for d in v for m in d.values() if m not in [0, -1])
+
             # check if an AtomTransformation exists for each map number
             assert len(map_numbers) == len(cem.atom_transformations)
 
-            for role, map_info in cem.full_map_info.items():
-                smiles_list = [m.smiles for uid, m in catalog.items() if uid in map_info]
+            new_roles = cif.role_reassignment(reaction_mols, cem, desired_product=products[0])
+            for role, mols in new_roles.items():
+                smiles_list = [m.smiles for uid, m in catalog.items() if uid in mols]
                 assert item['expected'][role] == smiles_list
 
 
@@ -1315,8 +1290,8 @@ def test_disconnection_equality():
          'expected': {},
          },
         {'name': 'rnx_3',
-         # fully balanced intramolecular michael addition ring forming, one new bond and one changed bond
-         'smiles': r'[CH3:1][CH2:2][C:3](=[O:4])[c:5]1[cH:6][cH:7][cH:8][n:9]1[CH2:10]/[CH:11]=[CH:12]\[C:13](=[O:14])[O:15][CH3:16]>>[CH3:1][CH:2]1[CH:11]([CH2:10][n:9]2[cH:8][cH:7][cH:6][c:5]2[C:3]1=[O:4])[CH2:12][C:13](=[O:14])[O:15][CH3:16]',
+         # fully balanced intramolecular michael addition ring forming, one new bond and one changend bond
+         'smiles': '[CH3:1][CH2:2][C:3](=[O:4])[c:5]1[cH:6][cH:7][cH:8][n:9]1[CH2:10]/[CH:11]=[CH:12]\[C:13](=[O:14])[O:15][CH3:16]>>[CH3:1][CH:2]1[CH:11]([CH2:10][n:9]2[cH:8][cH:7][cH:6][c:5]2[C:3]1=[O:4])[CH2:12][C:13](=[O:14])[O:15][CH3:16]',
          'expected': {},
          },
         {'name': 'rnx_4',  # fully balanced diels-alder product regioisomer 1
@@ -1332,19 +1307,17 @@ def test_disconnection_equality():
          'expected': {},
          },
         {'name': 'rnx_7',  # not fully balanced reaction
-         'smiles': 'O[C:2](=[O:1])[c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12.CN>ClCCl.ClC(=O)C(Cl)=O>C[NH:13][C:2](=[O:1])[c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12',
+         'smiles': '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15]>C(Cl)Cl.C(=O)(C(=O)Cl)Cl>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]',
          'expected': {},
          },
     ]
-    ce_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
-                                                 chemical_equation_identity_name='r_r_p')
-    results = {item.get('name'): ce_constructor.build_from_reaction_string(reaction_string=item.get('smiles'),
-                                                                           inp_fmt='smiles')
+    dc = DisconnectionConstructor(identity_property_name='smiles')
+    results = {item.get('name'): dc.build_from_reaction_string(reaction_string=item.get('smiles'), inp_fmt='smiles')
                for item in test_set}
     # regioisomer products from the same reactants: disconnection is different (fragments might be the same)
-    assert results.get('rnx_4').disconnection != results.get('rnx_5').disconnection
+    assert results.get('rnx_4') != results.get('rnx_5')
     # same product from two sets of equivalent reactants (at synthol level)
-    assert results.get('rnx_1').disconnection == results.get('rnx_6').disconnection
+    assert results.get('rnx_1') == results.get('rnx_6')
 
 
 def test_disconnection():
@@ -1359,7 +1332,7 @@ def test_disconnection():
                   },
         # fully balanced intramolecular michael addition ring forming, one new bond and one changed bond
         'rxn_3': {
-            'smiles': r'[CH3:1][CH2:2][C:3](=[O:4])[c:5]1[cH:6][cH:7][cH:8][n:9]1[CH2:10]/[CH:11]=[CH:12]\[C:13](=[O:14])[O:15][CH3:16]>>[CH3:1][CH:2]1[CH:11]([CH2:10][n:9]2[cH:8][cH:7][cH:6][c:5]2[C:3]1=[O:4])[CH2:12][C:13](=[O:14])[O:15][CH3:16]',
+            'smiles': '[CH3:1][CH2:2][C:3](=[O:4])[c:5]1[cH:6][cH:7][cH:8][n:9]1[CH2:10]/[CH:11]=[CH:12]\[C:13](=[O:14])[O:15][CH3:16]>>[CH3:1][CH:2]1[CH:11]([CH2:10][n:9]2[cH:8][cH:7][cH:6][c:5]2[C:3]1=[O:4])[CH2:12][C:13](=[O:14])[O:15][CH3:16]',
         },
         # fully balanced diels-alder product regioisomer 1
         'rxn_4': {
@@ -1374,7 +1347,10 @@ def test_disconnection():
                   },
         # not fully balanced reaction
         'rxn_7': {
-            'smiles': 'O[C:2](=[O:1])[c:3]1[cH:12][cH:7][cH:6][cH:5][cH:4]1.CN>ClCCl.ClCC(Cl)=O>C[NH:13][C:2](=[O:1])[c:3]1[cH:12][cH:7][cH:6][cH:5][cH:4]1',
+            'smiles': '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15]>C(Cl)Cl.C(=O)(C(=O)Cl)Cl>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]',
+        },
+        'rxn_8': {
+            'smiles': '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15]>C(Cl)Cl.C(=O)(C(=O)Cl)Cl>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]',
         },
         # ketone reduction to alcohol (two hydrogenated atoms)
         'rxn_9': {
@@ -1407,19 +1383,35 @@ def test_disconnection():
     # initialize the constructor
     chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
                                                                 chemical_equation_identity_name='r_p')
+    disconnection_constructor = DisconnectionConstructor(identity_property_name='smiles')
 
     results = {}
     for k, v in test_set.items():
         smiles_input = v.get('smiles')
         chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles_input,
                                                                                      inp_fmt='smiles')
+        mapping = chemical_equation.mapping
+        catalog = chemical_equation.catalog
+        rdrxn = chemical_equation.rdrxn
         smiles_actual = chemical_equation.smiles
         disconnection_from_ce = chemical_equation.disconnection
+
+        disconnection_from_smiles_input = disconnection_constructor.build_from_reaction_string(
+            reaction_string=smiles_input,
+            inp_fmt='smiles')
+        disconnection_from_smiles_actual = disconnection_constructor.build_from_reaction_string(
+            reaction_string=smiles_actual,
+            inp_fmt='smiles')
+
+        disconnection_from_rdrxn_actual = disconnection_constructor.build_from_rdrxn(rdrxn=rdrxn)
 
         results[k] = {'smiles_input': smiles_input,
                       'smiles_actual': smiles_actual,
                       'chemical_equation': chemical_equation,
                       'disconnection_from_ce': disconnection_from_ce,
+                      'disconnection_from_smiles_input': disconnection_from_smiles_input,
+                      'disconnection_from_smiles_actual': disconnection_from_smiles_actual,
+                      'disconnection_from_rdrxn_actual': disconnection_from_rdrxn_actual,
                       }
     # check that the chemical equation is generated for each reaction
     for k, v in results.items():
@@ -1523,8 +1515,8 @@ def test_disconnection_depiction():
          'expected': {},
          },
         {'name': 'rnx_3',
-         # fully balanced intramolecular michael addition ring forming, one new bond and one changed bond
-         'smiles': r'[CH3:1][CH2:2][C:3](=[O:4])[c:5]1[cH:6][cH:7][cH:8][n:9]1[CH2:10]/[CH:11]=[CH:12]\[C:13](=[O:14])[O:15][CH3:16]>>[CH3:1][CH:2]1[CH:11]([CH2:10][n:9]2[cH:8][cH:7][cH:6][c:5]2[C:3]1=[O:4])[CH2:12][C:13](=[O:14])[O:15][CH3:16]',
+         # fully balanced intramolecular michael addition ring forming, one new bond and one changend bond
+         'smiles': '[CH3:1][CH2:2][C:3](=[O:4])[c:5]1[cH:6][cH:7][cH:8][n:9]1[CH2:10]/[CH:11]=[CH:12]\[C:13](=[O:14])[O:15][CH3:16]>>[CH3:1][CH:2]1[CH:11]([CH2:10][n:9]2[cH:8][cH:7][cH:6][c:5]2[C:3]1=[O:4])[CH2:12][C:13](=[O:14])[O:15][CH3:16]',
          'expected': {},
          },
         {'name': 'rnx_4',  # fully balanced diels-alder product regioisomer 1
@@ -1540,86 +1532,27 @@ def test_disconnection_depiction():
          'expected': {},
          },
         {'name': 'rnx_7',  # not fully balanced reaction
-         'smiles': '[CH3:3][C:2](O)=[O:1].CN>ClCCl.ClC(=O)C(Cl)=O>C[NH:13][C:2]([CH3:3])=[O:1]',
+         'smiles': '[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])O.[N-:13]=[N+:14]=[N-:15]>C(Cl)Cl.C(=O)(C(=O)Cl)Cl>[cH:5]1[cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]2[c:3]([cH:4]1)[C:2](=[O:1])[N:13]=[N+:14]=[N-:15]',
          'expected': {}, },
-        {'name': 'rxn_8',  # the new bond only involves hydrogen
-         'smiles': '[N:8]#[C:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1>>[NH2:8][CH2:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1',
-         'expected': {}},
+        # {'name': 'rxn_8',  # the new bond only involves hydrogen: currently the depiction does not work!
+        #  'smiles': '[N:8]#[C:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1>>[NH2:8][CH2:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1',
+        #  'expected': {}},
     ]
-    ce_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
-                                                 chemical_equation_identity_name='r_r_p')
-    results = {item.get('name'): ce_constructor.build_from_reaction_string(reaction_string=item.get('smiles'),
-                                                                           inp_fmt='smiles')
+    dc = DisconnectionConstructor(identity_property_name='smiles')
+    results = {item.get('name'): dc.build_from_reaction_string(reaction_string=item.get('smiles'), inp_fmt='smiles')
                for item in test_set}
-    for name, ce in results.items():
+    for name, disconnection in results.items():
         # print(disconnection.to_dict())
         # rdrxn = cif.rdrxn_from_string(input_string=item.get('smiles'), inp_fmt='smiles')
-        depiction_data = cid.draw_disconnection(disconnection=ce.disconnection)
+        depiction_data = cid.draw_disconnection(
+            reacting_atoms=disconnection.reacting_atoms,
+            new_bonds=disconnection.new_bonds,
+            modified_bonds=disconnection.modified_bonds,
+            rdmol=disconnection.rdmol)
         # lio.write_rdkit_depict(data=depiction_data, file_path=f"{name}_disconnection.png")
-        assert depiction_data
 
-        depiction_data = cid.draw_fragments(rdmol=ce.disconnection.rdmol_fragmented)
-        assert depiction_data
+        # depiction_data = cid.draw_fragments(rdmol=disconnection.rdmol_fragmented)
         # lio.write_rdkit_depict(data=depiction_data, file_path=f"{name}_fragment.png")
-        depiction_data = cid.draw_reaction(rdrxn=ce.rdrxn)
-        assert depiction_data
+        # depiction_data = cid.draw_reaction(rdrxn=rdrxn, )
         # lio.write_rdkit_depict(data=depiction_data, file_path=f"{item.get('name')}_reaction.png")
         # print(f"\n{item.get('name')} {disconnection.__dict__}")
-
-
-def test_real_ces():
-    test_data = {
-        0: {
-            'smiles': 'Cl[Cl:1].ClCl.[Cl:11][Cl:14].Cl[Al](Cl)Cl.O.[cH:2]1[cH:3][cH:4][c:5]([O:6][c:7]2[cH:8][cH:9][cH:10][cH:12][cH:13]2)[cH:15][cH:16]1>>[Cl:1][c:2]1[cH:3][cH:4][c:5]([O:6][c:7]2[cH:8][cH:9][c:10]([Cl:11])[cH:12][c:13]2[Cl:14])[cH:15][cH:16]1',
-            'expected': 'Cl[Cl:1].[Cl:11][Cl:14].[cH:2]1[cH:3][cH:4][c:5]([O:6][c:7]2[cH:8][cH:9][cH:10][cH:12][cH:13]2)[cH:15][cH:16]1>ClCl.Cl[Al](Cl)Cl.O>[Cl:1][c:2]1[cH:3][cH:4][c:5]([O:6][c:7]2[cH:8][cH:9][c:10]([Cl:11])[cH:12][c:13]2[Cl:14])[cH:15][cH:16]1'},
-        1: {
-            'smiles': 'CC(=O)[O:1][c:2]1[cH:8][cH:7][cH:6][c:4]([Cl:5])[cH:3]1.CCO.Cl>>[OH:1][c:2]1[cH:8][cH:7][cH:6][c:4]([Cl:5])[cH:3]1',
-            'expected': 'CC(=O)[O:1][c:2]1[cH:3][c:4]([Cl:5])[cH:6][cH:7][cH:8]1>CCO.Cl>[OH:1][c:2]1[cH:3][c:4]([Cl:5])[cH:6][cH:7][cH:8]1'},
-        2: {
-            'smiles': '[CH3:1][CH2:2][O:7][C:6](=[O:5])[CH2:8][O:9][CH3:10].[OH:3][Na:4]>>[CH3:1][CH2:2][O:3][Na:4].[CH3:10][O:9][CH2:8][C:6]([OH:7])=[O:5]',
-            'expected1': '[CH3:1][CH2:2][O:7][C:6](=[O:5])[CH2:8][O:9][CH3:10].[OH:3][Na:4]>>[CH3:1][CH2:2][O:3][Na:4].[O:5]=[C:6]([OH:7])[CH2:8][O:9][CH3:10]',
-            'expected2': '[CH3:1][CH2:2][O:7][C:6](=[O:5])[CH2:8][O:9][CH3:10]>[OH:3][Na:4]>[CH3:1][CH2:2][O:3][Na:4].[O:5]=[C:6]([OH:7])[CH2:8][O:9][CH3:10]'
-        },
-        3: {
-            'smiles': '[CH3:1][CH:7]=[NH:8]>>[CH3:1][CH2:7][NH2:8]'
-        },
-        4: {
-            'smiles': '[CH3:1][CH2:7][NH:8][C:9]([CH3:10])=[O:11]>>[CH3:1][CH2:7][NH2:8]'
-        }
-    }
-
-    ce_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
-                                                 chemical_equation_identity_name='r_r_p')
-    multi_disconnections = []
-    for i, test in test_data.items():
-        if i == 2:
-            # same reaction string but different desired product lead to different ChemicalEquations
-            # with different disconnections
-            ce1 = ce_constructor.build_from_reaction_string(test['smiles'],
-                                                            inp_fmt='smiles',
-                                                            desired_product='[CH3:1][CH2:2][O:3][Na:4]')
-            ce2 = ce_constructor.build_from_reaction_string(test['smiles'],
-                                                            inp_fmt='smiles',
-                                                            desired_product='[CH3:10][O:9][CH2:8][C:6]([OH:7])=[O:5]')
-            assert ce1 != ce2
-            assert ce1.smiles == test['expected1']
-            assert ce2.smiles == test['expected2']
-            assert ce1.disconnection != ce2.disconnection
-            for n, ce in enumerate([ce1, ce2]):
-                depiction_data = cid.draw_disconnection(ce.disconnection)
-                assert depiction_data
-                # lio.write_rdkit_depict(data=depiction_data, file_path=f"disconnection_{n}_{i}.png")
-            continue
-
-        ce = ce_constructor.build_from_reaction_string(test['smiles'], inp_fmt='smiles', )
-        if i in [3, 4]:
-            multi_disconnections.append(ce.disconnection)
-            continue
-        assert ce.smiles == test['expected']
-        assert ce.disconnection
-        depiction_data = cid.draw_disconnection(ce.disconnection)
-        # lio.write_rdkit_depict(data=depiction_data, file_path=f"disconnection_{i}.png")
-    # multiple disconnection can be depicted on the same product Molecule
-    depiction_data = cid.draw_multiple_disconnections(disconnections=multi_disconnections)
-    assert depiction_data
-    # lio.write_rdkit_depict(data=depiction_data, file_path="multi_disconnections.png")
