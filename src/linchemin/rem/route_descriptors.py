@@ -5,8 +5,8 @@ from typing import Union
 from linchemin.cgu.convert import converter
 from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteReacSynGraph,
                                     SynGraph)
-from linchemin.cheminfo.models import ChemicalEquation
-from linchemin.rem.node_descriptors import node_score_calculator
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
+from linchemin.rem.node_descriptors import node_descriptor_calculator
 from linchemin.utilities import console_logger
 
 """
@@ -268,7 +268,7 @@ class CDScore(DescriptorCalculator):
 
         route_score = 0
         for reaction in unique_reactions:
-            score = node_score_calculator(reaction, 'cdscore')
+            score = node_descriptor_calculator(reaction, 'cdscore')
             route_score += score
 
         return route_score / len(unique_reactions)
@@ -355,17 +355,17 @@ def get_available_descriptors():
     return {f: additional_info['info'] for f, additional_info in DescriptorsCalculatorFactory.route_descriptors.items()}
 
 
-def find_path(graph: SynGraph, leaf: str, root: str, path: Union[list, None] = None) -> list:
+def find_path(graph: SynGraph, leaf: Molecule, root: Molecule, path: Union[list, None] = None) -> list:
     """ Returns the path between two nodes in a SynGraph.
 
             :param:
                 graph: a SynGraph
-                leaf: the smiles of one SynLeaf
-                root: the smiles of the SynRoot
-                path: a list of smiles (default: empty list)
+                leaf: the Molecule instance corresponding to the leaf of interest
+                root: the Molecule instance corresponding to the root
+                path: a list of Molecule instances (default: empty list)
 
             :return:
-                path/newpath: a list of smiles
+                path/newpath: a list of  Molecule instances
     """
     if path is None:
         path = []
