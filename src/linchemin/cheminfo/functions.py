@@ -79,8 +79,7 @@ def get_canonical_order(rdmol: rdkit.Chem.rdchem.Mol) -> tuple:
         """
     canon_idx_old_idx = [(j, i) for i, j in enumerate(Chem.CanonicalRankAtoms(rdmol))]
     old_idcs_sorted_by_canon_idcs = tuple(zip(*sorted(canon_idx_old_idx)))
-    canonical_order = old_idcs_sorted_by_canon_idcs[1]
-    return canonical_order
+    return old_idcs_sorted_by_canon_idcs[1]
 
 
 def canonicalize_rdmol(rdmol: rdkit.Chem.rdchem.Mol) -> rdkit.Chem.rdchem.Mol:
@@ -280,10 +279,7 @@ def rdrxn_to_molecule_catalog(rdrxn: rdChemReactions.ChemicalReaction, construct
 
 def has_mapped_products(rdrxn: rdChemReactions.ChemicalReaction) -> bool:
     """ To check if a rdrxn has any mapped product """
-    if any([is_mapped_molecule(mol) for mol in list(rdrxn.GetProducts())]):
-        return True
-    else:
-        return False
+    return any(is_mapped_molecule(mol) for mol in list(rdrxn.GetProducts()))
 
 
 def select_desired_product(mol_catalog: dict):
@@ -375,11 +371,11 @@ def role_reassignment(reaction_mols: dict, ratam, desired_product):
     true_reactants_uid = {at.reactant_uid for at in desired_product_transformations}
     true_reagents = {r.uid for r in reaction_mols['reactants_reagents'] if r.uid not in true_reactants_uid}
     true_reactants = {r.uid for r in reaction_mols['reactants_reagents'] if r.uid in true_reactants_uid}
-    products = [m.uid for m in reaction_mols['products']]
+    products = {m.uid for m in reaction_mols['products']}
     reagents = check_reagents(ratam.full_map_info, true_reagents)
     return {'reactants': sorted(list(true_reactants)),
             'reagents': sorted(list(reagents)),
-            'products': sorted(products)}
+            'products': sorted(list(products))}
 
 
 def check_reagents(full_map_info, reagents):

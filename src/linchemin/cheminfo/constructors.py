@@ -617,7 +617,9 @@ class ChemicalEquationConstructor:
         return self.build_from_rdrxn(rdrxn=rdrxn)
 
 
-def create_chemical_equation(rdrxn: cif.rdChemReactions.ChemicalReaction, chemical_equation_identity_name, constructor):
+def create_chemical_equation(rdrxn: cif.rdChemReactions.ChemicalReaction,
+                             chemical_equation_identity_name: str,
+                             constructor: MoleculeConstructor) -> ChemicalEquation:
     """ Initializes the correct builder of the ChemicalEquation based on the presence of the atom mapping.
 
         :param:
@@ -645,46 +647,43 @@ class ChemicalEquationGenerator(ABC):
         pass
 
     @abstractmethod
-    def generate_template(self, *args):
+    def generate_template(self, chemical_equation: ChemicalEquation):
         pass
 
     @abstractmethod
-    def generate_disconnection(self, *args):
+    def generate_disconnection(self, chemical_equation: ChemicalEquation):
         pass
 
     @abstractmethod
-    def generate_rdrxn(self, catalog, role_map, stoichiometry_coefficients, use_reagents,
-                       use_atom_mapping=False, use_smiles=False):
+    def generate_rdrxn(self, catalog: dict,
+                       role_map: dict,
+                       stoichiometry_coefficients: dict,
+                       use_reagents: bool,
+                       use_atom_mapping: bool = False,
+                       use_smiles: bool = False):
         pass
 
     @abstractmethod
-    def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
+    def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction) -> str:
         pass
-
-    def generate_stoichiometry_coefficients(self, role_map, all_molecules):
-        stoichiometry_coefficients = {}
-        for role, mol_uid_list in role_map.items():
-            mols = [m for m in all_molecules if m.uid in mol_uid_list]
-            stoichiometry_coefficients_tmp = {m.uid: mols.count(m) for m in set(mols) if m.uid in mol_uid_list}
-            stoichiometry_coefficients[role] = stoichiometry_coefficients_tmp
-
-        return stoichiometry_coefficients
 
 
 class UnmappedChemicalEquationGenerator(ChemicalEquationGenerator):
 
-    def get_basic_attributes(self, reaction_mols: dict):
+    def get_basic_attributes(self, reaction_mols: dict) -> dict:
+        """ To build the initial attributes of a ChemicalEquation: mapping, role_map, catalog and
+        stoichiometry_coefficients. These are returned in a dictionary. """
         basic_attributes = {'mapping': None,
-                            'role_map': {role: sorted([m.uid for m in set(mols)]) for role, mols in
+                            'role_map': {role: sorted(list({m.uid for m in set(mols)})) for role, mols in
                                          reaction_mols.items()}}
         all_molecules = reaction_mols['reactants'] + reaction_mols['reagents'] + reaction_mols['products']
         basic_attributes['catalog'] = {m.uid: m for m in set(all_molecules)}
-        basic_attributes['stoichiometry_coefficients'] = self.generate_stoichiometry_coefficients(
-            basic_attributes['role_map'], all_molecules)
+        basic_attributes['stoichiometry_coefficients'] = self.generate_stoichiometry_coefficients(reaction_mols)
         return basic_attributes
 
     def generate_rdrxn(self, catalog, role_map, stoichiometry_coefficients, use_reagents,
-                       use_atom_mapping=False, use_smiles=False):
+                       use_atom_mapping=False, use_smiles=False) -> cif.rdChemReactions.ChemicalReaction:
+        """ To build the rdkit rdrxn object associated with the ChemicalEquation """
         return cif.build_rdrxn(catalog=catalog,
                                role_map=role_map,
                                stoichiometry_coefficients=stoichiometry_coefficients,
@@ -692,19 +691,33 @@ class UnmappedChemicalEquationGenerator(ChemicalEquationGenerator):
                                use_smiles=use_smiles,
                                use_atom_mapping=use_atom_mapping)
 
-    def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
+    def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction) -> str:
+        """ To build the smiles associated with the ChemicalEquation """
         return cif.rdrxn_to_string(rdrxn=rdrxn, out_fmt='smiles', use_atom_mapping=False)
 
+    def generate_stoichiometry_coefficients(self, reaction_mols):
+        """ To build the dictionary of the stoichiometry coefficients of an unmapped ChemicalEquation """
+        stoichiometry_coefficients = {}
+        for role in ['reactants', 'reagents', 'products']:
+            molecules = reaction_mols[role]
+            molecule_coeffs = {m.uid: molecules.count(m) for m in set(molecules)}
+            stoichiometry_coefficients[role] = molecule_coeffs
+        return stoichiometry_coefficients
+
     def generate_template(self, ce):
+        """ To generate the template. It is None if the ChemicalEquation is unmapped. """
         return None
 
     def generate_disconnection(self, ce):
+        """ To generate the disconnection. It is None if the ChemicalEquation is unmapped. """
         return None
 
 
 class MappedChemicalEquationGenerator(ChemicalEquationGenerator):
 
-    def get_basic_attributes(self, reaction_mols: dict):
+    def get_basic_attributes(self, reaction_mols: dict) -> dict:
+        """ To build the initial attributes of a ChemicalEquation: mapping, role_map, catalog and
+               stoichiometry_coefficients. These are returned in a dictionary. """
         new_reaction_mols = {'reactants_reagents': reaction_mols['reactants'] + reaction_mols['reagents'],
                              'products': reaction_mols['products']}
         basic_attributes = {'mapping': self.generate_mapping(new_reaction_mols)}
@@ -716,15 +729,67 @@ class MappedChemicalEquationGenerator(ChemicalEquationGenerator):
         basic_attributes['catalog'] = {m.uid: m for m in set(all_molecules)}
 
         basic_attributes['stoichiometry_coefficients'] = self.generate_stoichiometry_coefficients(
-            basic_attributes['role_map'], all_molecules)
+            basic_attributes['role_map'], reaction_mols, basic_attributes['mapping'], desired_product)
         return basic_attributes
 
-    def generate_mapping(self, new_reaction_mols: dict):
+    def generate_mapping(self, new_reaction_mols: dict) -> Ratam:
         ratam_constructor = RatamConstructor()
         return ratam_constructor.create_ratam(new_reaction_mols)
 
-    def generate_rdrxn(self, catalog, role_map, stoichiometry_coefficients, use_reagents,
-                       use_atom_mapping=True, use_smiles=False):
+    def generate_stoichiometry_coefficients(self, role_map: dict,
+                                            reaction_mols: dict,
+                                            mapping: Ratam,
+                                            desired_product: Molecule) -> dict:
+        """ To build the dictionary of the stoichiometry coefficients of a mapped ChemicalEquation """
+        # the products' stoichiometry coefficients are computed based on the number of repetitions in the products list
+        stoichiometry_coefficients = {'products': self.products_stoichiometry(reaction_mols)}
+        desired_prod_map_numbers = [n for m in mapping.full_map_info.get(desired_product.uid)
+                                    for n in m.values() if n not in [0, -1]]
+        all_molecules = reaction_mols['reactants'] + reaction_mols['reagents']
+        # the reactants' stoichiometry coefficients are computed based in the number of mapping in which atoms
+        # end up in the desired product
+        stoichiometry_coefficients = self.reactants_stoichiometry(all_molecules,
+                                                                  role_map,
+                                                                  stoichiometry_coefficients,
+                                                                  mapping,
+                                                                  desired_prod_map_numbers)
+        # what is left are the reagents and their coefficients can be computed based on the number of repetitions
+        reagents_coeffs = {m.uid: all_molecules.count(m) for m in set(all_molecules)}
+        stoichiometry_coefficients['reagents'] = reagents_coeffs
+        # print(stoichiometry_coefficients)
+        return stoichiometry_coefficients
+
+    def products_stoichiometry(self, reaction_mols: dict) -> dict:
+        """ To build the stoichiometry coefficients of the products of the ChemicalEquation"""
+        products = reaction_mols['products']
+        return {m.uid: products.count(m) for m in set(products)}
+
+    def reactants_stoichiometry(self, all_molecules: list,
+                                role_map: dict,
+                                stoichiometry_coefficients: dict,
+                                mapping: Ratam,
+                                desired_prod_map_numbers: list) -> dict:
+        """ To build the stoichiometry coefficients of the reactants of the ChemicalEquation"""
+        reactants_uid = role_map.get('reactants')
+        stoichiometry_coefficients['reactants'] = {}
+        for uid in reactants_uid:
+            coeff = 0
+            mapping_list = mapping.full_map_info.get(uid)
+            for map in mapping_list:
+                if [map_nr for h, map_nr in map.items() if map_nr in desired_prod_map_numbers]:
+                    coeff += 1
+                    mol = [m for m in all_molecules if m.uid == uid][0]
+                    all_molecules.remove(mol)
+            stoichiometry_coefficients['reactants'][uid] = coeff
+        return stoichiometry_coefficients
+
+    def generate_rdrxn(self, catalog: dict,
+                       role_map: dict,
+                       stoichiometry_coefficients: dict,
+                       use_reagents: bool,
+                       use_atom_mapping: bool = True,
+                       use_smiles: bool = False) -> cif.rdChemReactions.ChemicalReaction:
+        """ To build the rdkit rdrxn object associated with the ChemicalEquation """
         return cif.build_rdrxn(catalog=catalog,
                                role_map=role_map,
                                stoichiometry_coefficients=stoichiometry_coefficients,
@@ -732,14 +797,17 @@ class MappedChemicalEquationGenerator(ChemicalEquationGenerator):
                                use_smiles=use_smiles,
                                use_atom_mapping=use_atom_mapping)
 
-    def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
+    def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction) -> str:
+        """ To build the smiles associated with the ChemicalEquation """
         return cif.rdrxn_to_string(rdrxn=rdrxn, out_fmt='smiles', use_atom_mapping=True)
 
-    def generate_template(self, ce):
+    def generate_template(self, ce: ChemicalEquation) -> Template:
+        """ To build the template of the ChemicalEquation """
         tc = TemplateConstructor()
         return tc.build_from_reaction_string(reaction_string=ce.smiles, inp_fmt='smiles')
 
-    def generate_disconnection(self, ce):
+    def generate_disconnection(self, ce: ChemicalEquation) -> Disconnection:
+        """ To build the disconnection of the ChemicalEquation """
         dc = DisconnectionConstructor(identity_property_name='smiles')
         rdrxn = ce.build_rdrxn(use_reagents=False, use_atom_mapping=True)
         return dc.build_from_rdrxn(rdrxn=rdrxn)

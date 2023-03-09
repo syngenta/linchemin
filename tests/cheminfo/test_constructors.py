@@ -1020,7 +1020,8 @@ def test_chemical_equation_equality():
     ces1 = {}
 
     # initialize the constructor
-    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_r_p')
 
     for k, v in reactions.items():
         chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=v.get('smiles'),
@@ -1034,6 +1035,23 @@ def test_chemical_equation_equality():
     assert ces1.get(5) == ces1.get(6)  # same reaction, different atom mapping
     assert ces1.get(5) == ces1.get(7)  # same reaction, different atom mapping,
     # different reactant ordering: test reaction canonicalization
+
+
+def test_chemical_equation_stoichiometry():
+    reactions = {
+        0: 'ClCl.ClCl.Oc1ccccc1>>Cl.Cl.Oc1ccc(Cl)cc1Cl',
+        1: '[CH3:1][O:2][c:3]1[cH:4][cH:5][c:6]([CH3:7])[cH:13][c:14]1[NH:15][N:16]=[C:19]([CH3:26])[CH3:20].[ClH:17].[OH2:18]>Cl>[CH3:1][O:2][c:3]1[cH:4][cH:5][c:6]([CH3:7])[cH:13][c:14]1[NH:15][NH2:16].[ClH:17].[CH3:26][C:19]([CH3:20])=[O:18]',
+        2: 'COc1ccc(C)cc1NN=C(C)C>Cl.O>COc1ccc(C)cc1NN.Cl.CC(C)=O'
+                 }
+    chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
+                                                                chemical_equation_identity_name='r_r_p')
+    for k, v in reactions.items():
+        chemical_equation = chemical_equation_constructor.build_from_reaction_string(reaction_string=v,
+                                                                                     inp_fmt='smiles')
+        # for role, d in chemical_equation.stoichiometry_coefficients.items():
+        #     print(role)
+        #     for u, coeff in d.items():
+        #         print([m.smiles for uid, m in chemical_equation.catalog.items() if uid == u], coeff)
 
 
 def test_chemical_equation_builder():
