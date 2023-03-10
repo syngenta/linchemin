@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from dataclasses import dataclass
@@ -351,10 +349,10 @@ class RxnBondInfo:
 @dataclass(eq=True, order=False, frozen=False)
 class RXNProductChanges:
     """Class for keeping track of the changes in a reaction product"""
-    reacting_atoms: List[int]
-    hydrogenated_atoms: List[int]
-    new_bonds: List[int]
-    modified_bonds: List[int]
+    reacting_atoms: list[int]
+    hydrogenated_atoms: list[int]
+    new_bonds: list[int]
+    modified_bonds: list[int]
 
 
 class RXNReactiveCenter:
@@ -415,7 +413,7 @@ class RXNReactiveCenter:
                     res[(amap, nmap)] = (nbr.GetIdx(), atom.GetIdx())
         return res
 
-    def find_modifications_in_products(self, rxn) -> tuple[List[RxnAtomInfo], List[RxnAtomInfo], List[RxnBondInfo]]:
+    def find_modifications_in_products(self, rxn) -> tuple[list[RxnAtomInfo], list[RxnAtomInfo], list[RxnBondInfo]]:
         """ returns a 3-tuple with the modified atoms and bonds from the reaction """
         reactingAtoms = rxn.GetReactingAtoms()
         amap = self.map_reacting_atoms_to_products(rxn, reactingAtoms)
@@ -780,9 +778,9 @@ def calculate_molecular_hash_values(rdmol: cif.Mol, hash_list: Union[set, None] 
     hash_map = {}
 
     if rdkit_hashes := [h for h in hash_list if h in molhashf]:
-        hash_map.update({k: cif.MolHash(rdmol, v) for k, v in molhashf.items() if k in rdkit_hashes})
+        hash_map |= {k: cif.MolHash(rdmol, v) for k, v in molhashf.items() if k in rdkit_hashes}
     if 'smiles' in hash_list:
-        hash_map.update({'smiles': cif.MolHash(rdmol, v) for k, v in molhashf.items() if k == 'CanonicalSmiles'})
+        hash_map |= {'smiles': cif.MolHash(rdmol, v) for k, v in molhashf.items() if k == 'CanonicalSmiles'}
 
     if other_hashes := [h for h in hash_list if h not in rdkit_hashes]:
         factory = MolIdentifierFactory(rdmol)
@@ -790,7 +788,7 @@ def calculate_molecular_hash_values(rdmol: cif.Mol, hash_list: Union[set, None] 
             if h not in MoleculeConstructor.all_available_identifiers:
                 logger.warning(f'{h} is not supported as molecular identifier')
             elif h != 'smiles':
-                hash_map.update(factory.select_identifier(h, hash_map))
+                hash_map |= factory.select_identifier(h, hash_map)
 
     """
 
@@ -837,7 +835,7 @@ def calculate_disconnection_hash_values(disconnection):
     }
 
     """
-    | separates properties and is followded by the name and a:
+    | separates properties and is followed by the name and a:  
     """
     changes_str = '|'.join([f'{k}:{",".join(map(str, v))}' for k, v in changes_map.items()])
 

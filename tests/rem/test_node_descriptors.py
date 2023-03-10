@@ -108,7 +108,10 @@ def test_hypsicity():
             'expected': -2.0},
         # oxidation from ketone to acid
         7: {'smiles': '[CH3:1][C:2]([CH3])=[O:3]>>[CH3:1][C:2]([OH])=[O:3]',
-            'expected': 1.0}
+            'expected': 1.0},
+        # intramolecular redox
+        8: {'smiles': '[O-:12][N+:10](=[O:11])[C:5]1=[CH:4][CH:3]=[CH:2][CH:1]=[C:6]1[CH:7]=[O:8]>>[NH2:10][C:5]1=[CH:4][CH:3]=[CH:2][CH:1]=[C:6]1[C:7]([OH:9])=[O:8]',
+            'expected': -4.0}
     }
     chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
                                                                 chemical_equation_identity_name='r_r_p')
