@@ -139,6 +139,16 @@ class SynGraph(ABC):
             for c in nodes_tup[1]:
                 self.graph[nodes_tup[0]].add(c)
 
+    def remove_isolate_nodes(self):
+        """ To remove isolate nodes from the SynGraph instance  """
+        isolated_nodes = []
+        if len(self.graph) > 1:
+            for parent, children in self.graph.items():
+                if children == set() and not [p for p, c in self.graph.items() if parent in c]:
+                    isolated_nodes.append(parent)
+        for i in isolated_nodes:
+            self.graph.pop(i, None)
+
 
 class BipartiteSynGraph(SynGraph):
     """ SynGraph subclass representing a Bipartite (Molecule and ChemicalEquation nodes) SynGraph """
@@ -160,7 +170,7 @@ class BipartiteSynGraph(SynGraph):
 
         for root in roots:
             self.add_node((root, []))
-
+        self.remove_isolate_nodes()
         self.set_source(str(self.uid))
 
     def builder_from_iron(self, iron_graph):
@@ -223,6 +233,8 @@ class MonopartiteReacSynGraph(SynGraph):
                 next_ch_equations.extend(c for m in c.role_map['reactants'] if m in ch_equation.role_map['products'])
 
             self.add_node((ch_equation, next_ch_equations))
+
+        self.remove_isolate_nodes()
         self.set_source(str(self.uid))
 
     def builder_from_iron(self, iron_graph):
@@ -311,6 +323,7 @@ class MonopartiteMolSynGraph(SynGraph):
         for root in roots:
             self.add_node((root, []))
 
+        self.remove_isolate_nodes()
         self.set_source(str(self.uid))
 
     def builder_from_iron(self, iron_graph):

@@ -141,7 +141,7 @@ def test_facade_helper_verbose(capfd):
     assert 'out_data_model' in out
 
 
-def test_parallelization_read_and_convert(capfd, ibm2_path):
+def test_parallelization_translate(capfd, ibm2_path):
     graph = json.loads(open(ibm2_path).read())
     output, metadata = facade('translate', 'ibm_retro', graph, out_data_model='monopartite_reactions',
                               parallelization=True, n_cpu=8)

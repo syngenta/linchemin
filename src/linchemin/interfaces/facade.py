@@ -96,32 +96,34 @@ class TranslateFacade(Facade):
                 meta: a dictionary storing information about the original file and the CASP tool that produced the routes
         """
         exceptions = []
+        out_routes = []
+
         try:
             if parallelization:
                 pool = mp.Pool(n_cpu)
                 converted_routes = pool.starmap(translator, [(input_format, route, out_format,
                                                               out_data_model) for route in input_list])
-
             else:
 
                 converted_routes = [translator(input_format, route, out_format, out_data_model) for route in
                                     input_list]
-            out_routes = [r for r in converted_routes if r is not None]
-            invalid_routes = len(input_list) - len(out_routes)
-            meta = {'nr_routes_in_input_list': len(input_list),
-                    'input_format': input_format,
-                    'nr_output_routes': len(out_routes),
-                    'invalid_routes': invalid_routes}
+
+            out_routes.extend([r for r in converted_routes if r is not None])
 
         except TranslationError as te:
             exceptions.append(te)
-            out_routes = []
-            meta = {'nr_routes_in_input_list': len(input_list),
-                    'input_format': input_format,
-                    'nr_output_routes': 0,
-                    'invalid_routes': 0}
-        finally:
-            return out_routes, meta
+
+        except Exception as e:
+            exceptions.append(e)
+
+        invalid_routes = len(input_list) - len(out_routes)
+
+        meta = {'nr_routes_in_input_list': len(input_list),
+                'input_format': input_format,
+                'nr_output_routes': len(out_routes),
+                'invalid_routes': invalid_routes}
+
+        return out_routes, meta
 
     def get_available_options(self) -> dict:
         """
@@ -215,16 +217,18 @@ class RoutesDescriptorsFacade(Facade):
         invalid_routes = len(routes) - len(checked_routes)
         output['route_id'] = [route.source for route in checked_routes]
 
-        try:
-            for m in descriptors:
+        for m in descriptors:
+            try:
                 output[m] = [descriptor_calculator(route, m) for route in checked_routes]
 
-        except DescriptorError as ke:
-            exceptions.append(ke)
+            except DescriptorError as ke:
+                exceptions.append(ke)
 
-        finally:
-            meta = {'descriptors': descriptors, 'invalid_routes': invalid_routes, 'errors': exceptions}
-            return output, meta
+            except Exception as e:
+                exceptions.append(e)
+
+        meta = {'descriptors': descriptors, 'invalid_routes': invalid_routes, 'errors': exceptions}
+        return output, meta
 
     def get_available_options(self) -> dict:
         """
@@ -417,6 +421,7 @@ class ClusteringFacade:
 
         exceptions: list = []
         checked_routes = [r for r in routes if r is not None]
+        metrics = pd.DataFrame()
         try:
 
             results = clusterer(checked_routes, ged_method=ged_method, clustering_method=clustering_method,
@@ -439,7 +444,6 @@ class ClusteringFacade:
                     'ged_algorithm': ged_method, 'ged_parameters': ged_params,
                     'invalid_routes': len(routes) - len(checked_routes), 'errors': exceptions}
             results = None
-            metrics = pd.DataFrame()
 
         return (results, metrics, meta) if compute_metrics else (results, meta)
 
@@ -648,7 +652,7 @@ class ReactionExtractionFacade(Facade):
 
     def perform_functionality(self, routes: list) -> tuple[list, dict]:
         """
-            Extracts a list of
+            Extracts a list of reaction strings
 
             :param:
                     routes: list of SynGraph instances
@@ -668,22 +672,19 @@ class ReactionExtractionFacade(Facade):
                 reactions = extract_reactions_from_syngraph(route)
                 output.append({route.uid: reactions})
 
-            invalid_routes = len(routes) - len(checked_routes)
-
-            meta = {'nr_routes_in_input_list': len(routes),
-                    'invalid_routes': invalid_routes,
-                    'errors': exceptions}
-
         except TypeError as ke:
             print('Found route in wrong format: only SynGraph object are accepted.')
             exceptions.append(ke)
-            invalid_routes = len(routes) - len(checked_routes)
-            meta = {'nr_routes_in_input_list': len(routes),
-                    'invalid_routes': invalid_routes,
-                    'errors': exceptions}
 
-        finally:
-            return output, meta
+        except Exception as e:
+            exceptions.append(e)
+
+        invalid_routes = len(routes) - len(checked_routes)
+        meta = {'nr_routes_in_input_list': len(routes),
+                'invalid_routes': invalid_routes,
+                'errors': exceptions}
+
+        return output, meta
 
     def get_available_options(self) -> dict:
         return {'routes': {'name_or_flags': ['-routes'],
