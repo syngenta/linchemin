@@ -36,7 +36,8 @@ class CEHypsicity(ChemicalEquationDescriptor):
             raise NoMapping
 
         # select the desired product and add the oxidation number property to its atoms
-        desired_product = [prod for h, prod in reaction.catalog.items() if h in reaction.role_map['products']][0]
+        desired_product = next((prod for h, prod in reaction.catalog.items() if h in reaction.role_map['products']),
+                               None)
         cif.compute_oxidation_numbers(desired_product.rdmol_mapped)
         desired_product_at = [at for at in reaction.mapping.atom_transformations if
                               at.product_uid == desired_product.uid]
@@ -53,13 +54,19 @@ class CEHypsicity(ChemicalEquationDescriptor):
         delta = 0.0
         # ox_nrs = []
         for at in atom_transformations:
-            prod_ox = [atom.GetIntProp('_OxidationNumber') for atom in desired_product.rdmol_mapped.GetAtoms()
-                       if atom.GetIdx() == at.prod_atom_id][0]
-            reactant = [reac for reac in reactants if reac.uid == at.reactant_uid][0]
-            react_ox = [atom.GetIntProp('_OxidationNumber') for atom in reactant.rdmol_mapped.GetAtoms()
-                        if atom.GetIdx() == at.react_atom_id][0]
+            p_atom = next((atom for atom in desired_product.rdmol_mapped.GetAtoms()
+                           if atom.GetIdx() == at.prod_atom_id), None)
+
+            reactant = next((reac for reac in reactants if reac.uid == at.reactant_uid), None)
+
+            r_atom = next((atom for atom in reactant.rdmol_mapped.GetAtoms()
+                           if atom.GetIdx() == at.react_atom_id), None)
+            if p_atom.GetSymbol() != r_atom.GetSymbol():
+                print('problem with mapping')
+                raise Exception
             # ox_nrs.append((prod_ox, react_ox))
-            delta += prod_ox - react_ox
+            delta += p_atom.GetIntProp('_OxidationNumber') - r_atom.GetIntProp('_OxidationNumber')
+
         # print(ox_nrs)
         return delta
 
@@ -74,7 +81,8 @@ class CEAtomEfficiency(ChemicalEquationDescriptor):
             raise NoMapping
 
         # compute the number of mapped atoms in the desired product
-        desired_product = [prod.rdmol_mapped for h, prod in reaction.catalog.items() if h in reaction.role_map['products']][0]
+        desired_product = next((prod.rdmol_mapped for h, prod in reaction.catalog.items()
+                                if h in reaction.role_map['products']), None)
         n_atoms_prod = len([a for a in desired_product.GetAtoms() if a.GetAtomMapNum() not in [0, -1]])
         # compute the number of atoms in all the reactants
         reactants = [reac.rdmol for h, reac in reaction.catalog.items() if h in reaction.role_map['reactants']]
