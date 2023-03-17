@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Union
 
 import linchemin.cheminfo.functions as cif
 
@@ -18,9 +19,9 @@ class Molecule:
     """ The integer obtained by hashing the identity property of the molecule"""
     hash_map: dict = field(default_factory=dict)
     """ A dictionary mapping various properties (smiles, inchi_key, ety..) with their values"""
-    rdmol: cif.Mol | None = field(default=None)
+    rdmol: Union[cif.Mol, None] = field(default=None)
     """ An unmapped RDKit Molecule object"""
-    rdmol_mapped: cif.Mol | None = field(default=None)
+    rdmol_mapped: Union[cif.Mol, None] = field(default=None)
     """ A mapped RDKit Molecule object (if any) """
     identity_property: str = field(default_factory=str)
     """ The identity property of the molecule"""
@@ -42,9 +43,9 @@ class Molecule:
 @dataclass
 class Disconnection:
     """ Class holding information of a disconnection """
-    molecule: Molecule | None = None
-    rdmol: cif.Mol | None = None
-    rdmol_fragmented: cif.Mol | None = None
+    molecule: Union[Molecule, None] = None
+    rdmol: Union[cif.Mol, None] = None
+    rdmol_fragmented: Union[cif.Mol, None] = None
     reacting_atoms: list = field(default_factory=list)
     hydrogenated_atoms: list = field(default_factory=list)
     new_bonds: list = field(default_factory=list)
@@ -71,9 +72,9 @@ class Disconnection:
 @dataclass
 class Pattern:
     """ Class holding information about a molecular pattern """
-    rdmol_mapped: cif.Mol | None = None
+    rdmol_mapped: Union[cif.Mol, None] = None
     identity_property_name: str = 'smarts'
-    rdmol: cif.Mol | None = None
+    rdmol: Union[cif.Mol, None] = None
     smarts: str = field(default_factory=str)
     hash_map: dict = field(default_factory=dict)
     uid: int = field(default_factory=int)
@@ -164,15 +165,15 @@ class ChemicalEquation:
     """ A dictionary mapping various properties with their values"""
     uid: int = field(default_factory=int)
     """ The integer obtained by hashing the chemical identity identity property """
-    rdrxn: cif.rdChemReactions.ChemicalReaction | None = None
+    rdrxn: Union[cif.rdChemReactions.ChemicalReaction, None] = None
     """ An RDKit ChemicalReaction object """
     smiles: str = field(default_factory=str)
     """ The standardized smiles of the reaction"""
-    mapping: Ratam | None = field(default=None)
+    mapping: Union[Ratam, None] = field(default=None)
     """ A Ratam instance (if the ChemicalEquation is mapped)"""
-    template: Template | None = field(default=None)
+    template: Union[Template, None] = field(default=None)
     """ A Template instance (if the ChemicalEquation is mapped)"""
-    disconnection: Disconnection | None = field(default=None)
+    disconnection: Union[Disconnection, None] = field(default=None)
     """ A Disconnection instance (if the ChemicalEquation is mapped)"""
 
     def __hash__(self) -> int:
