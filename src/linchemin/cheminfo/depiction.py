@@ -757,7 +757,8 @@ def draw_disconnection(rdmol, reacting_atoms, new_bonds, modified_bonds, show_at
     draw_rdmol = rdMolDraw2D.PrepareMolForDrawing(rdmol)
     atoms_to_highlight = reacting_atoms
     highligh_atom_colors = {a: color_reacting_atoms for a in reacting_atoms}
-    highlight_bond_colors = {b: color_new_bonds for b in new_bonds} | {b: color_modified_bonds for b in modified_bonds}
+    highlight_bond_colors = {b: color_new_bonds for b in new_bonds}
+    highlight_bond_colors.update({b: color_modified_bonds for b in modified_bonds})
 
     bonds_to_highlight = highlight_bond_colors.keys()
     d2d.DrawMolecule(draw_rdmol, highlightAtoms=atoms_to_highlight,

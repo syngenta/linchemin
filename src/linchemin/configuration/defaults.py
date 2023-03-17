@@ -96,7 +96,7 @@ def get_settings():
     all_settings = {'GED': d_ged, 'WORKFLOW': DEFAULT_WORKFLOW, 'CONSTRUCTORS': DEFAULT_CONSTRUCTORS, 'FACADE': {}}
 
     for functionality, d in DEFAULT_FACADE.items():
-        all_settings['FACADE'] |= d['value']
+        all_settings['FACADE'].update(d['value'])
     all_settings['CHEMICAL_SIMILARITY'] = DEFAULT_CHEMICAL_SIMILARITY
     all_settings['CLUSTERING'] = DEFAULT_CLUSTERING
     return all_settings
