@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from typing import Union
 
 from linchemin.services.namerxn import service
 from linchemin.services.rxnmapper import service as rxn_service
@@ -29,7 +30,7 @@ class MappingOutput:
         within a pipeline"""
 
     @property
-    def success_rate(self) -> float | int:
+    def success_rate(self) -> Union[float, int]:
         """ A float between 0.0 and 1 indicating the success rate of the mapping"""
         if self.mapped_reactions:
             return len(self.mapped_reactions) / (len(self.mapped_reactions) + len(self.unmapped_reactions))

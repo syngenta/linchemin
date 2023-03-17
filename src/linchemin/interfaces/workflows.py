@@ -64,7 +64,7 @@ class WorkflowOutput:
     clustering: tuple = field(default_factory=tuple)
     clustered_descriptors: pd.DataFrame = field(default_factory=pd.DataFrame)
     distance_matrix: pd.DataFrame = field(default_factory=pd.DataFrame)
-    tree: Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph] | None = None
+    tree: Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph, None] = None
     reaction_strings: list = field(default_factory=list)
     log: dict = field(default_factory=dict)
 
