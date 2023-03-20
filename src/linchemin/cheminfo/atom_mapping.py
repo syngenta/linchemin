@@ -1,8 +1,6 @@
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Union
+from typing import List, Union
 
 from linchemin.services.namerxn import service
 from linchemin.services.rxnmapper import service as rxn_service
@@ -46,7 +44,7 @@ class Mapper(ABC):
     """ Abstract class for the atom mappers """
 
     @abstractmethod
-    def map_chemical_equations(self, reactions_list: list[dict]) -> MappingOutput:
+    def map_chemical_equations(self, reactions_list: List[dict]) -> MappingOutput:
         pass
 
 
@@ -54,7 +52,7 @@ class NameRxnMapper(Mapper):
     """ Class for the NameRxn atom mapper """
     info = 'NextMove reaction classifier. Needs credentials'
 
-    def map_chemical_equations(self, reactions_list: list[dict]):
+    def map_chemical_equations(self, reactions_list: List[dict]):
         # print('NameRxn mapper is called')
         out = MappingOutput()
         namerxn_service = service.NamerxnService(base_url='http://127.0.0.1:8004/')
@@ -81,7 +79,7 @@ class NameRxnMapper(Mapper):
 #     """ Class for the Chematica atom mapper """
 #     info = 'Atom mapper developed in the Chematica software'
 #
-#     def map_chemical_equations(self, reactions_list: list[dict]):
+#     def map_chemical_equations(self, reactions_list: List[dict]):
 #         # print('Chematica mapper is called')
 #         out = MappingOutput()
 #         out.unmapped_reactions = reactions_list
@@ -96,7 +94,7 @@ class RxnMapper(Mapper):
     """ Class for the IbmRxn atom mapper """
     info = 'Atom mapper developed by IBM'
 
-    def map_chemical_equations(self, reactions_list: list[dict]):
+    def map_chemical_equations(self, reactions_list: List[dict]):
         # print('RxnMapper mapper is called')
         out = MappingOutput()
         rxnmapper_service = rxn_service.RxnMapperService(base_url='http://127.0.0.1:8002/')
@@ -133,7 +131,7 @@ class MapperFactory:
         return mapper().map_chemical_equations(reactions_list)
 
 
-def perform_atom_mapping(reactions_list: list[dict], mapper_name: str) -> MappingOutput:
+def perform_atom_mapping(reactions_list: List[dict], mapper_name: str) -> MappingOutput:
     """ Gives access to the mapper factory.
 
         :param:
@@ -222,7 +220,7 @@ class MappingBuilder:
         return FirstMapping().mapping(out)
 
 
-def pipeline_atom_mapping(reactions_list: list[dict] = None) -> MappingOutput:
+def pipeline_atom_mapping(reactions_list: List[dict] = None) -> MappingOutput:
     """ Facade function to start the atom-to-atom mapping pipeline.
 
         :param:
