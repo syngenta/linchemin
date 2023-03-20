@@ -20,7 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 keywords = ["reaction", "chemoinformatics", "computer-aided synthesis planning"]
-requires-python = ">=3.9"
+requires-python = ">=3.8"
 dependencies = [
         "rdkit>=2022.3",
         "rdchiral",

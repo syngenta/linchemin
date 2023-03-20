@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from dataclasses import dataclass
@@ -780,9 +782,9 @@ def calculate_molecular_hash_values(rdmol: cif.Mol, hash_list: Union[set, None] 
     hash_map = {}
 
     if rdkit_hashes := [h for h in hash_list if h in molhashf]:
-        hash_map |= {k: cif.MolHash(rdmol, v) for k, v in molhashf.items() if k in rdkit_hashes}
+        hash_map.update({k: cif.MolHash(rdmol, v) for k, v in molhashf.items() if k in rdkit_hashes})
     if 'smiles' in hash_list:
-        hash_map |= {'smiles': cif.MolHash(rdmol, v) for k, v in molhashf.items() if k == 'CanonicalSmiles'}
+        hash_map.update({'smiles': cif.MolHash(rdmol, v) for k, v in molhashf.items() if k == 'CanonicalSmiles'})
 
     if other_hashes := [h for h in hash_list if h not in rdkit_hashes]:
         factory = MolIdentifierFactory(rdmol)
@@ -790,7 +792,7 @@ def calculate_molecular_hash_values(rdmol: cif.Mol, hash_list: Union[set, None] 
             if h not in MoleculeConstructor.all_available_identifiers:
                 logger.warning(f'{h} is not supported as molecular identifier')
             elif h != 'smiles':
-                hash_map |= factory.select_identifier(h, hash_map)
+                hash_map.update(factory.select_identifier(h, hash_map))
 
     """
 

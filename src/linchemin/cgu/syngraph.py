@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import List, Union
@@ -270,12 +272,12 @@ class MonopartiteReacSynGraph(SynGraph):
         all_reactants = set()
         all_products = set()
         for parent, children in self.graph.items():
-            all_reactants |= {mol for h, mol in parent.catalog.items() if h in parent.role_map['reactants']}
-            all_products |= {mol for h, mol in parent.catalog.items() if h in parent.role_map['products']}
+            all_reactants.update({mol for h, mol in parent.catalog.items() if h in parent.role_map['reactants']})
+            all_products.update({mol for h, mol in parent.catalog.items() if h in parent.role_map['products']})
 
             for child in children:
-                all_reactants |= {mol for h, mol in child.catalog.items() if h in child.role_map['reactants']}
-                all_products |= {mol for h, mol in child.catalog.items() if h in child.role_map['products']}
+                all_reactants.update({mol for h, mol in child.catalog.items() if h in child.role_map['reactants']})
+                all_products.update({mol for h, mol in child.catalog.items() if h in child.role_map['products']})
         return [m for m in all_products if m not in all_reactants]
 
     def get_molecule_leaves(self) -> list:
@@ -283,12 +285,12 @@ class MonopartiteReacSynGraph(SynGraph):
         all_reactants = set()
         all_products = set()
         for parent, children in self.graph.items():
-            all_reactants |= {mol for h, mol in parent.catalog.items() if h in parent.role_map['reactants']}
-            all_products |= {mol for h, mol in parent.catalog.items() if h in parent.role_map['products']}
+            all_reactants.update({mol for h, mol in parent.catalog.items() if h in parent.role_map['reactants']})
+            all_products.update({mol for h, mol in parent.catalog.items() if h in parent.role_map['products']})
 
             for child in children:
-                all_reactants |= {mol for h, mol in child.catalog.items() if h in child.role_map['reactants']}
-                all_products |= {mol for h, mol in child.catalog.items() if h in child.role_map['products']}
+                all_reactants.update({mol for h, mol in child.catalog.items() if h in child.role_map['reactants']})
+                all_products.update({mol for h, mol in child.catalog.items() if h in child.role_map['products']})
         return [m for m in all_reactants if m not in all_products]
 
 

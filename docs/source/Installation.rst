@@ -1,7 +1,7 @@
 Installation
 ============
 
-LinChemIn requires python 3.9 or higher, as well as some common and reliable third party packages such as
+LinChemIn requires python 3.8 or higher, as well as some common and reliable third party packages such as
 ``rdkit``, ``pydot``, ``networkx``, ``pandas``, ``numpy``, etc...
 
 Usage installation
