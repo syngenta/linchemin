@@ -12,10 +12,23 @@ authors = [
         { name = "Marta Pasquini", email = "marta.pasquini@syngenta.com" },
 ]
 readme = "README.md"
+# https://pypi.org/classifiers/
 classifiers = [
+        "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
+        "Operating System :: MacOS :: MacOS X",
+        "Operating System :: Microsoft :: Windows",
+        "Operating System :: OS Independent",
+        "Operating System :: POSIX :: Linux",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: Implementation :: CPython",
+        "Topic :: Scientific/Engineering :: Chemistry",
 ]
 keywords = ["reaction", "chemoinformatics", "computer-aided synthesis planning"]
 requires-python = ">=3.8"
