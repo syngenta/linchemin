@@ -1,8 +1,5 @@
 [build-system]
-requires      = [
-        "setuptools>=61.0.0",
-        "wheel",
-        ]
+requires = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -10,61 +7,65 @@ name = "linchemin"
 version = "2.0.3"
 description = "Toolkit to create, manipulate, and query networks of Chemical Reactions and Chemicals"
 license = { file = "LICENSE" }
-
-authors = [{ name = "Marco Stenta", email = "marco.stenta@syngenta.com" },{ name = "Marta Pasquini", email = "marta.pasquini@syngenta.com" }]
+authors = [
+        { name = "Marco Stenta", email = "marco.stenta@syngenta.com" },
+        { name = "Marta Pasquini", email = "marta.pasquini@syngenta.com" },
+]
 readme = "README.md"
-
 classifiers = [
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
 ]
 keywords = ["reaction", "chemoinformatics", "computer-aided synthesis planning"]
 requires-python = ">=3.8"
-dependencies = [
-        "rdkit>=2022.3",
-        "rdchiral",
-        "pydot",
-        "networkx",
-        "pandas",
-        "numpy",
-        "pydantic",
-        "hdbscan",
-        "scikit-learn",
-        "joblib==1.1.0",
-        "dynaconf",
-        "pyyaml",
-        "flake8",
-        "isort"
-        ]
 # TODO: newer versions of joblib create problems with hdbscan https://github.com/scikit-learn-contrib/hdbscan/issues/565
+dependencies = [
+        "dynaconf",
+        "hdbscan",
+        "joblib==1.1.0",
+        "networkx",
+        "numpy",
+        "pandas",
+        "pydantic",
+        "pydot",
+        "pyyaml",
+        "rdchiral",
+        "rdkit>=2022.3",
+        "scikit-learn",
+]
 
 [project.optional-dependencies]
 dev = [
         "bumpver",
+        "flake8==6.0.0",
+        "isort==5.12.0",
         "pytest-cov",
         "pytest",
-        "sphinx"
-        ]
+        "sphinx",
+]
 
 [project.urls]
 homepage = "https://linchemin.github.io"
 repository = "https://github.com/syngenta/linchemin"
 
-
 [project.scripts]
 linchemin = "linchemin.interfaces.cli:linchemin_cli"
 linchemin_configure = "linchemin.configuration.config:configure"
 
+[tool.isort]
+atomic = true
+py_version = "38"
+skip_gitignore = true
+
 [tool.bumpver]
 current_version = "2.0.3"
 version_pattern = "MAJOR.MINOR.PATCH"
-commit_message  = "Bump version {old_version} -> {new_version}"
-commit          = true
-tag             = true
-push            = true
+commit_message = "Bump version {old_version} -> {new_version}"
+commit = true
+tag = true
+push = true
 
 [tool.bumpver.file_patterns]
 "pyproject.toml" = ['current_version = "{version}"', 'version = "{version}"']
 "docs/source/conf.py" = ['version = "{version}"']
-
