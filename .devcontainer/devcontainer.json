@@ -18,7 +18,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "python -m pip install --upgrade pip setuptools wheel && pip install --user -e '.[dev]' && linchemin_configure",
+	"postCreateCommand": "python -m pip install --upgrade pip setuptools wheel && pip install --user -e '.[dev]' && pre-commit install && linchemin_configure",
 
 	// Configure tool-specific properties.
 	"customizations": {
