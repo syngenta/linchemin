@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import multiprocessing as mp
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import List, Union
 
 import pandas as pd
 
@@ -233,14 +233,14 @@ class RoutesDescriptorsFacade(Facade):
         return {'routes': {'name_or_flags': ['-routes'],
                            'default': None,
                            'required': True,
-                           'type': list[SynGraph],
+                           'type': List[SynGraph],
                            'choices': None,
                            'help': 'List of SynGraph objects for which the selected descriptors should be calculated',
                            'dest': 'routes'},
                 'descriptors': {'name_or_flags': ['-descriptors'],
                                 'default': DEFAULT_FACADE['routes_descriptors']['value'],
                                 'required': False,
-                                'type': list[str],
+                                'type': List[str],
                                 'choices': get_available_descriptors(),
                                 'help': 'List of descriptors to be calculated',
                                 'dest': 'descriptors'}}
@@ -316,7 +316,7 @@ class GedFacade(Facade):
         """
         return {'routes': {'name_or_flags': ['-routes'],
                            'default': None, 'required': True,
-                           'type': list[SynGraph],
+                           'type': List[SynGraph],
                            'choices': None,
                            'help': 'List of SynGraph objects for which the distance matrix should be calculated',
                            'dest': 'routes'},
@@ -450,7 +450,7 @@ class ClusteringFacade:
         return {'routes': {'name_or_flags': ['-routes'],
                            'default': None,
                            'required': True,
-                           'type': list[SynGraph],
+                           'type': List[SynGraph],
                            'choices': None,
                            'help': 'List of SynGraph objects to be clustered',
                            'dest': 'routes'},
@@ -540,7 +540,7 @@ class SubsetsFacade(Facade):
         return {'routes': {'name_or_flags': ['-routes'],
                            'default': None,
                            'required': True,
-                           'type': list[SynGraph],
+                           'type': List[SynGraph],
                            'choices': None,
                            'help': 'List of SynGraph objects in which subsets should be searched',
                            'dest': 'routes'}}
@@ -578,7 +578,7 @@ class DuplicatesFacade(Facade):
         return {'routes': {'name_or_flags': ['-routes'],
                            'default': None,
                            'required': True,
-                           'type': list[SynGraph],
+                           'type': List[SynGraph],
                            'choices': None,
                            'help': 'List of SynGraph objects in which duplicates should be searched',
                            'dest': 'routes'}}
@@ -618,7 +618,7 @@ class MergingFacade(Facade):
         return {'routes': {'name_or_flags': ['-routes'],
                            'default': None,
                            'required': True,
-                           'type': list[SynGraph],
+                           'type': List[SynGraph],
                            'choices': None,
                            'help': 'List of SynGraph objects in which duplicates should be searched',
                            'dest': 'routes'},
@@ -689,7 +689,7 @@ class ReactionExtractionFacade(Facade):
         return {'routes': {'name_or_flags': ['-routes'],
                            'default': None,
                            'required': True,
-                           'type': list[SynGraph],
+                           'type': List[SynGraph],
                            'choices': None,
                            'help': 'List of SynGraph objects from which reaction strings should be extracted',
                            'dest': 'routes'}}
@@ -762,7 +762,7 @@ class AtomMappingFacade(Facade):
         return {'routes': {'name_or_flags': ['-routes'],
                            'default': None,
                            'required': True,
-                           'type': list[SynGraph],
+                           'type': List[SynGraph],
                            'choices': None,
                            'help': 'List of SynGraph objects in which duplicates should be searched',
                            'dest': 'routes'},

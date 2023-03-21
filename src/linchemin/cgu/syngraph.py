@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import List, Union
@@ -145,7 +143,7 @@ class SynGraph(ABC):
 class BipartiteSynGraph(SynGraph):
     """ SynGraph subclass representing a Bipartite (Molecule and ChemicalEquation nodes) SynGraph """
 
-    def builder_from_reaction_list(self, chemical_equations: list[ChemicalEquation]):
+    def builder_from_reaction_list(self, chemical_equations: List[ChemicalEquation]):
         """ To build a BipartiteSynGraph instance from a list of ChemicalEquation objects"""
         for ch_equation in chemical_equations:
             products = [prod for h, prod in ch_equation.catalog.items() if h in ch_equation.role_map['products']]
