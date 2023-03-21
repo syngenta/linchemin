@@ -78,4 +78,3 @@ function:
     from linchemin.interfaces.facade import facade
 
     cluster, metadata = facade('clustering', routes_list, clustering_method='new_cluster')
-

@@ -197,4 +197,3 @@ def test_mapping(mock_pipeline, mock_rxnmapper, ibm1_path):
     assert meta['mapping_success_rate']
     for r in mapped_routes:
         assert type(r) == MonopartiteReacSynGraph
-

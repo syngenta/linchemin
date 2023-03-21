@@ -32,5 +32,3 @@ def test_basic_disconnectionGraph():
     with pytest.raises(TypeError) as e:
         discgraph.add_disc_node((no_mapping_ce, []))
     assert "TypeError" in str(e.type)
-
-
