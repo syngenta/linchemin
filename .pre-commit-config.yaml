@@ -1,0 +1,22 @@
+repos:
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+      - id: check-useless-excludes
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-yaml
+      - id: check-case-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-toml
+      - id: detect-private-key
+      - id: fix-byte-order-marker
+        exclude: '^docs/source/reference/generated/.*\.rst'
+      - id: no-commit-to-branch
+        args: [--branch, main]
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        files: '^src/.*\.pyi?$'
