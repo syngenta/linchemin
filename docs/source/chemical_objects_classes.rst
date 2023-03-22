@@ -78,5 +78,3 @@ contains the smiles string associated with the ChemicalEquation instance.
     chemical_equation = chemical_equation_constructor.build_from_reaction_string(
                         reaction_string='CCN.CCOC(=O)CC>>CCNC(=O)CC',
                         inp_fmt='smiles')
-
-

@@ -43,4 +43,3 @@ html_sidebars = {
                  'authors.html',
             ]
         }
-

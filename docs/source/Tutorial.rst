@@ -279,5 +279,3 @@ among the selected ones.
                              functionalities=['distance_matrix']) # the functionalities to be activated
                              parallelization_True,                # parallelization is activated
                              n_cpu=8)                             # nr of CPUs to be used
-
-

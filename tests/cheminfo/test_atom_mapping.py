@@ -77,4 +77,3 @@ def test_pipeline(mock_namerxn, mock_rxnmapper, az_path):
     mock_rxnmapper.assert_called()
     assert out is not None
     assert out.pipeline_success_rate != {}
-

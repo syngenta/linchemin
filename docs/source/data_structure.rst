@@ -132,5 +132,3 @@ the :func:`~convert.converter` can be used.
 
     # A MonopartiteReacSynGraph is converted into a BipartiteSynGraph
     bp_syngraph = converter(mpr_syngraphs, 'bipartite')
-
-

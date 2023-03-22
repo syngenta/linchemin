@@ -35,4 +35,3 @@ packages. To install LinChemIn in development setting simply type:
     $ git clone https://github.com/syngenta/linchemin
     $ cd linchemin
     $ pip install -e .[development]
-

@@ -76,4 +76,3 @@ If you would like to contribute to the package, we recommend the following devel
     ```
 
 9. From your fork, open a pull request via the "_Contribute_" button, the maintainers will be happy to review it.
-

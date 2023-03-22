@@ -89,4 +89,3 @@ or use it through the :func:`~linchemin.interfaces.facade.facade` function with 
     from linchemin.interfaces.facade import facade
 
     descriptors, metadata = facade('routes_descriptors', routes_list, descriptors=['new_desc'])
-

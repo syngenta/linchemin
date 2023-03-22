@@ -81,4 +81,3 @@ you will be able to work with a list of routes:
     from linchemin.interfaces.facade import facade
 
     dist_matrix, metadata = facade('distance_matrix', routes_list, ged_method='new_ged')
-

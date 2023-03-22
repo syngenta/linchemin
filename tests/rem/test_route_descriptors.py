@@ -188,4 +188,3 @@ def test_atom_efficiency(az_path):
     az_routes_mp = translator('az_retro', graph[0], 'syngraph', out_data_model='monopartite_reactions')
     ae = descriptor_calculator(az_routes_mp, 'atom_efficiency')
     assert ae == 34. / 36.
-

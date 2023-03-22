@@ -11,6 +11,8 @@ repos:
       - id: check-shebang-scripts-are-executable
       - id: check-toml
       - id: detect-private-key
+      - id: end-of-file-fixer
+        exclude: '^docs/source/reference/generated/.*\.rst'
       - id: fix-byte-order-marker
         exclude: '^docs/source/reference/generated/.*\.rst'
       - id: no-commit-to-branch

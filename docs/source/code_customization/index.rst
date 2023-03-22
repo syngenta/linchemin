@@ -19,4 +19,3 @@ functionalities of LinChemIn.
    descriptors_customization
    ged_customization
    cluster_customization
-

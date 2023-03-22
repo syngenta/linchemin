@@ -60,5 +60,3 @@ def test_reaction_mapping():
     assert reaction_mapping(map_dictionaries['map5'], map_dictionaries['map6'], ids_transferred_atoms=[]) == [2, 3, 4]
     # unmapped atoms (map index = 0) are ignored
     assert reaction_mapping(map_dictionaries['map7'], map_dictionaries['map8']) == [2]
-
-
