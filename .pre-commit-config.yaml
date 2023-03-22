@@ -17,6 +17,8 @@ repos:
         exclude: '^docs/source/reference/generated/.*\.rst'
       - id: no-commit-to-branch
         args: [--branch, main]
+      - id: trailing-whitespace
+        exclude: '^docs/source/reference/generated/.*\.rst'
   - repo: https://github.com/pycqa/isort
     rev: 5.12.0
     hooks:

@@ -47,11 +47,11 @@ If you would like to contribute to the package, we recommend the following devel
 7. Implement your changes and once you are ready run the tests:
 
     ```sh
-    # this can take quite long 
-    cd linchemin/tests 
-    python -m pytest 
+    # this can take quite long
+    cd linchemin/tests
+    python -m pytest
     ```
-   
+
    And add style checks (be aware that running isort might change your files!):
    ```sh
     cd linchemin
@@ -65,7 +65,7 @@ If you would like to contribute to the package, we recommend the following devel
 
     ```sh
     # add the changes
-    git add 
+    git add
     # commit them
     git commit -s -m "feat: implementing super nice feature." -m "A feature we all need."
     # check upstream changes
