@@ -72,5 +72,5 @@ class DisconnectionGraph:
             if connections:
                 text = text + '{} -> {} \n'.format(r, *connections)
             else:
-                text = text + '{}\n'.format(r)
+                text = text + f'{r}\n'
         return text

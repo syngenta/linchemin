@@ -28,7 +28,7 @@ def write_json(data, file_path: Union[Path, str], indent=4, overwrite=True):
 
 def read_json(file_path: Union[Path, str]):
     file_path = get_file_path(file_path, 'r')
-    with open(file_path, 'r') as f:
+    with open(file_path) as f:
         data = json.load(f)
     return data
 
@@ -46,7 +46,7 @@ def dict_list_to_csv(data: List[dict], file_path: Union[Path, str], delimiter: s
 
 def csv_to_dict_list(file_path: Union[Path, str], delimiter: str = ','):
     file_path = get_file_path(file_path=file_path, mode='r')
-    with open(file_path, 'r') as file:
+    with open(file_path) as file:
         content = csv.DictReader(file, delimiter=delimiter)
         return [dict(row) for row in content]
 

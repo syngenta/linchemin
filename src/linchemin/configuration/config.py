@@ -183,7 +183,7 @@ class ConfigurationFileHandler:
             if not file.exists():
                 write = True
             else:
-                with open(file, 'r') as stream:
+                with open(file) as stream:
                     content_old = yaml.load(stream, Loader=yaml.Loader)
                 message = f'\nThe {name} file was found in {file} \n' \
                           f' current  file content: {content_old}\n' \
