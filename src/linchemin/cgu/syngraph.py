@@ -123,7 +123,7 @@ class SynGraph(ABC):
             if connections:
                 text = text + '{} -> {} \n'.format(r, *connections)
             else:
-                text = text + '{}\n'.format(r)
+                text = text + f'{r}\n'
         return text
 
     def add_node(self, nodes_tup: tuple):

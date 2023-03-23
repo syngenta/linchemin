@@ -80,7 +80,7 @@ class HdbscanClusterCalculator(ClusterCalculator):
             logger.error('Hdbscan found only noise. This can occur if less than 15 routes were given')
             raise OnlyNoiseClustering
         s_score = compute_silhouette_score(dist_matrix, clustering.labels_)
-        print('The Silhouette score is {:.3f}'.format(round(s_score, 3)))
+        print(f'The Silhouette score is {round(s_score, 3):.3f}')
         return (clustering, s_score, dist_matrix) if save_dist_matrix is True else (clustering, s_score)
 
 
@@ -101,7 +101,7 @@ class AgglomerativeClusterCalculator(ClusterCalculator):
             raise OnlyNoiseClustering
         print(f'The number of clusters with the best Silhouette score is {best_n_cluster}')
 
-        print('The Silhouette score is {:.3f}'.format(round(s_score, 3)))
+        print(f'The Silhouette score is {round(s_score, 3):.3f}')
         return (clustering, s_score, dist_matrix) if save_dist_matrix is True else (clustering, s_score)
 
 
