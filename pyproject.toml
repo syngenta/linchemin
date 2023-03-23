@@ -32,11 +32,11 @@ classifiers = [
 ]
 keywords = ["reaction", "chemoinformatics", "computer-aided synthesis planning"]
 requires-python = ">=3.8"
-# TODO: newer versions of joblib create problems with hdbscan https://github.com/scikit-learn-contrib/hdbscan/issues/565
 dependencies = [
         "dynaconf",
-        "hdbscan",
-        "joblib==1.1.0",
+        # NOTE: hdbscan>=0.8.29 is required for compatibility with joblib 1.2.0.
+        "hdbscan>=0.8.29",
+        "joblib",
         "networkx",
         "numpy",
         "pandas",
