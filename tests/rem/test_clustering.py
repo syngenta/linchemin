@@ -1,7 +1,11 @@
-from linchemin.rem.clustering import (clusterer, get_available_clustering, get_clustered_routes_metrics, ClusteringError)
-from linchemin.cgu.translate import translator
 import json
+
 import pytest
+
+from linchemin.cgu.translate import translator
+from linchemin.rem.clustering import (ClusteringError, clusterer,
+                                      get_available_clustering,
+                                      get_clustered_routes_metrics)
 
 
 def test_clusterer(az_path):

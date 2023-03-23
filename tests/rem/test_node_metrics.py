@@ -1,6 +1,7 @@
-from linchemin.rem.node_metrics import node_score_calculator, reaction_mapping
-from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 import pytest
+
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor
+from linchemin.rem.node_metrics import node_score_calculator, reaction_mapping
 
 
 def test_factory():

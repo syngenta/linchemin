@@ -1,11 +1,13 @@
-from linchemin.cgu.convert import converter
-from linchemin.cgu.translate import translator
-from linchemin.cgu.syngraph import (SynGraph, BipartiteSynGraph, MonopartiteReacSynGraph)
+import json
+import os
+from pathlib import Path
 
 import pytest
-import json
-from pathlib import Path
-import os
+
+from linchemin.cgu.convert import converter
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteReacSynGraph,
+                                    SynGraph)
+from linchemin.cgu.translate import translator
 
 
 def test_strategy_structure(ibm1_path):

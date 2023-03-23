@@ -1,8 +1,9 @@
-from linchemin.interfaces.workflows import process_routes, get_workflow_options
-from linchemin.interfaces.facade import facade
+import unittest.mock
 
 import pytest
-import unittest.mock
+
+from linchemin.interfaces.facade import facade
+from linchemin.interfaces.workflows import get_workflow_options, process_routes
 
 
 @unittest.mock.patch('linchemin.IO.io.write_json')
