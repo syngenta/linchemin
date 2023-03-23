@@ -23,7 +23,7 @@ repos:
     rev: 5.12.0
     hooks:
       - id: isort
-        files: '^src/.*\.pyi?$'
+        files: '.*\.pyi?$'
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.3.1
     hooks:
