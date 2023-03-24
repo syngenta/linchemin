@@ -1,15 +1,28 @@
+import unittest
+
 import pytest
 from rdkit import Chem
 from rdkit.Chem import DataStructs, rdChemReactions
-import unittest
 
-from linchemin.cheminfo.constructors import ChemicalEquationConstructor, MoleculeConstructor
+from linchemin.cheminfo.constructors import (ChemicalEquationConstructor,
+                                             MoleculeConstructor)
+from linchemin.cheminfo.functions import (bstr_to_rdmol,
+                                          canonicalize_mapped_rdmol,
+                                          canonicalize_rdmol,
+                                          canonicalize_rdmol_lite,
+                                          compute_oxidation_numbers,
+                                          get_canonical_order,
+                                          has_mapped_products,
+                                          is_mapped_molecule,
+                                          mapping_diagnosis,
+                                          rdchiral_extract_template)
 from linchemin.cheminfo.functions import rdkit as rdkit
-from linchemin.cheminfo.functions import canonicalize_rdmol, get_canonical_order, rdmol_from_string, \
-    rdrxn_to_string, rdrxn_from_string, rdmol_to_bstr, bstr_to_rdmol, \
-    rdrxn_from_string, is_mapped_molecule, has_mapped_products, canonicalize_rdmol_lite,\
-    compute_oxidation_numbers, rdrxn_role_reassignment, rdrxn_to_rxn_mol_catalog, \
-    remove_rdmol_atom_mapping, rdchiral_extract_template, canonicalize_mapped_rdmol, mapping_diagnosis
+from linchemin.cheminfo.functions import (rdmol_from_string, rdmol_to_bstr,
+                                          rdrxn_from_string,
+                                          rdrxn_role_reassignment,
+                                          rdrxn_to_rxn_mol_catalog,
+                                          rdrxn_to_string,
+                                          remove_rdmol_atom_mapping)
 
 
 def test_build_rdrxn_from_smiles():

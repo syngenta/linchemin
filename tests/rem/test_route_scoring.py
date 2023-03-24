@@ -1,8 +1,9 @@
-from linchemin.rem.route_scoring import route_scorer
-from linchemin.cgu.translate import translator
+import json
 
 import pytest
-import json
+
+from linchemin.cgu.translate import translator
+from linchemin.rem.route_scoring import route_scorer
 
 
 def test_scoring_factory(ibm1_path):

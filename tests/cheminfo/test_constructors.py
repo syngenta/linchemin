@@ -1,15 +1,22 @@
-from itertools import combinations
-from linchemin.cheminfo.constructors import (MoleculeConstructor, ChemicalEquationConstructor, RatamConstructor,
-                                             BadMapping, PatternConstructor, TemplateConstructor,
-                                             DisconnectionConstructor, calculate_molecular_hash_values,
-                                             UnavailableMolIdentifier)
-from linchemin.cheminfo.models import Template
-from linchemin.utilities import create_hash
-import linchemin.cheminfo.functions as cif
-from linchemin.IO import io as lio
-import linchemin.cheminfo.depiction as cid
 import unittest
+from itertools import combinations
+
 import pytest
+
+import linchemin.cheminfo.depiction as cid
+import linchemin.cheminfo.functions as cif
+from linchemin.cheminfo.constructors import (BadMapping,
+                                             ChemicalEquationConstructor,
+                                             DisconnectionConstructor,
+                                             MoleculeConstructor,
+                                             PatternConstructor,
+                                             RatamConstructor,
+                                             TemplateConstructor,
+                                             UnavailableMolIdentifier,
+                                             calculate_molecular_hash_values)
+from linchemin.cheminfo.models import Template
+from linchemin.IO import io as lio
+from linchemin.utilities import create_hash
 
 
 # Molecule tests

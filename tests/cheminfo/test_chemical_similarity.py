@@ -1,8 +1,9 @@
-import linchemin.cheminfo.functions as cif
-from linchemin.cheminfo.chemical_similarity import (compute_reaction_fingerprint, compute_similarity,
-                                                    compute_mol_fingerprint)
 import pytest
-from rdkit.Chem import rdChemReactions, DataStructs
+from rdkit.Chem import DataStructs, rdChemReactions
+
+import linchemin.cheminfo.functions as cif
+from linchemin.cheminfo.chemical_similarity import (
+    compute_mol_fingerprint, compute_reaction_fingerprint, compute_similarity)
 
 
 def test_rdkit_reaction_fingerprints_basics_non_mapped_molecules():

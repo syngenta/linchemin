@@ -1,9 +1,14 @@
-from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph, merge_syngraph,
-                                    extract_reactions_from_syngraph)
-from linchemin.cgu.translate import translator
-from linchemin.cheminfo.constructors import ChemicalEquationConstructor, MoleculeConstructor
 import json
+
 import pytest
+
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph,
+                                    extract_reactions_from_syngraph,
+                                    merge_syngraph)
+from linchemin.cgu.translate import translator
+from linchemin.cheminfo.constructors import (ChemicalEquationConstructor,
+                                             MoleculeConstructor)
 
 
 def test_bipartite_syngraph_instance(az_path):

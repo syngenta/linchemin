@@ -1,10 +1,16 @@
-from linchemin.cgu.convert import converter
-from linchemin.rem.route_descriptors import (find_path, descriptor_calculator, is_subset, find_duplicates,
-                                             get_nodes_consensus, get_available_descriptors, DescriptorError)
-from linchemin.cgu.syngraph import SynGraph, merge_syngraph, MonopartiteReacSynGraph
 import json
-from linchemin.cgu.translate import translator
+
 import pytest
+
+from linchemin.cgu.convert import converter
+from linchemin.cgu.syngraph import (MonopartiteReacSynGraph, SynGraph,
+                                    merge_syngraph)
+from linchemin.cgu.translate import translator
+from linchemin.rem.route_descriptors import (DescriptorError,
+                                             descriptor_calculator,
+                                             find_duplicates, find_path,
+                                             get_available_descriptors,
+                                             get_nodes_consensus, is_subset)
 
 
 def test_unavailable_metrics(ibm1_path):

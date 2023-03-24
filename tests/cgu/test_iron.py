@@ -1,4 +1,4 @@
-from linchemin.cgu.iron import Node, Edge, Direction, Iron
+from linchemin.cgu.iron import Direction, Edge, Iron, Node
 
 
 def test_direction():
