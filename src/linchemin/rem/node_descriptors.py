@@ -36,8 +36,8 @@ class CEHypsicity(ChemicalEquationDescriptor):
             raise NoMapping
 
         # select the desired product and add the oxidation number property to its atoms
-        desired_product = next((prod for h, prod in reaction.catalog.items() if h in reaction.role_map['products']),
-                               None)
+        desired_product = next((prod for h, prod in reaction.catalog.items()
+                                if h in reaction.role_map['products']), None)
         cif.compute_oxidation_numbers(desired_product.rdmol_mapped)
         desired_product_at = [at for at in reaction.mapping.atom_transformations if
                               at.product_uid == desired_product.uid]
@@ -49,7 +49,9 @@ class CEHypsicity(ChemicalEquationDescriptor):
         return self.compute_oxidation_state_change(desired_product_at, desired_product, reactants)
 
     @staticmethod
-    def compute_oxidation_state_change(atom_transformations: list, desired_product: Molecule, reactants: list) -> float:
+    def compute_oxidation_state_change(atom_transformations: list,
+                                       desired_product: Molecule,
+                                       reactants: list) -> float:
         """ Computes the change in oxidation state for each mapped atom in the ChemicalEquation """
         delta = 0.0
         # ox_nrs = []
@@ -123,7 +125,8 @@ class ChemicalEquationDescriptorCalculator:
         'ce_hypsicity': CEHypsicity,
     }
 
-    def select_ce_descriptor(self, reaction: ChemicalEquation, score: str):
+    def select_ce_descriptor(self, reaction: ChemicalEquation,
+                             score: str):
         """ Takes a string indicating a metrics and a SynGraph and returns the value of the metrics """
         if score not in self.ce_descriptors:
             raise KeyError(f"Invalid score. Available node scores are: {self.ce_descriptors.keys()}")
@@ -132,7 +135,8 @@ class ChemicalEquationDescriptorCalculator:
         return calculator().compute_descriptor(reaction)
 
 
-def node_descriptor_calculator(reaction: ChemicalEquation, score: str):
+def node_descriptor_calculator(reaction: ChemicalEquation,
+                               score: str):
     """ Gives access to the NodeScoreCalculator factory.
             :param:
                 node: a ChemicalEquation instance
@@ -148,7 +152,9 @@ def node_descriptor_calculator(reaction: ChemicalEquation, score: str):
     return score_selector.select_ce_descriptor(reaction, score)
 
 
-def reaction_mapping(reactant_map: dict, product_map: dict, ids_transferred_atoms: list = None):
+def reaction_mapping(reactant_map: dict,
+                     product_map: dict,
+                     ids_transferred_atoms: list = None):
     """ Takes the dictionaries mapping the atom ids and their atom-2-atom mapping index for a reactant and a product
         of a ChemicalEquation and returns the list of atom ids transferred from the reactant to the product.
 
