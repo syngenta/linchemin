@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Union
+import copy
+
+import imagesize
 
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
@@ -131,64 +134,104 @@ class MoleculeConstructor:
 
 
 # Ratam Constructor
-AtomTransformation = namedtuple('AtomTransformation', ['product_uid', 'reactant_uid', 'prod_atom_id', 'react_atom_id',
-                                                       'map_num'])
+AtomTransformation = namedtuple('AtomTransformation',
+                                ['product_uid',
+                                 'reactant_uid',
+                                 'prod_atom_id',
+                                 'react_atom_id',
+                                 'map_num'])
 
 
 class RatamConstructor:
     """ Class implementing the constructor of the Ratam class"""
 
-    def create_ratam(self, molecules_catalog: dict):
+    def create_ratam(self, molecules_catalog: dict,
+                     desired_products: Molecule) -> Ratam:
+        """ To initialize an instance of the Ratam class """
         ratam = Ratam()
-        ratam.full_map_info = self.get_full_map_info(molecules_catalog)
-        ratam.atom_transformations = self.get_atom_transformations(molecules_catalog, ratam.full_map_info)
+        ratam.full_map_info = self.get_full_map_info(molecules_catalog, desired_products)
+        ratam.atom_transformations = self.get_atom_transformations(ratam.full_map_info)
         return ratam
 
-    def get_full_map_info(self, molecules_catalog: dict) -> dict:
-        full_map_info: dict = {}
-        all_molecules = molecules_catalog['reactants_reagents'] + molecules_catalog['products']
-        for mol in all_molecules:
-            full_map_info[mol.uid] = []
-            m_appearances = [m for m in all_molecules if m == mol]
-            for m in m_appearances:
-                mapping = {}
-                for a in m.rdmol_mapped.GetAtoms():
-                    if isinstance(a.GetAtomMapNum(), int):
-                        mapping[a.GetIdx()] = a.GetAtomMapNum()
-                    else:
-                        mapping[a.GetIdx()] = -1
-                full_map_info[mol.uid].append(mapping)
+    def get_full_map_info(self, molecules_catalog: dict,
+                          desired_product: Molecule) -> Union[dict, None]:
+        """ To create a dictionary mapping each molecule with its list of atom mapping based on its role
+            {'reactants': {uid: [map]}, 'reagents': {uid: [map]}, 'products': {uid: [map]}}"""
+        # if desired_product not in molecules_catalog['products']:
+        #     logger.error('The selected product is not among the reaction products.')
+        #     return None
+        full_map_info = {'reactants': {},
+                         'reagents': {},
+                         'products': {}}
+        full_map_info = self.products_map_info(molecules_catalog, full_map_info)
+        dp_map_nums = {a.GetAtomMapNum() for a in desired_product.rdmol_mapped.GetAtoms()}
+        full_map_info = self.reactants_reagents_map_info(molecules_catalog,
+                                                         full_map_info,
+                                                         dp_map_nums)
+
+        full_map_info = cif.clean_full_map_info(full_map_info)
         self.mapping_sanity_check(full_map_info)
         return full_map_info
 
-    def mapping_sanity_check(self, full_map_info):
-        """ Mapping sanity check: if a map number appears more than 2 times, it means that it is used more than once
-            and thus the mapping is invalid and an error is raised
-        """
+    @staticmethod
+    def products_map_info(molecules_catalog: dict,
+                          full_map_info: dict) -> dict:
+        """ To collect the mapping info for product Molecules """
+        for mol in set(molecules_catalog['products']):
+            full_map_info['products'][mol.uid] = []
+            for m in [n for n in molecules_catalog['products'] if n == mol]:
+                mapping = {a.GetIdx(): a.GetAtomMapNum() for a in m.rdmol_mapped.GetAtoms()}
+                full_map_info['products'][mol.uid].append(mapping)
+        return full_map_info
+
+    @staticmethod
+    def reactants_reagents_map_info(molecules_catalog: dict,
+                                    full_map_info: dict,
+                                    desired_product_map_nums: set) -> dict:
+        """ To collect identify reactants and reagents based on the mapping and collect their mapping information """
+        for mol in molecules_catalog['reactants'] + molecules_catalog['reagents']:
+            if mol.uid not in full_map_info['reactants']:
+                full_map_info['reactants'][mol.uid] = []
+            if mol.uid not in full_map_info['reagents']:
+                full_map_info['reagents'][mol.uid] = []
+            map_nums = {a.GetAtomMapNum() for a in mol.rdmol_mapped.GetAtoms()}
+            if [n for n in map_nums if n in desired_product_map_nums and n not in [0, -1]]:
+                # it's a reactant!
+                full_map_info['reactants'][mol.uid].append({a.GetIdx(): a.GetAtomMapNum()
+                                                            for a in mol.rdmol_mapped.GetAtoms()})
+            else:
+                # it's a reagent!
+                full_map_info['reagents'][mol.uid].append({a.GetIdx(): a.GetAtomMapNum()
+                                                           for a in mol.rdmol_mapped.GetAtoms()})
+        return full_map_info
+
+    @staticmethod
+    def mapping_sanity_check(full_map_info: dict) -> None:
+        """ Mapping sanity check: if a map number appears more than 2 times in the reactants,
+            the mapping is invalid and an error is raised """
         map_nums = []
-        for map_list in full_map_info.values():
+        for uid, map_list in full_map_info['reactants'].items():
             for d in map_list:
                 new_nums = list(d.values())
                 map_nums.extend(iter(new_nums))
-        for n in map_nums:
-            if map_nums.count(n) > 2 and n not in [0, -1]:
-                logger.error('Invalid mapping! The same map number is used more than once')
-                raise BadMapping
+        d = {n: map_nums.count(n) for n in set(map_nums)}
+        if [c for n, c in d.items() if c > 1 and n not in [0, -1]]:
+            logger.error('Invalid mapping! The same map number is used more than once')
+            raise BadMapping
 
-    def get_atom_transformations(self, reaction_mols: dict, full_map_info: dict):
+    @staticmethod
+    def get_atom_transformations(full_map_info: dict) -> set[AtomTransformation]:
         """ To create the list of AtomTransformations from a catalog of mapped Molecule objects """
         atom_transformations = set()
-        for product in reaction_mols['products']:
-            prod_maps = full_map_info[product.uid]
+        for product_uid, prod_maps in full_map_info['products'].items():
             for prod_map in prod_maps:
-                for reactant in reaction_mols['reactants_reagents']:
-                    reactant_maps = full_map_info[reactant.uid]
+                for reactant_uid, reactant_maps in full_map_info['reactants'].items():
                     for reactant_map in reactant_maps:
                         if matching_map_num := [map_num for map_num in reactant_map.values() if
                                                 map_num in prod_map.values() and map_num not in [0, -1]]:
                             atom_transformations.update(build_atom_transformations(matching_map_num, prod_map,
-                                                                                   product.uid, reactant_map,
-                                                                                   reactant.uid))
+                                                                                   product_uid, reactant_map,
+                                                                                   reactant_uid))
         return atom_transformations
 
 
@@ -209,78 +252,37 @@ class DisconnectionConstructor:
     def __init__(self, identity_property_name: str):
         self.identity_property_name = identity_property_name
 
-    def build_from_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction, desired_product_idx: int = 0) -> \
-            Union[Disconnection, None]:
+    def build_from_chemical_equation(self, chemical_equation: ChemicalEquation,
+                                     desired_product: Molecule) -> Union[Disconnection, None]:
+        """ To initialize the Disconnection instance and populate its attributes based on the reactive center of the
+            ChemicalEquation """
 
-        rxn_reactive_center = RXNReactiveCenter(rdrxn=rdrxn)
-
+        rxn_reactive_center = RXNReactiveCenter(chemical_equation, desired_product)
         if len(rxn_reactive_center.rxn_bond_info_list) == 0 and \
                 len(rxn_reactive_center.rxn_atom_info_list) == 0 and \
                 len(rxn_reactive_center.rxn_atomh_info_list) == 0:
             return None
 
-        product_rdmol = cif.Chem.Mol(rdrxn.GetProductTemplate(desired_product_idx))
-        product_changes = rxn_reactive_center.get_product_changes(product_idx=desired_product_idx)
-
-        molecule_constructor = MoleculeConstructor(molecular_identity_property_name=self.identity_property_name)
-        product_molecule = molecule_constructor.build_from_rdmol(rdmol=product_rdmol)
+        product_changes = rxn_reactive_center.get_product_changes()
         disconnection = Disconnection()
-        disconnection.molecule = product_molecule
-        disconnection.rdmol = product_molecule.rdmol
-        reacting_atoms, hydrogenated_atoms, new_bonds, modified_bonds = self.re_map(product_changes,
-                                                                                    rdmol_old=product_rdmol,
-                                                                                    rdmol_new=product_molecule.rdmol)
-        disconnection.reacting_atoms = reacting_atoms
-        disconnection.hydrogenated_atoms = hydrogenated_atoms
-        disconnection.new_bonds = new_bonds
-        disconnection.modified_bonds = modified_bonds
+        disconnection.molecule = desired_product
+        disconnection.rdmol = rxn_reactive_center.disconnection_rdmol
+        disconnection.reacting_atoms = product_changes.reacting_atoms
+        disconnection.hydrogenated_atoms = product_changes.hydrogenated_atoms
+        disconnection.new_bonds = product_changes.new_bonds
+        disconnection.modified_bonds = product_changes.modified_bonds
 
         disconnection.hash_map = calculate_disconnection_hash_values(disconnection)
         disconnection.identity_property = disconnection.hash_map.get('disconnection_summary')
         disconnection.uid = utilities.create_hash(disconnection.identity_property)
-
-        disconnection.rdmol_fragmented = self.get_fragments(rdmol=product_rdmol, new_bonds=new_bonds,
+        disconnection.rdmol_fragmented = self.get_fragments(rdmol=desired_product.rdmol_mapped,
+                                                            new_bonds=disconnection.new_bonds,
                                                             fragmentation_method=2)
-
         return disconnection
 
-    @staticmethod
-    def re_map(product_changes, rdmol_old, rdmol_new):
-        """
-        rdmol_old and  rdmol_new differ by atom and bond ordering
-        this function maps some atoms and bonds from the rdmol_old to rdmol_new
-
-        """
-        reacting_atoms_ = product_changes.reacting_atoms
-        hydrogenated_atoms_ = product_changes.hydrogenated_atoms
-        new_bonds_ = product_changes.new_bonds
-        modified_bonds_ = product_changes.modified_bonds
-
-        match = rdmol_new.GetSubstructMatch(rdmol_old)
-        reacting_atoms = sorted([match[x] for x in reacting_atoms_])
-        hydrogenated_atoms = sorted([match[x] for x in hydrogenated_atoms_])
-        new_bonds = sorted(
-            [rdmol_new.GetBondBetweenAtoms(match[bond.GetBeginAtomIdx()], match[bond.GetEndAtomIdx()]).GetIdx()
-             for bond in rdmol_old.GetBonds() if bond.GetIdx() in new_bonds_])
-
-        modified_bonds = sorted([
-            rdmol_new.GetBondBetweenAtoms(match[bond.GetBeginAtomIdx()], match[bond.GetEndAtomIdx()]).GetIdx()
-            for bond in rdmol_old.GetBonds() if bond.GetIdx() in modified_bonds_])
-
-        return reacting_atoms, hydrogenated_atoms, new_bonds, modified_bonds
-
-    def build_from_reaction_string(self, reaction_string: str, inp_fmt: str) -> Union[Disconnection, None]:
-        rdrxn = cif.rdrxn_from_string(input_string=reaction_string, inp_fmt=inp_fmt)
-        rdrxn.Initialize()
-        rdrxn.Validate()
-        cif.Chem.rdChemReactions.PreprocessReaction(rdrxn)
-        return self.build_from_rdrxn(rdrxn=rdrxn)
-
     def get_fragments(self, rdmol: cif.Mol, new_bonds: List[int], fragmentation_method: int = 1):
-        """
-        inspired by
+        """ To get the fragments of the desired product Mol. Inspired by
             https://github.com/rdkit/rdkit/issues/2081
-
         """
 
         def get_fragments_method_1(rdmol, bonds) -> cif.Mol:
@@ -305,6 +307,7 @@ class DisconnectionConstructor:
                 mh.AddAtom(cif.Chem.Atom(0))
                 mh.AddBond(b, nAts + 1, cif.Chem.BondType.SINGLE)
                 nAts += 2
+
             cif.Chem.SanitizeMol(mh)
             cif.rdkit.Chem.rdmolops.SanitizeFlags.SANITIZE_NONE
             cif.Chem.RemoveHs(mh)
@@ -323,24 +326,12 @@ class DisconnectionConstructor:
         return rdmol_fragmented
 
 
-AtomInfo = namedtuple('AtomInfo', ('mapnum', 'reactant', 'reactant_atom', 'product', 'product_atom'))
-BondInfo = namedtuple('BondInfo', ('product', 'product_atoms', 'product_bond', 'status'))
-
-
-@dataclass(eq=True, order=False, frozen=False)
-class RxnAtomInfo:
-    """Class for keeping track of atoms involved in a reaction."""
-    mapnum: int
-    reactant: int
-    reactant_atom: int
-    product: int
-    product_atom: int
+BondInfo = namedtuple('BondInfo', ('product_atoms', 'product_bond', 'status'))
 
 
 @dataclass(eq=True, order=False, frozen=False)
 class RxnBondInfo:
     """Class for keeping track of bonds that between reactants and products of a reaction are new or changed."""
-    product: int
     product_atoms: tuple
     product_bond: int
     status: str
@@ -350,9 +341,10 @@ class RxnBondInfo:
 class RXNProductChanges:
     """Class for keeping track of the changes in a reaction product"""
     reacting_atoms: list[int]
-    hydrogenated_atoms: list[int]
+    hydrogenated_atoms: list[tuple]
     new_bonds: list[int]
     modified_bonds: list[int]
+    rdmol: cif.Mol
 
 
 class RXNReactiveCenter:
@@ -362,101 +354,135 @@ class RXNReactiveCenter:
     https://greglandrum.github.io/rdkit-blog/tutorial/reactions/2021/11/26/highlighting-changed-bonds-in-reactions.html
     """
 
-    def __init__(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
-        rdrxn.Initialize()
-        self.rxn_atom_info_list, self.rxn_atomh_info_list, self.rxn_bond_info_list, = self.find_modifications_in_products(
-            rdrxn)
+    def __init__(self, chemical_equation, desired_product):
+        chemical_equation.rdrxn.Initialize()
+        self.rxn_atom_info_list, self.rxn_atomh_info_list, self.rxn_bond_info_list, self.disconnection_rdmol = self.find_modifications_in_products(
+            chemical_equation, desired_product)
 
-    def get_product_changes(self, product_idx: int = 0):
-        reacting_atoms = sorted([ai.product_atom for ai in self.rxn_atom_info_list if ai.product == product_idx])
-        hydrogenated_atoms = sorted([ai.product_atom for ai in self.rxn_atomh_info_list if ai.product == product_idx])
+    def get_product_changes(self):
+        """ To get the changes generated by the reaction: reacting atoms, hydrogenated atoms, created bonds and
+            modified bonds. They are returned as attributes of a RXNProductChanges instance"""
+        reacting_atoms = sorted([at.prod_atom_id for at in self.rxn_atom_info_list])
+        hydrogenated_atoms = sorted([(d['p_atom'], d['delta_hydrogen']) for d in self.rxn_atomh_info_list])
 
         new_bonds = sorted(
-            [bi.product_bond for bi in self.rxn_bond_info_list if bi.product == product_idx and bi.status == 'new'])
+            [bi.product_bond for bi in self.rxn_bond_info_list if bi.status == 'new'])
         modified_bonds = sorted(
-            [bi.product_bond for bi in self.rxn_bond_info_list if
-             bi.product == product_idx and bi.status == 'changed'])
-
-        return RXNProductChanges(reacting_atoms, hydrogenated_atoms, new_bonds, modified_bonds)
-
-    @staticmethod
-    def map_reacting_atoms_to_products(rdrxn: cif.rdChemReactions.ChemicalReaction, reactingAtoms):
-        """ figures out which atoms in the products each mapped atom in the reactants maps to """
-        res = []
-        for ridx, reacting in enumerate(reactingAtoms):
-            reactant = rdrxn.GetReactantTemplate(ridx)
-            for raidx in reacting:
-                mapnum = reactant.GetAtomWithIdx(raidx).GetAtomMapNum()
-                foundit = False
-                for pidx, product in enumerate(rdrxn.GetProducts()):
-                    for paidx, patom in enumerate(product.GetAtoms()):
-                        if patom.GetAtomMapNum() == mapnum:
-                            res.append(AtomInfo(mapnum, ridx, raidx, pidx, paidx))
-                            foundit = True
-                            break
-                        if foundit:
-                            break
-        return res
+            [bi.product_bond for bi in self.rxn_bond_info_list if bi.status == 'changed'])
+        return RXNProductChanges(reacting_atoms,
+                                 hydrogenated_atoms,
+                                 new_bonds,
+                                 modified_bonds,
+                                 self.disconnection_rdmol)
 
     @staticmethod
     def get_mapped_neighbors(atom: cif.Atom):
-        """ test all mapped neighbors of a mapped atom"""
+        """ To get the mapped neighbors of an atom"""
         res: dict = {}
         amap = atom.GetAtomMapNum()
-        if not amap:
+        if amap == 0:
             return res
-        for nbr in atom.GetNeighbors():
-            if nmap := nbr.GetAtomMapNum():
-                if amap > nmap:
-                    res[(nmap, amap)] = (atom.GetIdx(), nbr.GetIdx())
-                else:
-                    res[(amap, nmap)] = (nbr.GetIdx(), atom.GetIdx())
+        for bond in atom.GetBonds():
+            neighbor = next(a for a in [bond.GetEndAtom(), bond.GetBeginAtom()] if a.GetAtomMapNum() != amap)
+            n_map = neighbor.GetAtomMapNum()
+            if amap > n_map:
+                res[(n_map, amap)] = (atom.GetIdx(), neighbor.GetIdx())
+            else:
+                res[(amap, n_map)] = (neighbor.GetIdx(), atom.GetIdx())
+
         return res
 
-    def find_modifications_in_products(self, rxn) -> tuple[list[RxnAtomInfo], list[RxnAtomInfo], list[RxnBondInfo]]:
-        """ returns a 3-tuple with the modified atoms and bonds from the reaction """
-        reactingAtoms = rxn.GetReactingAtoms()
-        amap = self.map_reacting_atoms_to_products(rxn, reactingAtoms)
-        res = []
+    def find_modifications_in_products(self, ce: ChemicalEquation,
+                                       desired_product: Molecule) -> tuple[list[AtomTransformation],
+                                                                           list[dict],
+                                                                           list[RxnBondInfo],
+                                                                           cif.Mol]:
+        """ To identify the list of reacting atoms, hydrogenated atoms and new bonds and modified bonds.
+            It returns a 3-tuple """
+
+        # retrieve the map numbers of the reacting atoms
+        maps_reacting_atoms = self.get_reacting_atoms_map_numbers(ce)
+
+        # retrieve the AtomTransformations of the desired product involving the reacting atoms
+        ats_desired_product = [at for at in ce.mapping.atom_transformations
+                               if at.product_uid == desired_product.uid and at.map_num in maps_reacting_atoms]
+        disconnection_rdmol = copy.deepcopy(desired_product.rdmol_mapped)
         seen = set()
-        amaph = []
+        bonds = []
+        hydrogenated_atoms = []
+        # for each AtomTransformation of involving the reacting atoms..
+        for at in ats_desired_product:
+            # ...the involved atom of the desired product and of the reactant are identified
+            reactant = next(mol for h, mol in ce.catalog.items() if h == at.reactant_uid)
+            r_atom, p_atom = self.get_changing_atoms(at, disconnection_rdmol, reactant.rdmol_mapped)
+            # if the atom changes the number of bonded hydrogens it's identified and the variation in the number
+            # of hydrogens is computed
+            delta_h = p_atom.GetTotalNumHs() - r_atom.GetTotalNumHs()
+            if delta_h != 0:
+                hydrogenated_atoms.append({'p_atom': p_atom.GetIdx(), 'delta_hydrogen': delta_h})
 
-        # this is all driven from the list of reacting atoms:
-        for itm in amap:
-            _, ridx, raidx, pidx, paidx = itm
-            reactant = rxn.GetReactantTemplate(ridx)
-            ratom = reactant.GetAtomWithIdx(raidx)
-            product = rxn.GetProductTemplate(pidx)
-            patom = product.GetAtomWithIdx(paidx)
+            # based on their neighbors, new and modified bonds are identified
+            bonds, seen = self.get_bond_info(r_atom,
+                                             reactant,
+                                             p_atom,
+                                             disconnection_rdmol,
+                                             # desired_product,
+                                             seen,
+                                             bonds)
 
-            # check if the number of hydrogen (total or explicit or implicit) attached to an atom has increased when moving from reactant to product
-            q = patom.GetTotalNumHs() > ratom.GetTotalNumHs() or patom.GetNumExplicitHs() > ratom.GetNumExplicitHs() or patom.GetNumImplicitHs() > ratom.GetNumImplicitHs()
-            # print('\n', q)
-            # print(f"idx:symbol explicit/implicit/total {ratom.GetIdx()}:{ratom.GetSymbol()} {ratom.GetNumExplicitHs()}/{ratom.GetNumImplicitHs()}/{ratom.GetTotalNumHs()}")
-            # print(f"idx:symbol explicit/implicit/total {patom.GetIdx()}:{patom.GetSymbol()} {patom.GetNumExplicitHs()}/{patom.GetNumImplicitHs()}/{patom.GetTotalNumHs()}")
-            if q:
-                amaph.append(itm)
+        rxn_bond_info_list = [RxnBondInfo(**item._asdict()) for item in bonds]
+        return ats_desired_product, hydrogenated_atoms, rxn_bond_info_list, disconnection_rdmol
 
-            rnbrs = self.get_mapped_neighbors(ratom)
-            pnbrs = self.get_mapped_neighbors(patom)
-            for tpl in pnbrs:
-                pbond = product.GetBondBetweenAtoms(*pnbrs[tpl])
-                if (pidx, pbond.GetIdx()) in seen:
-                    continue
-                seen.add((pidx, pbond.GetIdx()))
-                if tpl not in rnbrs:
-                    # new bond in product
-                    res.append(BondInfo(pidx, pnbrs[tpl], pbond.GetIdx(), 'new'))
-                else:
-                    # present in both reactants and products, check to see if it changed
-                    rbond = reactant.GetBondBetweenAtoms(*rnbrs[tpl])
-                    if rbond.GetBondType() != pbond.GetBondType():
-                        res.append(BondInfo(pidx, pnbrs[tpl], pbond.GetIdx(), 'changed'))
+    @staticmethod
+    def get_reacting_atoms_map_numbers(ce: ChemicalEquation) -> list[int]:
+        """" To identify the map numbers associated with the reacting atoms in a ChemicalEquation """
+        ce.rdrxn.Initialize()
+        reactingAtoms = ce.rdrxn.GetReactingAtoms()
+        maps_reacting_atoms = []
+        for ridx, reacting in enumerate(reactingAtoms):
+            r = ce.rdrxn.GetReactantTemplate(ridx)
+            maps_reacting_atoms.extend(r.GetAtomWithIdx(raidx).GetAtomMapNum() for raidx in reacting)
+        return maps_reacting_atoms
 
-        rxn_atom_info_list = [RxnAtomInfo(**item._asdict()) for item in amap]
-        rxn_bond_info_list = [RxnBondInfo(**item._asdict()) for item in res]
-        rxn_atomh_info_list = [RxnAtomInfo(**item._asdict()) for item in amaph]
-        return rxn_atom_info_list, rxn_atomh_info_list, rxn_bond_info_list,
+    @staticmethod
+    def get_changing_atoms(at, product_rdmol, reactant_rdmol):
+        """ To identify the atoms involved in an AtomTransformation """
+        r_atom = next(atom for atom in reactant_rdmol.GetAtoms()
+                      if atom.GetIdx() == at.react_atom_id)
+        p_atom = next(atom for atom in product_rdmol.GetAtoms()
+                      if atom.GetIdx() == at.prod_atom_id)
+        return r_atom, p_atom
+
+    def get_bond_info(self, r_atom: cif.Atom,
+                      reactant: Molecule,
+                      p_atom: cif.Atom,
+                      product: cif.Mol,
+                      seen: set,
+                      bonds: list):
+        """ To extract the information regarding new or modified bonds in a ChemicalEquation"""
+        # based on their neighbors, new and modified bonds are identified
+        rnbrs = self.get_mapped_neighbors(r_atom)
+        pnbrs = self.get_mapped_neighbors(p_atom)
+        for tpl in pnbrs:
+            pbond = product.GetBondBetweenAtoms(*pnbrs[tpl])
+            if (pbond.GetIdx()) in seen:
+                continue
+            seen.add(pbond.GetIdx())
+
+            if tpl not in rnbrs:
+                # new bond in product
+                bonds.extend([BondInfo(product_atoms=pnbrs[tpl],
+                                       product_bond=pbond.GetIdx(),
+                                       status='new')])
+            else:
+                # present in both reactants and products, check to see if it changed
+                rbond = reactant.rdmol_mapped.GetBondBetweenAtoms(*rnbrs[tpl])
+                if rbond.GetBondType() != pbond.GetBondType():
+                    bonds.extend([BondInfo(product_atoms=pnbrs[tpl],
+                                           product_bond=pbond.GetIdx(),
+                                           status='changed')])
+
+        return bonds, seen
 
 
 # Pattern Constructor
@@ -492,11 +518,13 @@ class PatternConstructor:
 # Template Constructor
 class TemplateConstructor:
     def __init__(self, identity_property_name: str = settings.CONSTRUCTORS.pattern_identity_property_name):
-
+        """ To initialize a Template instance. The machinery is based on rdchiral."""
         self.identity_property_name = identity_property_name
 
-    def read_reaction(self, reaction_string: str, inp_fmt: str) -> Tuple[cif.rdChemReactions.ChemicalReaction,
-                                                                         utilities.OutcomeMetadata]:
+    def read_reaction(self, reaction_string: str,
+                      inp_fmt: str) -> Tuple[cif.rdChemReactions.ChemicalReaction,
+                                             utilities.OutcomeMetadata]:
+        """ To attempt in sanitizing the rdkit reaction """
         try:
             rdrxn = cif.rdrxn_from_string(input_string=reaction_string, inp_fmt=inp_fmt)
             sanitize_msg = cif.rdChemReactions.SanitizeRxn(rdrxn, catchErrors=True)
@@ -510,23 +538,28 @@ class TemplateConstructor:
 
         return rdrxn, outcome
 
-    def unpack_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
+    def unpack_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction) -> tuple[dict, dict, dict]:
+        """ To build the basic attributes of the Template using the ChemicalEquation Builder """
         constructor = PatternConstructor(identity_property_name=self.identity_property_name)
         reaction_mols = cif.rdrxn_to_molecule_catalog(rdrxn, constructor)
         builder = UnmappedChemicalEquationGenerator()
-        attributes = builder.get_basic_attributes(reaction_mols)
+        attributes, _ = builder.get_basic_attributes(reaction_mols, None)
         return attributes['catalog'], attributes['stoichiometry_coefficients'], attributes['role_map']
 
     def build_from_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction) -> Union[Template, None]:
+        """ To initialize the instance based on an rdkit reaction object"""
         reaction_string = cif.rdChemReactions.ReactionToSmarts(rdrxn)
         return self.build_from_reaction_string(reaction_string=reaction_string, inp_fmt='smarts')
 
-    def build_from_reaction_string(self, reaction_string: str, inp_fmt: str) -> Union[Template, None]:
+    def build_from_reaction_string(self, reaction_string: str,
+                                   inp_fmt: str) -> Union[Template, None]:
+        """ To initialize the instance based on a reaction string """
         rdchiral_output = cif.rdchiral_extract_template(reaction_string=reaction_string, inp_fmt=inp_fmt,
                                                         reaction_id=None)
         return self.build_from_rdchiral_output(rdchiral_output=rdchiral_output)
 
     def create_rdchiral_data(self, rdchiral_output: Dict):
+        """ To build the data necessary to usage of rdchiral """
         reaction_rwd_smarts = rdchiral_output.get('reaction_smarts')
         reaction_fwd_smarts = '>'.join(reaction_rwd_smarts.split('>')[::-1])
         rdrxn, read_outcome = self.read_reaction(reaction_string=reaction_fwd_smarts, inp_fmt='smarts')
@@ -538,12 +571,18 @@ class TemplateConstructor:
         return rdrxn, rdchiral_data
 
     def build_from_rdchiral_output(self, rdchiral_output: Dict) -> Union[Template, None]:
+        """ To build the Template attributes based on rdchiral machinery.
+            If rdchiral process fails, None is returned """
         if not rdchiral_output:
             return None
         if not rdchiral_output.get('reaction_smarts'):
             return None
         template = Template()
-        rdrxn, rdchiral_data = self.create_rdchiral_data(rdchiral_output)
+        try:
+            rdrxn, rdchiral_data = self.create_rdchiral_data(rdchiral_output)
+        except Exception:
+            logger.warning('Issues with rdchiral calculation of the template. None is returned.')
+            return None
         template.rdrxn = rdrxn
         template.rdchiral_data = rdchiral_data
         pattern_catalog, stoichiometry_coefficients, role_map = self.unpack_rdrxn(rdrxn=rdrxn)
@@ -580,8 +619,9 @@ class ChemicalEquationConstructor:
         self.molecular_identity_property_name = molecular_identity_property_name
         self.chemical_equation_identity_name = chemical_equation_identity_name
 
-    def read_reaction(self, reaction_string: str, inp_fmt: str) -> Tuple[cif.rdChemReactions.ChemicalReaction,
-                                                                         utilities.OutcomeMetadata]:
+    def read_reaction(self, reaction_string: str,
+                      inp_fmt: str) -> Tuple[cif.rdChemReactions.ChemicalReaction,
+                                             utilities.OutcomeMetadata]:
         """ To start the building of a ChemicalEquation instance from a reaction string """
         try:
             rdrxn = cif.rdrxn_from_string(input_string=reaction_string, inp_fmt=inp_fmt)
@@ -596,26 +636,37 @@ class ChemicalEquationConstructor:
 
         return rdrxn, outcome
 
-    def unpack_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
+    def unpack_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction,
+                     desired_product: Union[cif.Mol, None]) -> ChemicalEquation:
         """ To compute ChemicalEquation attributes from the associated rdkit ChemicalReaction object """
         constructor = MoleculeConstructor(molecular_identity_property_name=self.molecular_identity_property_name)
-        chemical_equation = create_chemical_equation(
-            rdrxn=rdrxn, chemical_equation_identity_name=self.chemical_equation_identity_name,
-            constructor=constructor)
-        return chemical_equation
+        return create_chemical_equation(rdrxn=rdrxn,
+                                        chemical_equation_identity_name=self.chemical_equation_identity_name,
+                                        constructor=constructor,
+                                        desired_product=desired_product)
 
-    def build_from_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction) -> ChemicalEquation:
+    def build_from_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction,
+                         desired_product: Union[
+                             cif.Mol, None] = settings.CONSTRUCTORS.desired_product) -> ChemicalEquation:
         """ To build a ChemicalEquation instance from a rdkit ChemicalReaction object """
-        return self.unpack_rdrxn(rdrxn=rdrxn)
+        return self.unpack_rdrxn(rdrxn=rdrxn,
+                                 desired_product=desired_product)
 
-    def build_from_reaction_string(self, reaction_string: str, inp_fmt: str) -> ChemicalEquation:
+    def build_from_reaction_string(self, reaction_string: str,
+                                   inp_fmt: str,
+                                   desired_product: Union[
+                                       str, None] = settings.CONSTRUCTORS.desired_product) -> ChemicalEquation:
         """ To build a ChemicalEquation instance from a reaction string """
         rdrxn, read_outcome = self.read_reaction(reaction_string=reaction_string, inp_fmt=inp_fmt)
+        if desired_product:
+            desired_product = cif.rdmol_from_string(desired_product, inp_fmt=inp_fmt)
+        return self.build_from_rdrxn(rdrxn=rdrxn, desired_product=desired_product)
 
-        return self.build_from_rdrxn(rdrxn=rdrxn)
 
-
-def create_chemical_equation(rdrxn: cif.rdChemReactions.ChemicalReaction, chemical_equation_identity_name, constructor):
+def create_chemical_equation(rdrxn: cif.rdChemReactions.ChemicalReaction,
+                             chemical_equation_identity_name: str,
+                             constructor: MoleculeConstructor,
+                             desired_product: Union[Molecule, None]) -> ChemicalEquation:
     """ Initializes the correct builder of the ChemicalEquation based on the presence of the atom mapping.
 
         :param:
@@ -631,116 +682,162 @@ def create_chemical_equation(rdrxn: cif.rdChemReactions.ChemicalReaction, chemic
     """
     builder_type = 'mapped' if cif.has_mapped_products(rdrxn) else 'unmapped'
     reaction_mols = cif.rdrxn_to_molecule_catalog(rdrxn, constructor)
+    if desired_product is not None:
+        desired_product_mol = constructor.build_from_rdmol(desired_product)
+        if desired_product_mol not in reaction_mols['products']:
+            logger.error('The selected product does not appear in the reaction. ')
+            raise ValueError
+    else:
+        desired_product_mol = cif.select_desired_product(reaction_mols)
     builder = Builder()
     builder.set_builder(builder_type)
-    return builder.get_chemical_equation(reaction_mols, chemical_equation_identity_name)
+    return builder.get_chemical_equation(reaction_mols,
+                                         chemical_equation_identity_name,
+                                         desired_product_mol)
 
 
 class ChemicalEquationGenerator(ABC):
     """ Abstract class for ChemicalEquationAttributesGenerator """
 
-    def get_basic_attributes(self, reaction_mols: dict):
+    def get_basic_attributes(self,
+                             reaction_mols: dict,
+                             desired_product: Union[Molecule, None]) -> tuple[dict, Molecule]:
         pass
 
     @abstractmethod
-    def generate_template(self, *args):
+    def generate_template(self,
+                          chemical_equation: ChemicalEquation) -> Union[Template, None]:
         pass
 
     @abstractmethod
-    def generate_disconnection(self, *args):
+    def generate_disconnection(self,
+                               chemical_equation: ChemicalEquation,
+                               desired_product) -> Union[Disconnection, None]:
         pass
 
     @abstractmethod
-    def generate_rdrxn(self, catalog, role_map, stoichiometry_coefficients, use_reagents,
-                       use_atom_mapping=False, use_smiles=False):
+    def generate_rdrxn(self,
+                       ce: ChemicalEquation,
+                       use_reagents: bool) -> cif.rdChemReactions.ChemicalReaction:
         pass
 
     @abstractmethod
-    def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
+    def generate_smiles(self,
+                        rdrxn: cif.rdChemReactions.ChemicalReaction) -> str:
         pass
-
-    def generate_stoichiometry_coefficients(self, role_map, all_molecules):
-        stoichiometry_coefficients = {}
-        for role, mol_uid_list in role_map.items():
-            mols = [m for m in all_molecules if m.uid in mol_uid_list]
-            stoichiometry_coefficients_tmp = {m.uid: mols.count(m) for m in set(mols) if m.uid in mol_uid_list}
-            stoichiometry_coefficients[role] = stoichiometry_coefficients_tmp
-
-        return stoichiometry_coefficients
 
 
 class UnmappedChemicalEquationGenerator(ChemicalEquationGenerator):
 
-    def get_basic_attributes(self, reaction_mols: dict):
+    def get_basic_attributes(self,
+                             reaction_mols: dict,
+                             desired_product: Union[Molecule, None]) -> tuple[dict, Molecule]:
+        """ To build the initial attributes of a ChemicalEquation: mapping, role_map, catalog and
+        stoichiometry_coefficients. These are returned in a dictionary. """
         basic_attributes = {'mapping': None,
-                            'role_map': {role: sorted([m.uid for m in set(mols)]) for role, mols in
+                            'role_map': {role: sorted(list({m.uid for m in set(mols)})) for role, mols in
                                          reaction_mols.items()}}
         all_molecules = reaction_mols['reactants'] + reaction_mols['reagents'] + reaction_mols['products']
         basic_attributes['catalog'] = {m.uid: m for m in set(all_molecules)}
-        basic_attributes['stoichiometry_coefficients'] = self.generate_stoichiometry_coefficients(
-            basic_attributes['role_map'], all_molecules)
-        return basic_attributes
+        basic_attributes['stoichiometry_coefficients'] = self.generate_stoichiometry_coefficients(reaction_mols)
+        return basic_attributes, desired_product
 
-    def generate_rdrxn(self, catalog, role_map, stoichiometry_coefficients, use_reagents,
-                       use_atom_mapping=False, use_smiles=False):
-        return cif.build_rdrxn(catalog=catalog,
-                               role_map=role_map,
-                               stoichiometry_coefficients=stoichiometry_coefficients,
+    def generate_rdrxn(self, ce: ChemicalEquation,
+                       use_reagents: bool) -> cif.rdChemReactions.ChemicalReaction:
+        """ To build the rdkit rdrxn object associated with the ChemicalEquation """
+        return cif.build_rdrxn(catalog=ce.catalog,
+                               role_map=ce.role_map,
+                               stoichiometry_coefficients=ce.stoichiometry_coefficients,
                                use_reagents=use_reagents,
-                               use_smiles=use_smiles,
-                               use_atom_mapping=use_atom_mapping)
+                               use_smiles=False,
+                               use_atom_mapping=False,
+                               mapping=ce.mapping)
 
-    def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
+    def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction) -> str:
+        """ To build the smiles associated with the ChemicalEquation """
         return cif.rdrxn_to_string(rdrxn=rdrxn, out_fmt='smiles', use_atom_mapping=False)
 
+    @staticmethod
+    def generate_stoichiometry_coefficients(reaction_mols: dict) -> dict:
+        """ To build the dictionary of the stoichiometry coefficients of an unmapped ChemicalEquation """
+        stoichiometry_coefficients = {}
+        for role in ['reactants', 'reagents', 'products']:
+            molecules = reaction_mols[role]
+            molecule_coeffs = {m.uid: molecules.count(m) for m in set(molecules)}
+            stoichiometry_coefficients[role] = molecule_coeffs
+        return stoichiometry_coefficients
+
     def generate_template(self, ce):
+        """ To generate the template. It is None if the ChemicalEquation is unmapped. """
         return None
 
-    def generate_disconnection(self, ce):
+    def generate_disconnection(self, ce, desired_product):
+        """ To generate the disconnection. It is None if the ChemicalEquation is unmapped. """
         return None
 
 
 class MappedChemicalEquationGenerator(ChemicalEquationGenerator):
 
-    def get_basic_attributes(self, reaction_mols: dict):
-        new_reaction_mols = {'reactants_reagents': reaction_mols['reactants'] + reaction_mols['reagents'],
-                             'products': reaction_mols['products']}
-        basic_attributes = {'mapping': self.generate_mapping(new_reaction_mols)}
-        desired_product = cif.select_desired_product(reaction_mols)
-        basic_attributes['role_map'] = cif.role_reassignment(new_reaction_mols, basic_attributes['mapping'],
-                                                             desired_product)
+    def get_basic_attributes(self,
+                             reaction_mols: dict,
+                             desired_product: Molecule) -> tuple[dict, Molecule]:
+        """ To build the initial attributes of a ChemicalEquation: mapping, role_map, catalog and
+            stoichiometry_coefficients. These are returned in a dictionary. """
+        basic_attributes = {'mapping': self.generate_mapping(reaction_mols, desired_product)}
+        basic_attributes['role_map'] = {role: sorted(list(map_info.keys()))
+                                        for role, map_info in basic_attributes['mapping'].full_map_info.items()}
 
         all_molecules = reaction_mols['reactants'] + reaction_mols['reagents'] + reaction_mols['products']
         basic_attributes['catalog'] = {m.uid: m for m in set(all_molecules)}
 
         basic_attributes['stoichiometry_coefficients'] = self.generate_stoichiometry_coefficients(
-            basic_attributes['role_map'], all_molecules)
-        return basic_attributes
+            basic_attributes['mapping'])
+        return basic_attributes, desired_product
 
-    def generate_mapping(self, new_reaction_mols: dict):
+    @staticmethod
+    def generate_mapping(new_reaction_mols: dict, desired_product) -> Ratam:
+        """ To generate the Ratam instance for the ChemicalEquation """
         ratam_constructor = RatamConstructor()
-        return ratam_constructor.create_ratam(new_reaction_mols)
+        return ratam_constructor.create_ratam(new_reaction_mols, desired_product)
 
-    def generate_rdrxn(self, catalog, role_map, stoichiometry_coefficients, use_reagents,
-                       use_atom_mapping=True, use_smiles=False):
-        return cif.build_rdrxn(catalog=catalog,
-                               role_map=role_map,
-                               stoichiometry_coefficients=stoichiometry_coefficients,
+    @staticmethod
+    def generate_stoichiometry_coefficients(mapping: Ratam) -> dict:
+        """ To build the dictionary of the stoichiometry coefficients of a mapped ChemicalEquation """
+        stoichiometry_coefficients = {'reactants': {}, 'reagents': {}, 'products': {}}
+        for role, mapping_info in mapping.full_map_info.items():
+            for uid, map_list in mapping_info.items():
+                stoichiometry_coefficients[role].update({uid: len(map_list)})
+        return stoichiometry_coefficients
+
+    def generate_rdrxn(self,
+                       ce: ChemicalEquation,
+                       use_reagents: bool) -> cif.rdChemReactions.ChemicalReaction:
+        """ To build the rdkit rdrxn object associated with the ChemicalEquation """
+        return cif.build_rdrxn(catalog=ce.catalog,
+                               role_map=ce.role_map,
+                               stoichiometry_coefficients=ce.stoichiometry_coefficients,
                                use_reagents=use_reagents,
-                               use_smiles=use_smiles,
-                               use_atom_mapping=use_atom_mapping)
+                               use_smiles=False,
+                               use_atom_mapping=True,
+                               mapping=ce.mapping)
 
-    def generate_smiles(self, rdrxn: cif.rdChemReactions.ChemicalReaction):
+    def generate_smiles(self,
+                        rdrxn: cif.rdChemReactions.ChemicalReaction) -> str:
+        """ To build the smiles associated with the ChemicalEquation """
         return cif.rdrxn_to_string(rdrxn=rdrxn, out_fmt='smiles', use_atom_mapping=True)
 
-    def generate_template(self, ce):
+    def generate_template(self,
+                          ce: ChemicalEquation) -> Template:
+        """ To build the template of the ChemicalEquation """
         tc = TemplateConstructor()
         return tc.build_from_reaction_string(reaction_string=ce.smiles, inp_fmt='smiles')
 
-    def generate_disconnection(self, ce):
+    def generate_disconnection(self,
+                               ce: ChemicalEquation,
+                               desired_product: Molecule) -> Disconnection:
+        """ To build the disconnection of the ChemicalEquation """
         dc = DisconnectionConstructor(identity_property_name='smiles')
-        rdrxn = ce.build_rdrxn(use_reagents=False, use_atom_mapping=True)
-        return dc.build_from_rdrxn(rdrxn=rdrxn)
+        return dc.build_from_chemical_equation(ce, desired_product)
 
 
 class Builder:
@@ -751,20 +848,22 @@ class Builder:
     def set_builder(self, builder_type: str):
         self.__builder = self.builders[builder_type]
 
-    def get_chemical_equation(self, reaction_mols, chemical_equation_identity_name):
+    def get_chemical_equation(self, reaction_mols: dict,
+                              chemical_equation_identity_name: str,
+                              desired_product: Molecule) -> ChemicalEquation:
         ce = ChemicalEquation()
-        basic_attributes = self.__builder.get_basic_attributes(reaction_mols)
+        basic_attributes, desired_product = self.__builder.get_basic_attributes(reaction_mols, desired_product)
         ce.catalog = basic_attributes['catalog']
         ce.mapping = basic_attributes['mapping']
         ce.role_map = basic_attributes['role_map']
         ce.stoichiometry_coefficients = basic_attributes['stoichiometry_coefficients']
         use_reagents = chemical_equation_identity_name not in ['r_p', 'u_r_p']
-        ce.rdrxn = self.__builder.generate_rdrxn(ce.catalog, ce.role_map, ce.stoichiometry_coefficients, use_reagents)
+        ce.rdrxn = self.__builder.generate_rdrxn(ce, use_reagents)
         ce.smiles = self.__builder.generate_smiles(ce.rdrxn)
         ce.hash_map = create_reaction_like_hash_values(ce.catalog, ce.role_map)
         ce.uid = ce.hash_map.get(chemical_equation_identity_name)
         ce.template = self.__builder.generate_template(ce)
-        ce.disconnection = self.__builder.generate_disconnection(ce)
+        ce.disconnection = self.__builder.generate_disconnection(ce, desired_product)
 
         return ce
 

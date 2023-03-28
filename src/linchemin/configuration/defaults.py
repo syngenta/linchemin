@@ -48,13 +48,9 @@ DEFAULT_GED = {
     },
     "molecular_similarity_name": {
         "value": "tanimoto",
-        "info": "The Tanimoto similarity as defined in RDKit used to compute the molecular similarity",
+        "info": "The Tanimoto similarity as defined in RDKit is used for computing the "
+        "molecular similarity",
         "general_info": "Chemical similarity method for molecules",
-    },
-    "n_cpu": {
-        "value": 8,
-        "info": "The number of CPU to be used for parallelization",
-        "general_info": "The number of CPU to be used for parallelization",
     },
 }
 
@@ -89,7 +85,7 @@ DEFAULT_FACADE = {
             "save_dist_matrix": False,
             "compute_metrics": False,
             "parallelization": False,
-            "n_cpu": 8,
+            "n_cpu": mp.cpu_count(),
         },
         "info": "AgglomerativeClustering is used when there are less than 15 routes, hdbscan otherwise."
         "The standard NetworkX algorithm and default parameters are used for the distance matrix"
@@ -102,10 +98,6 @@ DEFAULT_FACADE = {
     "atom_mapping": {
         "value": {"mapper": "rxnmapper", "out_data_model": "bipartite"},
         "info": "The rxnmapper tool is used; a list of bipartite SynGraph is generated",
-    },
-    "route_sanity_checks": {
-        "value": {"checks": None, "out_data_model": "bipartite"},
-        "info": "All the available sanity checks are performed",
     },
 }
 
@@ -131,21 +123,6 @@ DEFAULT_CHEMICAL_SIMILARITY = {
 
 DEFAULT_CLUSTERING = {"min_cluster_size": 3, "linkage": "single"}
 
-DEFAULT_SERVICES = {
-    "namerxn": {"url": "http://127.0.0.1", "port": "8002/"},
-    "rxnmapper": {"url": "http://127.0.0.1", "port": "8003/"},
-}
-
-DEFAULT_ROUTE_MINING = {
-    "root": None,
-    "new_reaction_list": None,
-    "product_edge_label": "P",
-    "reactant_edge_label": "R",
-    "reagent_edge_label": "REAGENT",
-    "molecule_node_label": "M",
-    "chemicalequation_node_label": "CE",
-}
-
 
 def get_settings():
     """To assemble the default values read from the dictionaries above and written to the settings.yaml file"""
@@ -158,11 +135,9 @@ def get_settings():
     }
 
     for functionality, d in DEFAULT_FACADE.items():
-        all_settings["FACADE"].update(d["value"])
+        all_settings["FACADE"] |= d["value"]
     all_settings["CHEMICAL_SIMILARITY"] = DEFAULT_CHEMICAL_SIMILARITY
     all_settings["CLUSTERING"] = DEFAULT_CLUSTERING
-    all_settings["SERVICES"] = DEFAULT_SERVICES
-    all_settings["ROUTE_MINING"] = DEFAULT_ROUTE_MINING
     return all_settings
 
 

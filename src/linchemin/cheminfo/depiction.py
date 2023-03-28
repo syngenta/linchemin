@@ -4633,16 +4633,13 @@ class ColorMap:
 
 def draw_molecule(rdmol: cif.Mol) -> bytes:
     """
-    To produce the data necessary to create a picture of a molecule with RDKit
+    Produces the data necessary to create a picture of a molecule with RDKit
 
-    Parameters:
-    ------------
-    rdmol: Mol
-        The rdkit Mol object to be depicted
+    :param:
+        rdmol: an RDKit Mol object
 
-    Returns:
-    ----------
-    bytes: The data in bytes format of the picture. It can be converted into a png file using the
+    :return:
+        The data in bytes format of the picture. It can be converted into a png file using the
         linchemin.IO.io.write_rdkit_depict function
     """
     DrawingOptions.atomLabelFontSize = 55
@@ -4655,18 +4652,14 @@ def draw_molecule(rdmol: cif.Mol) -> bytes:
     return d2d.GetDrawingText()
 
 
-def draw_reaction(rdrxn: cif.rdChemReactions.ChemicalReaction) -> bytes:
-    """
-    To produce the data necessary to create a picture of a molecule with RDKit
+def draw_reaction(rdrxn: cif.rdChemReactions) -> bytes:
+    """ It produces the data necessary to create a picture of a molecule with RDKit
 
-    Parameters:
-    ------------
-    rdrxn: cif.rdChemReactions.ChemicalReaction
-        The rdkit ChemicalReaction object to be depicted
+        :param:
+            rdrxn: an RDKit ChemicalReaction object
 
-    Returns:
-    ---------
-    bytes: The data in bytes format of the picture. It can be converted into a png file using the
+        :return:
+            The data in bytes format of the picture. It can be converted into a png file using the
             linchemin.IO.io.write_rdkit_depict function
     """
     DrawingOptions.atomLabelFontSize = 55
@@ -4679,7 +4672,7 @@ def draw_reaction(rdrxn: cif.rdChemReactions.ChemicalReaction) -> bytes:
 
 
 def set_d2d_object():
-    """It sets the Draw.rdMolDraw2D.MolDraw2DCairo for depicting chemical structures"""
+    """ It sets the Draw.rdMolDraw2D.MolDraw2DCairo for depicting chemical structures """
     d2d = Draw.rdMolDraw2D.MolDraw2DCairo(350, 300)
     d2d.drawOptions().useBWAtomPalette()
     d2d.drawOptions().continuousHighlight = True
@@ -4688,16 +4681,14 @@ def set_d2d_object():
     return d2d
 
 
-def draw_disconnection(disconnection, show_atom_maps: bool = False) -> bytes:
-    """
-    To generate data for depicting the disconnection of a ChemicalEquation.
+def draw_disconnection(disconnection,
+                       show_atom_maps: bool = False) -> bytes:
+    """ It generates the data for depicting the disconnection of a ChemicalEquation.
 
-    Parameters:
-    ------------
-    disconnection: Disconnection
-        the Disconnection object to be depicted
-    show_atom_maps: Optional[bool]
-        Whether the atom map numbers should be shown
+        :param:
+            disconnection: the Disconnection object to be depicted
+
+            show_atom_maps: a boolean indicating whether the atom map numbers should be shown
     """
     rdmol = copy.deepcopy(disconnection.rdmol)
     Chem.SanitizeMol(rdmol)
@@ -4710,22 +4701,13 @@ def draw_disconnection(disconnection, show_atom_maps: bool = False) -> bytes:
 
     # the color map for the reacting atoms is built
     atoms_to_highlight = disconnection.reacting_atoms
-    highlight_atom_colors = {
-        a: color_reacting_atoms for a in disconnection.reacting_atoms
-    }
-
-    bonds_with_hydrogen, rdmol = get_bonds_with_hydrogen(
-        disconnection=disconnection, rdmol=rdmol
-    )
+    highlight_atom_colors = {a: color_reacting_atoms for a in disconnection.reacting_atoms}
 
     # the color map for the new/modified bonds is built
-    highlight_bond_colors = build_bond_color_map(
-        new_bonds=disconnection.new_bonds + bonds_with_hydrogen,
-        new_bonds_color=color_new_bonds,
-        modified_bonds=disconnection.modified_bonds,
-        modified_bonds_color=color_modified_bonds,
-        rdmol=rdmol,
-    )
+    highlight_bond_colors, rdmol = get_disconnection_bond_color_map(disconnection=disconnection,
+                                                                    new_bonds_color=color_new_bonds,
+                                                                    rdmol=rdmol,
+                                                                    modified_bonds_color=color_modified_bonds)
     bonds_to_highlight = highlight_bond_colors.keys()
 
     # the rdmol object to be depicted is prepared
@@ -4743,74 +4725,59 @@ def draw_disconnection(disconnection, show_atom_maps: bool = False) -> bytes:
     return d2d.GetDrawingText()
 
 
-def get_bonds_with_hydrogen(disconnection, rdmol: cif.Mol) -> Tuple[list, cif.Mol]:
-    """To return the list of new bonds involving hydrogen atoms
-    and the rdmol object with explicit new hydrogen atoms (if any)"""
-    if disconnection.modified_bonds == [] and disconnection.new_bonds == []:
-        return cif.get_hydrogenation_info(rdmol, disconnection.hydrogenated_atoms)
-    else:
-        return [], rdmol
+def get_disconnection_bond_color_map(disconnection,
+                                     new_bonds_color: tuple,
+                                     rdmol: cif.Mol,
+                                     modified_bonds_color: Union[tuple, None] = None) -> tuple[dict,
+                                                                                               cif.Mol]:
+    """ To build the color map for new and modified bonds in a disconnection
 
+        :param:
+            disconnection: the Disconnection object to be depicted
 
-def build_bond_color_map(
-    new_bonds: list,
-    new_bonds_color: tuple,
-    modified_bonds: list,
-    modified_bonds_color: tuple,
-    rdmol: cif.Mol,
-) -> dict:
-    """
-    To build the color map for new and modified bonds in a disconnection
+            new_bonds_color: a tuple containing the rgb values of the color chosen for the new bonds
 
-    Parameters:
-    ------------
-    new_bonds: list
-        The list of atom pairs between which a new bond is formed
-    new_bonds_color: tuple
-        The rgb values of the color chosen for the new bonds
-    modified_bonds: list
-        The list of atom pairs between which the bond changes
-    modified_bonds_color: tuple
-        The rgb values of the color chosen for the modified bonds
+            rdmol: the rdkit Mol object that will be depicted
 
-    Returns:
-    ----------
-    highlight_bond_colors: dict
-        A map between bond ids and colors
+            modified_bonds_color: (default: None), a tuple containing the rgb values of the color chosen for the
+                                  modified bonds (if None, the color of the new bonds will be used also for the modified
+                                  bonds)
+
 
     """
     highlight_bond_colors: dict = {}
-    for atoms_pair in new_bonds:
-        bond_id = rdmol.GetBondBetweenAtoms(*atoms_pair).GetIdx()
-        highlight_bond_colors[bond_id] = new_bonds_color
+    # if there are no new or modified bonds, the hydrogenated atoms are analyzed
+    if disconnection.modified_bonds == [] and disconnection.new_bonds == []:
+        bonds_with_hydrogen, rdmol = cif.get_hydrogenation_info(rdmol,
+                                                                disconnection.hydrogenated_atoms)
+        highlight_bond_colors.update({b: new_bonds_color for b in bonds_with_hydrogen})
+    # otherwise the the color map is built for the already identified new/modified bonds
+    else:
+        highlight_bond_colors.update({b: new_bonds_color for b in disconnection.new_bonds})
 
-    for atoms_pair in modified_bonds:
-        bond_id = rdmol.GetBondBetweenAtoms(*atoms_pair).GetIdx()
-        highlight_bond_colors[bond_id] = modified_bonds_color
+        if modified_bonds_color:
+            highlight_bond_colors.update({b: modified_bonds_color for b in disconnection.modified_bonds})
+        else:
+            highlight_bond_colors.update({b: new_bonds_color for b in disconnection.modified_bonds})
+    return highlight_bond_colors, rdmol
 
-    return highlight_bond_colors
 
+def draw_multiple_disconnections(disconnections: list, show_atom_maps: bool = False) -> bytes:
+    """ To generate the data for depicting multiple disconnections on the same Molecule.
 
-def draw_multiple_disconnections(
-    disconnections: list, show_atom_maps: bool = False
-) -> bytes:
-    """
-    To generate the data for depicting multiple disconnections on the same Molecule.
+        :param:
+            disconnections: a list of Disconnection objects
 
-    Parameters:
-    -------------
-    disconnections: list
-        The list of Disconnection objects
-    show_atom_maps: Optional[bool]
-        Whether the atom map numbers should be shown (default False)
+            show_atom_maps: a boolean indicating whether the atom map numbers should be shown
     """
     rdmol = copy.deepcopy(disconnections[0].rdmol)
     color_reacting_atoms = 0.5, 0.5, 0.6
+    bond_colors = ColorMap().search_by_color_blind(color_blind_type='okabe_ito')
 
     # the color map for all the new/modified bonds is built
-    highlight_bond_colors, rdmol = get_multiple_disconnections_color_map(
-        disconnections=disconnections, rdmol=rdmol
-    )
+    highlight_bond_colors, rdmol = get_bond_color_maps(disconnections=disconnections,
+                                                       bond_colors=bond_colors,
+                                                       rdmol=rdmol)
     bonds_to_highlight = highlight_bond_colors.keys()
 
     # the color map for all th reacting atoms is built
@@ -4838,30 +4805,29 @@ def draw_multiple_disconnections(
     return d2d.GetDrawingText()
 
 
-def get_multiple_disconnections_color_map(
-    disconnections: list, rdmol: cif.Mol
-) -> Tuple[dict, cif.Mol]:
-    """To build the bonds color map for multiple disconnections"""
-    bond_colors = ColorMap().search_by_color_blind(color_blind_type="okabe_ito")
+def get_bond_color_maps(disconnections: list,
+                        bond_colors: list,
+                        rdmol: cif.Mol,
+                        modified_bonds_colors: Union[list, None] = None) -> tuple[dict, dict]:
+    """ To build the color maps of modified/new bonds for a list of disconnections """
     highlight_bond_colors: dict = {}
+    atoms_to_highlight: list = []
     for n, disconnection in enumerate(disconnections):
-        bonds_with_hydrogen, rdmol = get_bonds_with_hydrogen(
-            disconnection=disconnection, rdmol=rdmol
-        )
+        new_bonds_color = (round(bond_colors[n].red / 255., 1),
+                           round(bond_colors[n].green / 255., 1),
+                           round(bond_colors[n].blue / 255., 1))
+        if modified_bonds_colors:
+            modified_bonds_color = (round(modified_bonds_colors[n].red / 255., 1),
+                                    round(modified_bonds_colors[n].green / 255., 1),
+                                    round(modified_bonds_colors[n].blue / 255., 1))
+        else:
+            modified_bonds_color = None
 
-        new_bonds_color = (
-            round(bond_colors[n].red / 255.0, 1),
-            round(bond_colors[n].green / 255.0, 1),
-            round(bond_colors[n].blue / 255.0, 1),
-        )
-        new_bonds = disconnection.new_bonds + bonds_with_hydrogen
-        new_bond_map = build_bond_color_map(
-            new_bonds=new_bonds,
-            new_bonds_color=new_bonds_color,
-            modified_bonds=disconnection.modified_bonds,
-            modified_bonds_color=new_bonds_color,
-            rdmol=rdmol,
-        )
+        atoms_to_highlight.extend(disconnection.reacting_atoms)
+        new_bond_map, rdmol = get_disconnection_bond_color_map(disconnection=disconnection,
+                                                               new_bonds_color=new_bonds_color,
+                                                               rdmol=rdmol,
+                                                               modified_bonds_color=modified_bonds_color)
         highlight_bond_colors.update(new_bond_map)
 
     return highlight_bond_colors, rdmol
@@ -4879,9 +4845,11 @@ def draw_fragments(rdmol: cif.Mol) -> bytes:
     return d2d.GetDrawingText()
 
 
-def draw_rxn_product_disconnection1(
-    rxn, atms, bnds, productIdx=None, showAtomMaps=False
-):
+def draw_rxn_product_disconnection1(rxn,
+                                    atms,
+                                    bnds,
+                                    productIdx=None,
+                                    showAtomMaps=False):
     """
     https://greglandrum.github.io/rdkit-blog/tutorial/reactions/2021/11/26/highlighting-changed-bonds-in-reactions.html
     """
