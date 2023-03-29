@@ -157,9 +157,6 @@ class RatamConstructor:
                           desired_product: Molecule) -> Union[dict, None]:
         """ To create a dictionary mapping each molecule with its list of atom mapping based on its role
             {'reactants': {uid: [map]}, 'reagents': {uid: [map]}, 'products': {uid: [map]}}"""
-        # if desired_product not in molecules_catalog['products']:
-        #     logger.error('The selected product is not among the reaction products.')
-        #     return None
         full_map_info = {'reactants': {},
                          'reagents': {},
                          'products': {}}
@@ -293,6 +290,7 @@ class DisconnectionConstructor:
             return rdmol_fragmented
 
         def get_fragments_method_2(rdmol: cif.Mol, bonds) -> cif.Mol:
+            bonds = [rdmol.GetBondBetweenAtoms(*tup).GetIdx() for tup in bonds]
             mh = cif.Chem.RWMol(cif.Chem.AddHs(rdmol))
             cif.Chem.Kekulize(mh, clearAromaticFlags=True)
 
@@ -342,8 +340,10 @@ class RXNProductChanges:
     """Class for keeping track of the changes in a reaction product"""
     reacting_atoms: list[int]
     hydrogenated_atoms: list[tuple]
-    new_bonds: list[int]
-    modified_bonds: list[int]
+    # new_bonds: list[int]
+    new_bonds: list[tuple]
+    # modified_bonds: list[int]
+    modified_bonds: list[tuple]
     rdmol: cif.Mol
 
 
@@ -366,9 +366,9 @@ class RXNReactiveCenter:
         hydrogenated_atoms = sorted([(d['p_atom'], d['delta_hydrogen']) for d in self.rxn_atomh_info_list])
 
         new_bonds = sorted(
-            [bi.product_bond for bi in self.rxn_bond_info_list if bi.status == 'new'])
+            [bi.product_atoms for bi in self.rxn_bond_info_list if bi.status == 'new'])
         modified_bonds = sorted(
-            [bi.product_bond for bi in self.rxn_bond_info_list if bi.status == 'changed'])
+            [bi.product_atoms for bi in self.rxn_bond_info_list if bi.status == 'changed'])
         return RXNProductChanges(reacting_atoms,
                                  hydrogenated_atoms,
                                  new_bonds,
@@ -426,7 +426,6 @@ class RXNReactiveCenter:
                                              reactant,
                                              p_atom,
                                              disconnection_rdmol,
-                                             # desired_product,
                                              seen,
                                              bonds)
 

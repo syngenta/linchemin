@@ -472,7 +472,7 @@ def get_hydrogenation_info(disconnection_rdmol: Mol,
                                 if any
 
         :return:
-            bonds: the list of ids of new bonds between a reacting atom and additional hydrogen atoms
+            bonds: the list of atoms id pairs between which a new bond if formed
 
             disconnection_rdmol: the input rdkit Mol object to which explicit hydrogen atoms are added
     """
@@ -487,7 +487,7 @@ def get_hydrogenation_info(disconnection_rdmol: Mol,
             for i in h_idxs:
                 # new bond with hydrogen atom
                 pbond = disconnection_rdmol.GetBondBetweenAtoms(i, p_atom_idx)
-                bonds.append(pbond.GetIdx())
+                bonds.append(sorted((i, p_atom_idx)))
     return bonds, disconnection_rdmol
 
 
