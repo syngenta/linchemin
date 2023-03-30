@@ -121,8 +121,19 @@ DEFAULT_CHEMICAL_SIMILARITY = {
     "struct_fp_bitRatioAgents": 0.2,
 }
 
-DEFAULT_CLUSTERING = {"min_cluster_size": 3, "linkage": "single"}
+DEFAULT_CLUSTERING = {
+    "min_cluster_size": 3,
+    "linkage": "single"
+}
 
+DEFAULT_SERVICES = {
+    "namerxn":
+        {"url": "http://127.0.0.1",
+         "port": "8004/"},
+    "rxnmapper": {
+        "url": "http://127.0.0.1",
+        "port": "8002/"}
+}
 
 def get_settings():
     """To assemble the default values read from the dictionaries above and written to the settings.yaml file"""
@@ -138,6 +149,7 @@ def get_settings():
         all_settings["FACADE"] |= d["value"]
     all_settings["CHEMICAL_SIMILARITY"] = DEFAULT_CHEMICAL_SIMILARITY
     all_settings["CLUSTERING"] = DEFAULT_CLUSTERING
+    all_settings["SERVICES"] = DEFAULT_SERVICES
     return all_settings
 
 
