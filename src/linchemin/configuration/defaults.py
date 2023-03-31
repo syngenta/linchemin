@@ -146,7 +146,7 @@ def get_settings():
     }
 
     for functionality, d in DEFAULT_FACADE.items():
-        all_settings["FACADE"] |= d["value"]
+        all_settings["FACADE"].update(d['value'])
     all_settings["CHEMICAL_SIMILARITY"] = DEFAULT_CHEMICAL_SIMILARITY
     all_settings["CLUSTERING"] = DEFAULT_CLUSTERING
     all_settings["SERVICES"] = DEFAULT_SERVICES

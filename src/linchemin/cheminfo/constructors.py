@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Set
 import copy
 
 import imagesize
@@ -35,14 +35,18 @@ class MolIdentifierGenerator(ABC):
     """ Abstract class for generator of hash map fragments"""
 
     @abstractmethod
-    def compute_identifier(self, rdmol, hash_map):
+    def compute_identifier(self,
+                           rdmol: cif.Mol,
+                           hash_map: dict):
         pass
 
 
 class InchiKeyGenerator(MolIdentifierGenerator):
     """ To compute inch and inchKey """
 
-    def compute_identifier(self, rdmol, hash_map):
+    def compute_identifier(self,
+                           rdmol: cif.Mol,
+                           hash_map: dict):
         hash_map['inchi'] = cif.Chem.MolToInchi(rdmol)
         hash_map['inchi_key'] = cif.Chem.InchiToInchiKey(hash_map['inchi'])
         return hash_map
@@ -51,7 +55,9 @@ class InchiKeyGenerator(MolIdentifierGenerator):
 class InchiKeyKET15Generator(MolIdentifierGenerator):
     """ To compute InchiKET15T and InchiKeyKET15T """
 
-    def compute_identifier(self, rdmol, hash_map):
+    def compute_identifier(self,
+                           rdmol: cif.Mol,
+                           hash_map: dict):
         hash_map['inchi_KET_15T'] = cif.Chem.MolToInchi(rdmol, options='-KET -15T')
         hash_map['inchikey_KET_15T'] = cif.Chem.InchiToInchiKey(hash_map['inchi_KET_15T'])
         return hash_map
@@ -60,7 +66,9 @@ class InchiKeyKET15Generator(MolIdentifierGenerator):
 class NoisoSmilesGenerator(MolIdentifierGenerator):
     """ To compute Noiso smiles """
 
-    def compute_identifier(self, rdmol, hash_map):
+    def compute_identifier(self,
+                           rdmol: cif.Mol,
+                           hash_map: dict):
         hash_map['noiso_smiles'] = cif.Chem.MolToSmiles(rdmol, isomericSmiles=False)
         return hash_map
 
@@ -68,7 +76,9 @@ class NoisoSmilesGenerator(MolIdentifierGenerator):
 class CxSmilesGenerator(MolIdentifierGenerator):
     """ To compute CxSmiles """
 
-    def compute_identifier(self, rdmol, hash_map):
+    def compute_identifier(self,
+                           rdmol: cif.Mol,
+                           hash_map: dict):
         hash_map['cx_smiles'] = cif.Chem.MolToCXSmiles(rdmol)
         return hash_map
 
@@ -102,7 +112,8 @@ class MoleculeConstructor:
     all_available_identifiers = list(cif.HashFunction.names.keys()) + list(
         MolIdentifierFactory().molecular_identifiers.keys()) + ['smiles']
 
-    def __init__(self, molecular_identity_property_name: str = settings.CONSTRUCTORS.molecular_identity_property_name,
+    def __init__(self,
+                 molecular_identity_property_name: str = settings.CONSTRUCTORS.molecular_identity_property_name,
                  hash_list: list = settings.CONSTRUCTORS.molecular_hash_list):
         if molecular_identity_property_name not in self.all_available_identifiers:
             logger.error('The selected molecular identity property is not available.'
@@ -112,12 +123,15 @@ class MoleculeConstructor:
         self.molecular_identity_property_name = molecular_identity_property_name
         self.hash_list = set(hash_list + [self.molecular_identity_property_name])
 
-    def build_from_molecule_string(self, molecule_string: str, inp_fmt: str, ) -> Molecule:
+    def build_from_molecule_string(self,
+                                   molecule_string: str,
+                                   inp_fmt: str, ) -> Molecule:
         """ To build a Molecule instance from a string """
         rdmol_input = cif.rdmol_from_string(input_string=molecule_string, inp_fmt=inp_fmt)
         return self.build_from_rdmol(rdmol_input)
 
-    def build_from_rdmol(self, rdmol: cif.Mol) -> Molecule:
+    def build_from_rdmol(self,
+                         rdmol: cif.Mol) -> Molecule:
         """ To build a Molecule instance from a rdkit Mol instance """
         rdmol_mapped = rdmol
         rdmol_unmapped = cif.remove_rdmol_atom_mapping(rdmol=rdmol_mapped)
@@ -145,7 +159,8 @@ AtomTransformation = namedtuple('AtomTransformation',
 class RatamConstructor:
     """ Class implementing the constructor of the Ratam class"""
 
-    def create_ratam(self, molecules_catalog: dict,
+    def create_ratam(self,
+                     molecules_catalog: dict,
                      desired_products: Molecule) -> Ratam:
         """ To initialize an instance of the Ratam class """
         ratam = Ratam()
@@ -153,13 +168,11 @@ class RatamConstructor:
         ratam.atom_transformations = self.get_atom_transformations(ratam.full_map_info)
         return ratam
 
-    def get_full_map_info(self, molecules_catalog: dict,
+    def get_full_map_info(self,
+                          molecules_catalog: dict,
                           desired_product: Molecule) -> Union[dict, None]:
         """ To create a dictionary mapping each molecule with its list of atom mapping based on its role
             {'reactants': {uid: [map]}, 'reagents': {uid: [map]}, 'products': {uid: [map]}}"""
-        # if desired_product not in molecules_catalog['products']:
-        #     logger.error('The selected product is not among the reaction products.')
-        #     return None
         full_map_info = {'reactants': {},
                          'reagents': {},
                          'products': {}}
@@ -220,7 +233,7 @@ class RatamConstructor:
             raise BadMapping
 
     @staticmethod
-    def get_atom_transformations(full_map_info: dict) -> set[AtomTransformation]:
+    def get_atom_transformations(full_map_info: dict) -> Set[AtomTransformation]:
         """ To create the list of AtomTransformations from a catalog of mapped Molecule objects """
         atom_transformations = set()
         for product_uid, prod_maps in full_map_info['products'].items():
@@ -235,7 +248,11 @@ class RatamConstructor:
         return atom_transformations
 
 
-def build_atom_transformations(matching_map_num, prod_map, product_uid, reactant_map, reactant_uid):
+def build_atom_transformations(matching_map_num: List[int],
+                               prod_map: dict,
+                               product_uid: str,
+                               reactant_map: dict,
+                               reactant_uid: str) -> List[AtomTransformation]:
     """ To build the list of AtomTransformation objects for each pair of product-reactant with matching map number"""
     ats = []
     for map_num in matching_map_num:
@@ -280,7 +297,9 @@ class DisconnectionConstructor:
                                                             fragmentation_method=2)
         return disconnection
 
-    def get_fragments(self, rdmol: cif.Mol, new_bonds: List[int], fragmentation_method: int = 1):
+    def get_fragments(self, rdmol: cif.Mol,
+                      new_bonds: List[tuple],
+                      fragmentation_method: int = 1):
         """ To get the fragments of the desired product Mol. Inspired by
             https://github.com/rdkit/rdkit/issues/2081
         """
@@ -292,7 +311,9 @@ class DisconnectionConstructor:
             )
             return rdmol_fragmented
 
-        def get_fragments_method_2(rdmol: cif.Mol, bonds) -> cif.Mol:
+        def get_fragments_method_2(rdmol: cif.Mol,
+                                   bonds: List[tuple]) -> cif.Mol:
+            bonds = [rdmol.GetBondBetweenAtoms(*tup).GetIdx() for tup in bonds]
             mh = cif.Chem.RWMol(cif.Chem.AddHs(rdmol))
             cif.Chem.Kekulize(mh, clearAromaticFlags=True)
 
@@ -340,10 +361,10 @@ class RxnBondInfo:
 @dataclass(eq=True, order=False, frozen=False)
 class RXNProductChanges:
     """Class for keeping track of the changes in a reaction product"""
-    reacting_atoms: list[int]
-    hydrogenated_atoms: list[tuple]
-    new_bonds: list[int]
-    modified_bonds: list[int]
+    reacting_atoms: List[int]
+    hydrogenated_atoms: List[tuple]
+    new_bonds: List[tuple]
+    modified_bonds: List[tuple]
     rdmol: cif.Mol
 
 
@@ -354,7 +375,9 @@ class RXNReactiveCenter:
     https://greglandrum.github.io/rdkit-blog/tutorial/reactions/2021/11/26/highlighting-changed-bonds-in-reactions.html
     """
 
-    def __init__(self, chemical_equation, desired_product):
+    def __init__(self,
+                 chemical_equation: ChemicalEquation,
+                 desired_product: Molecule):
         chemical_equation.rdrxn.Initialize()
         self.rxn_atom_info_list, self.rxn_atomh_info_list, self.rxn_bond_info_list, self.disconnection_rdmol = self.find_modifications_in_products(
             chemical_equation, desired_product)
@@ -366,9 +389,9 @@ class RXNReactiveCenter:
         hydrogenated_atoms = sorted([(d['p_atom'], d['delta_hydrogen']) for d in self.rxn_atomh_info_list])
 
         new_bonds = sorted(
-            [bi.product_bond for bi in self.rxn_bond_info_list if bi.status == 'new'])
+            [bi.product_atoms for bi in self.rxn_bond_info_list if bi.status == 'new'])
         modified_bonds = sorted(
-            [bi.product_bond for bi in self.rxn_bond_info_list if bi.status == 'changed'])
+            [bi.product_atoms for bi in self.rxn_bond_info_list if bi.status == 'changed'])
         return RXNProductChanges(reacting_atoms,
                                  hydrogenated_atoms,
                                  new_bonds,
@@ -376,7 +399,7 @@ class RXNReactiveCenter:
                                  self.disconnection_rdmol)
 
     @staticmethod
-    def get_mapped_neighbors(atom: cif.Atom):
+    def get_mapped_neighbors(atom: cif.Atom) -> dict:
         """ To get the mapped neighbors of an atom"""
         res: dict = {}
         amap = atom.GetAtomMapNum()
@@ -392,10 +415,11 @@ class RXNReactiveCenter:
 
         return res
 
-    def find_modifications_in_products(self, ce: ChemicalEquation,
-                                       desired_product: Molecule) -> tuple[list[AtomTransformation],
-                                                                           list[dict],
-                                                                           list[RxnBondInfo],
+    def find_modifications_in_products(self,
+                                       ce: ChemicalEquation,
+                                       desired_product: Molecule) -> Tuple[List[AtomTransformation],
+                                                                           List[dict],
+                                                                           List[RxnBondInfo],
                                                                            cif.Mol]:
         """ To identify the list of reacting atoms, hydrogenated atoms and new bonds and modified bonds.
             It returns a 3-tuple """
@@ -426,7 +450,6 @@ class RXNReactiveCenter:
                                              reactant,
                                              p_atom,
                                              disconnection_rdmol,
-                                             # desired_product,
                                              seen,
                                              bonds)
 
@@ -434,7 +457,7 @@ class RXNReactiveCenter:
         return ats_desired_product, hydrogenated_atoms, rxn_bond_info_list, disconnection_rdmol
 
     @staticmethod
-    def get_reacting_atoms_map_numbers(ce: ChemicalEquation) -> list[int]:
+    def get_reacting_atoms_map_numbers(ce: ChemicalEquation) -> List[int]:
         """" To identify the map numbers associated with the reacting atoms in a ChemicalEquation """
         ce.rdrxn.Initialize()
         reactingAtoms = ce.rdrxn.GetReactingAtoms()
@@ -445,7 +468,9 @@ class RXNReactiveCenter:
         return maps_reacting_atoms
 
     @staticmethod
-    def get_changing_atoms(at, product_rdmol, reactant_rdmol):
+    def get_changing_atoms(at: AtomTransformation,
+                           product_rdmol: cif.Mol,
+                           reactant_rdmol: cif.Mol) -> tuple:
         """ To identify the atoms involved in an AtomTransformation """
         r_atom = next(atom for atom in reactant_rdmol.GetAtoms()
                       if atom.GetIdx() == at.react_atom_id)
@@ -453,12 +478,13 @@ class RXNReactiveCenter:
                       if atom.GetIdx() == at.prod_atom_id)
         return r_atom, p_atom
 
-    def get_bond_info(self, r_atom: cif.Atom,
+    def get_bond_info(self,
+                      r_atom: cif.Atom,
                       reactant: Molecule,
                       p_atom: cif.Atom,
                       product: cif.Mol,
                       seen: set,
-                      bonds: list):
+                      bonds: List) -> tuple:
         """ To extract the information regarding new or modified bonds in a ChemicalEquation"""
         # based on their neighbors, new and modified bonds are identified
         rnbrs = self.get_mapped_neighbors(r_atom)
@@ -489,10 +515,12 @@ class RXNReactiveCenter:
 class PatternConstructor:
     """ Class implementing the constructor of the Pattern class """
 
-    def __init__(self, identity_property_name: str = settings.CONSTRUCTORS.pattern_identity_property_name):
+    def __init__(self,
+                 identity_property_name: str = settings.CONSTRUCTORS.pattern_identity_property_name):
         self.identity_property_name = identity_property_name
 
-    def create_pattern(self, rdmol: cif.Mol):
+    def create_pattern(self,
+                       rdmol: cif.Mol) -> Pattern:
         pattern = Pattern()
         rdmol_mapped = rdmol
         rdmol_unmapped = cif.remove_rdmol_atom_mapping(rdmol=rdmol_mapped)
@@ -507,21 +535,26 @@ class PatternConstructor:
         pattern.uid = utilities.create_hash(pattern.identity_property)  # the hashed identity property
         return pattern
 
-    def build_from_molecule_string(self, molecule_string: str, inp_fmt: str, ) -> Pattern:
+    def build_from_molecule_string(self,
+                                   molecule_string: str,
+                                   inp_fmt: str, ) -> Pattern:
         rdmol_input = cif.rdmol_from_string(input_string=molecule_string, inp_fmt=inp_fmt)
         return self.create_pattern(rdmol_input)
 
-    def build_from_rdmol(self, rdmol: cif.Mol) -> Pattern:
+    def build_from_rdmol(self,
+                         rdmol: cif.Mol) -> Pattern:
         return self.create_pattern(rdmol)
 
 
 # Template Constructor
 class TemplateConstructor:
-    def __init__(self, identity_property_name: str = settings.CONSTRUCTORS.pattern_identity_property_name):
+    def __init__(self,
+                 identity_property_name: str = settings.CONSTRUCTORS.pattern_identity_property_name):
         """ To initialize a Template instance. The machinery is based on rdchiral."""
         self.identity_property_name = identity_property_name
 
-    def read_reaction(self, reaction_string: str,
+    def read_reaction(self,
+                      reaction_string: str,
                       inp_fmt: str) -> Tuple[cif.rdChemReactions.ChemicalReaction,
                                              utilities.OutcomeMetadata]:
         """ To attempt in sanitizing the rdkit reaction """
@@ -538,7 +571,8 @@ class TemplateConstructor:
 
         return rdrxn, outcome
 
-    def unpack_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction) -> tuple[dict, dict, dict]:
+    def unpack_rdrxn(self,
+                     rdrxn: cif.rdChemReactions.ChemicalReaction) -> Tuple[dict, dict, dict]:
         """ To build the basic attributes of the Template using the ChemicalEquation Builder """
         constructor = PatternConstructor(identity_property_name=self.identity_property_name)
         reaction_mols = cif.rdrxn_to_molecule_catalog(rdrxn, constructor)
@@ -546,19 +580,22 @@ class TemplateConstructor:
         attributes, _ = builder.get_basic_attributes(reaction_mols, None)
         return attributes['catalog'], attributes['stoichiometry_coefficients'], attributes['role_map']
 
-    def build_from_rdrxn(self, rdrxn: cif.rdChemReactions.ChemicalReaction) -> Union[Template, None]:
+    def build_from_rdrxn(self,
+                         rdrxn: cif.rdChemReactions.ChemicalReaction) -> Union[Template, None]:
         """ To initialize the instance based on an rdkit reaction object"""
         reaction_string = cif.rdChemReactions.ReactionToSmarts(rdrxn)
         return self.build_from_reaction_string(reaction_string=reaction_string, inp_fmt='smarts')
 
-    def build_from_reaction_string(self, reaction_string: str,
+    def build_from_reaction_string(self,
+                                   reaction_string: str,
                                    inp_fmt: str) -> Union[Template, None]:
         """ To initialize the instance based on a reaction string """
         rdchiral_output = cif.rdchiral_extract_template(reaction_string=reaction_string, inp_fmt=inp_fmt,
                                                         reaction_id=None)
         return self.build_from_rdchiral_output(rdchiral_output=rdchiral_output)
 
-    def create_rdchiral_data(self, rdchiral_output: Dict):
+    def create_rdchiral_data(self,
+                             rdchiral_output: Dict):
         """ To build the data necessary to usage of rdchiral """
         reaction_rwd_smarts = rdchiral_output.get('reaction_smarts')
         reaction_fwd_smarts = '>'.join(reaction_rwd_smarts.split('>')[::-1])
@@ -570,7 +607,8 @@ class TemplateConstructor:
         rdchiral_data['reaction_rwd_smarts'] = reaction_rwd_smarts
         return rdrxn, rdchiral_data
 
-    def build_from_rdchiral_output(self, rdchiral_output: Dict) -> Union[Template, None]:
+    def build_from_rdchiral_output(self,
+                                   rdchiral_output: Dict) -> Union[Template, None]:
         """ To build the Template attributes based on rdchiral machinery.
             If rdchiral process fails, None is returned """
         if not rdchiral_output:
@@ -701,7 +739,7 @@ class ChemicalEquationGenerator(ABC):
 
     def get_basic_attributes(self,
                              reaction_mols: dict,
-                             desired_product: Union[Molecule, None]) -> tuple[dict, Molecule]:
+                             desired_product: Union[Molecule, None]) -> Tuple[dict, Molecule]:
         pass
 
     @abstractmethod
@@ -731,7 +769,7 @@ class UnmappedChemicalEquationGenerator(ChemicalEquationGenerator):
 
     def get_basic_attributes(self,
                              reaction_mols: dict,
-                             desired_product: Union[Molecule, None]) -> tuple[dict, Molecule]:
+                             desired_product: Union[Molecule, None]) -> Tuple[dict, Molecule]:
         """ To build the initial attributes of a ChemicalEquation: mapping, role_map, catalog and
         stoichiometry_coefficients. These are returned in a dictionary. """
         basic_attributes = {'mapping': None,
@@ -767,11 +805,12 @@ class UnmappedChemicalEquationGenerator(ChemicalEquationGenerator):
             stoichiometry_coefficients[role] = molecule_coeffs
         return stoichiometry_coefficients
 
-    def generate_template(self, ce):
+    def generate_template(self, ce: ChemicalEquation):
         """ To generate the template. It is None if the ChemicalEquation is unmapped. """
         return None
 
-    def generate_disconnection(self, ce, desired_product):
+    def generate_disconnection(self, ce: ChemicalEquation,
+                               desired_product: Molecule):
         """ To generate the disconnection. It is None if the ChemicalEquation is unmapped. """
         return None
 
@@ -780,7 +819,7 @@ class MappedChemicalEquationGenerator(ChemicalEquationGenerator):
 
     def get_basic_attributes(self,
                              reaction_mols: dict,
-                             desired_product: Molecule) -> tuple[dict, Molecule]:
+                             desired_product: Molecule) -> Tuple[dict, Molecule]:
         """ To build the initial attributes of a ChemicalEquation: mapping, role_map, catalog and
             stoichiometry_coefficients. These are returned in a dictionary. """
         basic_attributes = {'mapping': self.generate_mapping(reaction_mols, desired_product)}
@@ -795,7 +834,8 @@ class MappedChemicalEquationGenerator(ChemicalEquationGenerator):
         return basic_attributes, desired_product
 
     @staticmethod
-    def generate_mapping(new_reaction_mols: dict, desired_product) -> Ratam:
+    def generate_mapping(new_reaction_mols: dict,
+                         desired_product: Molecule) -> Ratam:
         """ To generate the Ratam instance for the ChemicalEquation """
         ratam_constructor = RatamConstructor()
         return ratam_constructor.create_ratam(new_reaction_mols, desired_product)
@@ -868,7 +908,8 @@ class Builder:
         return ce
 
 
-def calculate_molecular_hash_values(rdmol: cif.Mol, hash_list: Union[set, None] = None) -> dict:
+def calculate_molecular_hash_values(rdmol: cif.Mol,
+                                    hash_list: Union[set, None] = None) -> dict:
     """ To compute the hash_map dictionary containing molecular properties/representations names and the
         corresponding hash values """
     molhashf = cif.HashFunction.names
@@ -877,9 +918,9 @@ def calculate_molecular_hash_values(rdmol: cif.Mol, hash_list: Union[set, None] 
     hash_map = {}
 
     if rdkit_hashes := [h for h in hash_list if h in molhashf]:
-        hash_map |= {k: cif.MolHash(rdmol, v) for k, v in molhashf.items() if k in rdkit_hashes}
+        hash_map.update({k: cif.MolHash(rdmol, v) for k, v in molhashf.items() if k in rdkit_hashes})
     if 'smiles' in hash_list:
-        hash_map |= {'smiles': cif.MolHash(rdmol, v) for k, v in molhashf.items() if k == 'CanonicalSmiles'}
+        hash_map.update({'smiles': cif.MolHash(rdmol, v) for k, v in molhashf.items() if k == 'CanonicalSmiles'})
 
     if other_hashes := [h for h in hash_list if h not in rdkit_hashes]:
         factory = MolIdentifierFactory(rdmol)
@@ -887,7 +928,7 @@ def calculate_molecular_hash_values(rdmol: cif.Mol, hash_list: Union[set, None] 
             if h not in MoleculeConstructor.all_available_identifiers:
                 logger.warning(f'{h} is not supported as molecular identifier')
             elif h != 'smiles':
-                hash_map |= factory.select_identifier(h, hash_map)
+                hash_map.update(factory.select_identifier(h, hash_map))
 
     """
 
@@ -900,7 +941,8 @@ def calculate_molecular_hash_values(rdmol: cif.Mol, hash_list: Union[set, None] 
 
 
 # ChemicalEquation hash calculations
-def create_reaction_like_hash_values(catalog, role_map):
+def create_reaction_like_hash_values(catalog: dict,
+                                     role_map: dict) -> dict:
     """ To calculate the hash keys for reaction-like objects """
     mol_list_map = {role: [catalog.get(uid) for uid in uid_list]
                     for role, uid_list in role_map.items()}
@@ -922,7 +964,7 @@ def create_reaction_like_hash_values(catalog, role_map):
     return {role: utilities.create_hash(v) for role, v in idp_str_map.items()}
 
 
-def calculate_disconnection_hash_values(disconnection):
+def calculate_disconnection_hash_values(disconnection: Disconnection) -> dict:
     idp = disconnection.molecule.identity_property
 
     changes_map = {
@@ -943,7 +985,7 @@ def calculate_disconnection_hash_values(disconnection):
     return {'disconnection_summary': disconnection_summary}
 
 
-def calculate_pattern_hash_values(smarts):
+def calculate_pattern_hash_values(smarts) -> dict:
     return {'smarts': smarts}
 
 
