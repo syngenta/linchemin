@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Set
 import copy
 
 import imagesize
@@ -233,7 +233,7 @@ class RatamConstructor:
             raise BadMapping
 
     @staticmethod
-    def get_atom_transformations(full_map_info: dict) -> set[AtomTransformation]:
+    def get_atom_transformations(full_map_info: dict) -> Set[AtomTransformation]:
         """ To create the list of AtomTransformations from a catalog of mapped Molecule objects """
         atom_transformations = set()
         for product_uid, prod_maps in full_map_info['products'].items():
@@ -417,7 +417,7 @@ class RXNReactiveCenter:
 
     def find_modifications_in_products(self,
                                        ce: ChemicalEquation,
-                                       desired_product: Molecule) -> tuple[List[AtomTransformation],
+                                       desired_product: Molecule) -> Tuple[List[AtomTransformation],
                                                                            List[dict],
                                                                            List[RxnBondInfo],
                                                                            cif.Mol]:
@@ -555,7 +555,7 @@ class TemplateConstructor:
 
     def read_reaction(self,
                       reaction_string: str,
-                      inp_fmt: str) -> tuple[cif.rdChemReactions.ChemicalReaction,
+                      inp_fmt: str) -> Tuple[cif.rdChemReactions.ChemicalReaction,
                                              utilities.OutcomeMetadata]:
         """ To attempt in sanitizing the rdkit reaction """
         try:
@@ -572,7 +572,7 @@ class TemplateConstructor:
         return rdrxn, outcome
 
     def unpack_rdrxn(self,
-                     rdrxn: cif.rdChemReactions.ChemicalReaction) -> tuple[dict, dict, dict]:
+                     rdrxn: cif.rdChemReactions.ChemicalReaction) -> Tuple[dict, dict, dict]:
         """ To build the basic attributes of the Template using the ChemicalEquation Builder """
         constructor = PatternConstructor(identity_property_name=self.identity_property_name)
         reaction_mols = cif.rdrxn_to_molecule_catalog(rdrxn, constructor)
@@ -739,7 +739,7 @@ class ChemicalEquationGenerator(ABC):
 
     def get_basic_attributes(self,
                              reaction_mols: dict,
-                             desired_product: Union[Molecule, None]) -> tuple[dict, Molecule]:
+                             desired_product: Union[Molecule, None]) -> Tuple[dict, Molecule]:
         pass
 
     @abstractmethod
@@ -769,7 +769,7 @@ class UnmappedChemicalEquationGenerator(ChemicalEquationGenerator):
 
     def get_basic_attributes(self,
                              reaction_mols: dict,
-                             desired_product: Union[Molecule, None]) -> tuple[dict, Molecule]:
+                             desired_product: Union[Molecule, None]) -> Tuple[dict, Molecule]:
         """ To build the initial attributes of a ChemicalEquation: mapping, role_map, catalog and
         stoichiometry_coefficients. These are returned in a dictionary. """
         basic_attributes = {'mapping': None,
@@ -819,7 +819,7 @@ class MappedChemicalEquationGenerator(ChemicalEquationGenerator):
 
     def get_basic_attributes(self,
                              reaction_mols: dict,
-                             desired_product: Molecule) -> tuple[dict, Molecule]:
+                             desired_product: Molecule) -> Tuple[dict, Molecule]:
         """ To build the initial attributes of a ChemicalEquation: mapping, role_map, catalog and
             stoichiometry_coefficients. These are returned in a dictionary. """
         basic_attributes = {'mapping': self.generate_mapping(reaction_mols, desired_product)}
@@ -918,9 +918,9 @@ def calculate_molecular_hash_values(rdmol: cif.Mol,
     hash_map = {}
 
     if rdkit_hashes := [h for h in hash_list if h in molhashf]:
-        hash_map |= {k: cif.MolHash(rdmol, v) for k, v in molhashf.items() if k in rdkit_hashes}
+        hash_map.update({k: cif.MolHash(rdmol, v) for k, v in molhashf.items() if k in rdkit_hashes})
     if 'smiles' in hash_list:
-        hash_map |= {'smiles': cif.MolHash(rdmol, v) for k, v in molhashf.items() if k == 'CanonicalSmiles'}
+        hash_map.update({'smiles': cif.MolHash(rdmol, v) for k, v in molhashf.items() if k == 'CanonicalSmiles'})
 
     if other_hashes := [h for h in hash_list if h not in rdkit_hashes]:
         factory = MolIdentifierFactory(rdmol)
@@ -928,7 +928,7 @@ def calculate_molecular_hash_values(rdmol: cif.Mol,
             if h not in MoleculeConstructor.all_available_identifiers:
                 logger.warning(f'{h} is not supported as molecular identifier')
             elif h != 'smiles':
-                hash_map |= factory.select_identifier(h, hash_map)
+                hash_map.update(factory.select_identifier(h, hash_map))
 
     """
 

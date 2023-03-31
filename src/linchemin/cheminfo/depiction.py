@@ -4730,7 +4730,7 @@ def draw_disconnection(disconnection,
 
 
 def get_bonds_with_hydrogen(disconnection,
-                            rdmol: cif.Mol) -> tuple[list, cif.Mol]:
+                            rdmol: cif.Mol) -> Tuple[list, cif.Mol]:
     """ To return the list of new bonds involving hydrogen atoms
         and the rdmol object with explicit new hydrogen atoms (if any)"""
     if disconnection.modified_bonds == [] and disconnection.new_bonds == []:
@@ -4815,7 +4815,7 @@ def draw_multiple_disconnections(disconnections: list, show_atom_maps: bool = Fa
 
 
 def get_multiple_disconnections_color_map(disconnections: list,
-                                          rdmol: cif.Mol) -> tuple[dict, cif.Mol]:
+                                          rdmol: cif.Mol) -> Tuple[dict, cif.Mol]:
     """ To build the bonds color map for multiple disconnections  """
     bond_colors = ColorMap().search_by_color_blind(color_blind_type='okabe_ito')
     highlight_bond_colors: dict = {}

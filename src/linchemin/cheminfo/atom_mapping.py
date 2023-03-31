@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Union, List
 from linchemin import settings
 
 from linchemin.services.namerxn import service
@@ -45,7 +45,7 @@ class Mapper(ABC):
     """ Abstract class for the atom mappers """
 
     @abstractmethod
-    def map_chemical_equations(self, reactions_list: list[dict]) -> MappingOutput:
+    def map_chemical_equations(self, reactions_list: List[dict]) -> MappingOutput:
         pass
 
 
@@ -53,7 +53,7 @@ class NameRxnMapper(Mapper):
     """ Class for the NameRxn atom mapper """
     info = 'NextMove reaction classifier. Needs credentials'
 
-    def map_chemical_equations(self, reactions_list: list[dict]):
+    def map_chemical_equations(self, reactions_list: List[dict]):
         # print('NameRxn mapper is called')
         out = MappingOutput()
         base_url = f"{settings.SERVICES.namerxn.url}:{settings.SERVICES.namerxn.port}"
@@ -96,7 +96,7 @@ class RxnMapper(Mapper):
     """ Class for the IbmRxn atom mapper """
     info = 'Atom mapper developed by IBM'
 
-    def map_chemical_equations(self, reactions_list: list[dict]):
+    def map_chemical_equations(self, reactions_list: List[dict]):
         # print('RxnMapper mapper is called')
         out = MappingOutput()
         base_url = f"{settings.SERVICES.rxnmapper.url}:{settings.SERVICES.rxnmapper.port}"
@@ -134,7 +134,7 @@ class MapperFactory:
         return mapper().map_chemical_equations(reactions_list)
 
 
-def perform_atom_mapping(reactions_list: list[dict], mapper_name: str) -> MappingOutput:
+def perform_atom_mapping(reactions_list: List[dict], mapper_name: str) -> MappingOutput:
     """ Gives access to the mapper factory.
 
         :param:
@@ -223,7 +223,7 @@ class MappingBuilder:
         return FirstMapping().mapping(out)
 
 
-def pipeline_atom_mapping(reactions_list: list[dict] = None) -> MappingOutput:
+def pipeline_atom_mapping(reactions_list: List[dict] = None) -> MappingOutput:
     """ Facade function to start the atom-to-atom mapping pipeline.
 
         :param:

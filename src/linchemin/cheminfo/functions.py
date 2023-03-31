@@ -462,7 +462,7 @@ def mapping_diagnosis(chemical_equation, desired_product):
 
 
 def get_hydrogenation_info(disconnection_rdmol: Mol,
-                           hydrogenated_atoms: list[dict]) -> tuple[list, Mol]:
+                           hydrogenated_atoms: List[dict]) -> Tuple[list, Mol]:
     """ It takes a rdmol object and adds new bonds between reacting atoms and hydrogen atoms, if any.
 
         :param:
