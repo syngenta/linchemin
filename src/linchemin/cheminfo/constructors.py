@@ -1,10 +1,10 @@
+from __future__ import annotations
+
+import copy
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Union, Set
-import copy
-
-import imagesize
+from typing import Dict, List, Set, Tuple, Union
 
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
