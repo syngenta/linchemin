@@ -43,6 +43,7 @@ dependencies = [
         "pydantic",
         "pydot",
         "pyyaml",
+        "requests",
         "rdchiral",
         "rdkit>=2022.3",
         "scikit-learn",
