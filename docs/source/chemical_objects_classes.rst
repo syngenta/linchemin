@@ -51,6 +51,10 @@ passing a ``molecular_identity_property_name`` string, indicating which property
 of the molecules involved in the reaction (e.g. ‘smiles’) and a ``chemical_equation_identity_name`` string,
 indicating which representation of the reaction should be used for determining the identity (e.g., 'r_p'
 only considers reactants and products, while 'r_r_p' also takes into account the reagents.
+The methods :method:`~linchemin.cheminfo.constructors.ChemicalEquationConstructor.build_from_reaction_string`
+and :method:`~linchemin.cheminfo.constructors.ChemicalEquationConstructor.build_from_rdrxn` can then be used to
+create the new :class:`~models.ChemicalEquation` by passing, respectively, a reaction string and the type of string
+(e.g., 'smiles' or 'smarts'), or an rdkit ChemicalReaction object.
 
 :class:`~models.ChemicalEquation` objects are characterized by various attributes.
 The ``catalog`` attribute stores the instances of the Molecule objects involved in the reaction
@@ -64,6 +68,10 @@ involved in the reaction.
 The ``rdrxn`` attribute, storing the rdkit ChemicalReaction object associated with the ChemicalEquation instance,
 can be used to compute reaction properties and fingerprints. The ``smiles`` attribute
 contains the smiles string associated with the ChemicalEquation instance.
+
+If the object used to instantiate the new :class:`~models.ChemicalEquation` instance contains
+the atom mapping information, three additional attributes will also be created:
+ ``mapping``, ``disconnection`` and ``template``.
 
 
 .. code-block:: python

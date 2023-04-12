@@ -21,6 +21,7 @@
       ~MonopartiteReacSynGraph.get_molecule_leaves
       ~MonopartiteReacSynGraph.get_molecule_roots
       ~MonopartiteReacSynGraph.get_roots
+      ~MonopartiteReacSynGraph.remove_isolate_nodes
       ~MonopartiteReacSynGraph.set_source
    
    

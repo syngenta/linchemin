@@ -19,6 +19,7 @@
       ~SynGraph.builder_from_reaction_list
       ~SynGraph.get_leaves
       ~SynGraph.get_roots
+      ~SynGraph.remove_isolate_nodes
       ~SynGraph.set_source
    
    

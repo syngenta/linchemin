@@ -19,6 +19,7 @@
       ~MonopartiteMolSynGraph.builder_from_reaction_list
       ~MonopartiteMolSynGraph.get_leaves
       ~MonopartiteMolSynGraph.get_roots
+      ~MonopartiteMolSynGraph.remove_isolate_nodes
       ~MonopartiteMolSynGraph.set_source
    
    

@@ -20,6 +20,7 @@
       ~BipartiteSynGraph.builder_from_reaction_list
       ~BipartiteSynGraph.get_leaves
       ~BipartiteSynGraph.get_roots
+      ~BipartiteSynGraph.remove_isolate_nodes
       ~BipartiteSynGraph.set_source
    
    
