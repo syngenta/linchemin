@@ -98,7 +98,6 @@ def test_iron_source_attribute(ibm1_path):
 
 
 def test_iron_dot_translation(ibm1_path):
-    print('')
     graph = json.loads(open(ibm1_path).read())
     dot_graph = translator('ibm_retro', graph[2], 'pydot', out_data_model='monopartite_molecules')
 
@@ -123,29 +122,26 @@ def test_translating_into_nx_returns_nx_object(ibm1_path):
 
 def test_wrong_format_name(ibm1_path):
     """ To test that the correct exception is raised when an unavailable input format is requested. """
+    graph = json.loads(open(ibm1_path).read())
     with pytest.raises(TranslationError) as ke:
-        graph = json.loads(open(ibm1_path).read())
         translator('wrong_input_format', graph[1], 'iron', out_data_model='bipartite')
-    assert "UnavailableInputFormat" in str(ke.type)
+    assert "UnavailableFormat" in str(ke.type)
 
     with pytest.raises(TranslationError) as ke:
-        graph = json.loads(open(ibm1_path).read())
-        translator('ibm_retro', graph[1], 'wrong_output_format', out_data_model='bipartite')
-    assert "UnavailableOutputFormat" in str(ke.type)
+        translator('ibm_retro', graph[1], 'pydot', out_data_model='bipartite_reactions')
+    assert "UnavailableDataModel" in str(ke.type)
 
 
 def testing_dict_to_iron(az_path, ibm1_path):
     """ To test that a graph in json format is correctly converted in the expected Iron object (json -> Iron). """
     all_routes = json.loads(open(az_path).read())
     route = all_routes[0]
-    prop = {'node_type': 'type', 'node_smiles': 'smiles'}
-    iron_route = az_dict_to_iron(route, prop, iron=None, parent=None)
+    iron_route = az_dict_to_iron(route, iron=None, parent=None)
     assert iron_route.i_node_number() == 5
 
     all_routes_ibm = json.loads(open(ibm1_path).read())
     route_ibm = all_routes_ibm[0]
-    prop = {'node_smiles': 'smiles'}
-    iron_route_ibm = ibm_dict_to_iron(route_ibm, prop, iron=None, parent=None)
+    iron_route_ibm = ibm_dict_to_iron(route_ibm, iron=None, parent=None)
     assert iron_route_ibm.i_node_number() == count_dict_nodes(route_ibm, counter=1)
 
 
@@ -234,7 +230,6 @@ def test_iron_to_mp_syngraph(az_path):
 def test_one_node_iron_to_nx(ibm1_path):
     graph_ibm = json.loads(open(ibm1_path).read())
     mp_syngraph = translator('ibm_retro', graph_ibm[0], 'syngraph', out_data_model='monopartite_reactions')
-
     one_node_nx = translator('syngraph', mp_syngraph, 'networkx', out_data_model='monopartite_reactions')
     assert one_node_nx.number_of_nodes() == 1
     assert one_node_nx.number_of_edges() == 0

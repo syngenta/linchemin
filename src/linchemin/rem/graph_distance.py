@@ -339,16 +339,16 @@ def node_subst_cost_matrix(node1, node2, reaction_similarity_matrix, molecule_si
 
     """
     # The correct similarity matrix is used based on the node types
-    if type(node1['attributes']['properties']['node_class']) == ChemicalEquation \
-            and type(node2['attributes']['properties']['node_class']) == ChemicalEquation:
-        similarity = reaction_similarity_matrix.loc[node2['attributes']['properties']['node_class'].uid,
-                                                    node1['attributes']['properties']['node_class'].uid]
+    if type(node1['attributes']['properties']['node_type']) == ChemicalEquation \
+            and type(node2['attributes']['properties']['node_type']) == ChemicalEquation:
+        similarity = reaction_similarity_matrix.loc[node2['attributes']['properties']['node_type'].uid,
+                                                    node1['attributes']['properties']['node_type'].uid]
         return 1.0 - similarity
 
-    elif type(node1['attributes']['properties']['node_class']) == Molecule and type(
-            node2['attributes']['properties']['node_class']) == Molecule:
-        similarity = molecule_similarity_matrix.loc[node2['attributes']['properties']['node_class'].uid,
-                                                    node1['attributes']['properties']['node_class'].uid]
+    elif type(node1['attributes']['properties']['node_type']) == Molecule and type(
+            node2['attributes']['properties']['node_type']) == Molecule:
+        similarity = molecule_similarity_matrix.loc[node2['attributes']['properties']['node_type'].uid,
+                                                    node1['attributes']['properties']['node_type'].uid]
         return 1.0 - similarity
 
     else:
@@ -364,19 +364,19 @@ def node_subst_cost(node1, node2, reaction_fingerprints, reaction_fp_params, rea
             cost: a float between 0 and 1
     """
     # If both nodes are of the type 'ChemicalEquation', their Tanimoto similarity is computed
-    if type(node1['attributes']['properties']['node_class']) == ChemicalEquation \
-            and type(node2['attributes']['properties']['node_class']) == ChemicalEquation:
-        rdrxn1 = node1['attributes']['properties']['node_class'].rdrxn
-        rdrxn2 = node2['attributes']['properties']['node_class'].rdrxn
+    if type(node1['attributes']['properties']['node_type']) == ChemicalEquation \
+            and type(node2['attributes']['properties']['node_type']) == ChemicalEquation:
+        rdrxn1 = node1['attributes']['properties']['node_type'].rdrxn
+        rdrxn2 = node2['attributes']['properties']['node_type'].rdrxn
         fp1 = compute_reaction_fingerprint(rdrxn1, fp_name=reaction_fingerprints, params=reaction_fp_params)
         fp2 = compute_reaction_fingerprint(rdrxn2, fp_name=reaction_fingerprints, params=reaction_fp_params)
         tanimoto = compute_similarity(fp1, fp2, similarity_name=reaction_similarity_name)
         return 1.0 - tanimoto
 
-    elif type(node1['attributes']['properties']['node_class']) == Molecule and \
-            type(node2['attributes']['properties']['node_class']) == Molecule:
-        rdmol1 = node1['attributes']['properties']['node_class'].rdmol
-        rdmol2 = node2['attributes']['properties']['node_class'].rdmol
+    elif type(node1['attributes']['properties']['node_type']) == Molecule and \
+            type(node2['attributes']['properties']['node_type']) == Molecule:
+        rdmol1 = node1['attributes']['properties']['node_type'].rdmol
+        rdmol2 = node2['attributes']['properties']['node_type'].rdmol
         fp1 = compute_mol_fingerprint(rdmol1, fp_name=molecular_fingerprint, parameters=molecular_fp_params,
                                       count_fp_vector=molecular_fp_count_vect)
         fp2 = compute_mol_fingerprint(rdmol2, fp_name=molecular_fingerprint, parameters=molecular_fp_params,
