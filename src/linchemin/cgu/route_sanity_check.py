@@ -212,3 +212,8 @@ def route_checker(route: Union[MonopartiteReacSynGraph,
         route = converter(route, 'monopartite_reactions')
     checker_class = factory.get_route_checker(checker)
     return checker_class.check_route(route)
+
+
+def get_available_route_sanity_checks():
+    checkers = CheckerFactory.list_route_checkers()
+    return {f: additional_info['info'] for f, additional_info in checkers.items()}

@@ -1,9 +1,8 @@
-from linchemin.cgu.route_sanity_check import route_checker
 import pytest
+
+from linchemin.cgu.route_sanity_check import route_checker, get_available_route_sanity_checks
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph
-from linchemin.cgu.translate import translator
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
-import pprint
 
 
 def test_checker_factory():
@@ -59,8 +58,9 @@ def test_isolated_nodes():
          'query_id': '0'},
         {'output_string': '[CH3:5][O:4][C:3]([CH3:2])=[O:1]>>[CH3:2][C:3]([OH:4])=[O:1]',
          'query_id': '1'},
-        {'output_string': '[CH3:4][C:5](Cl)=[O:6].CC(O)=O.[CH3:1][CH2:2][OH:3]>>[CH3:1][CH2:2][O:3][C:5]([CH3:4])=[O:6]',
-         'query_id': '2'},
+        {
+            'output_string': '[CH3:4][C:5](Cl)=[O:6].CC(O)=O.[CH3:1][CH2:2][OH:3]>>[CH3:1][CH2:2][O:3][C:5]([CH3:4])=[O:6]',
+            'query_id': '2'},
         {'output_string': 'O=[C:2](OC[CH3:4])[CH3:1].[Li][CH3:3]>>[CH2:1]=[C:2]([CH3:3])[CH3:4]',
          'query_id': '3'}
     ]
@@ -74,3 +74,8 @@ def test_isolated_nodes():
         'smiles')
     assert ce in route.graph
     assert ce not in checked_route.graph
+
+
+def test_helper():
+    d = get_available_route_sanity_checks()
+    assert isinstance(d, dict)

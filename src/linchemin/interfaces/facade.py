@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import multiprocessing as mp
 from abc import ABC, abstractmethod
-from typing import List, Union
+from typing import List, Union, Tuple
 
 import pandas as pd
 
@@ -15,6 +15,7 @@ from linchemin.cgu.translate import (TranslationError,
                                      get_available_data_models,
                                      get_input_formats, get_output_formats,
                                      translator)
+from linchemin.cgu.route_sanity_check import route_checker, get_available_route_sanity_checks
 from linchemin.cheminfo.atom_mapping import (get_available_mappers,
                                              perform_atom_mapping,
                                              pipeline_atom_mapping)
@@ -69,7 +70,8 @@ class TranslateFacade(Facade):
     functionality = 'translate'
     info = 'To translate a list of routes from a format to another one.',
 
-    def perform_functionality(self, input_format: str, input_list: list,
+    def perform_functionality(self, input_format: str,
+                              input_list: List,
                               out_format=settings.FACADE.data_format,
                               out_data_model=settings.FACADE.out_data_model,
                               parallelization=settings.FACADE.parallelization,
@@ -95,8 +97,8 @@ class TranslateFacade(Facade):
                 output: a list whose elements are the converted routes
                 meta: a dictionary storing information about the original file and the CASP tool that produced the routes
         """
-        exceptions = []
-        out_routes = []
+        exceptions: List = []
+        out_routes: List = []
 
         try:
             if parallelization:
@@ -191,7 +193,7 @@ class RoutesDescriptorsFacade(Facade):
     """ Subclass of Facade for computing routes metrics. """
     info = 'To compute metrics of a list of SynGraph objects'
 
-    def perform_functionality(self, routes: list,
+    def perform_functionality(self, routes: List,
                               descriptors=settings.FACADE.descriptors) -> tuple:
         """
             Computes the desired descriptors (default: all the available descriptors) for the routes in the provided list.
@@ -295,7 +297,7 @@ class GedFacade(Facade):
                       for the ged calculations and the parameters for chemical similarity and fingerprints
         """
 
-        exceptions: list = []
+        exceptions: List = []
         checked_routes = [r for r in routes if r is not None]
         try:
             dist_matrix = compute_distance_matrix(checked_routes, ged_method=ged_method, ged_params=ged_params,
@@ -374,7 +376,7 @@ class ClusteringFacade:
 
     info = 'To cluster a list of SynGraph objects'
 
-    def perform_functionality(self, routes: list,
+    def perform_functionality(self, routes: List,
                               clustering_method=DEFAULT_FACADE['clustering']['value']['clustering_method'],
                               ged_method=DEFAULT_FACADE['clustering']['value']['ged_method'],
                               ged_params=DEFAULT_FACADE['clustering']['value']['ged_params'],
@@ -419,7 +421,7 @@ class ClusteringFacade:
         if clustering_method is None:
             clustering_method = 'hdbscan' if len(routes) > 15 else 'agglomerative_cluster'
 
-        exceptions: list = []
+        exceptions: List = []
         checked_routes = [r for r in routes if r is not None]
         metrics = pd.DataFrame()
         try:
@@ -524,7 +526,7 @@ class SubsetsFacade(Facade):
     """ Subclass of Facade for searching subsets in a list of routes."""
     info = 'To check whether there are subsets in a list of SynGraph objects'
 
-    def perform_functionality(self, routes: list):
+    def perform_functionality(self, routes: List):
         """
             Checks the presence of subsets in the provided list of SynGraph objects.
 
@@ -602,7 +604,7 @@ class MergingFacade(Facade):
     """ Subclass of Facade for merging a list of routes. """
     info = 'To merge a list of SynGraph objects'
 
-    def perform_functionality(self, routes: list,
+    def perform_functionality(self, routes: List,
                               out_data_model=DEFAULT_FACADE['merging']['value']['out_data_model']):
         """
             Merges the provided list of SynGraph instances in a new SynGraph instance.
@@ -650,7 +652,7 @@ class ReactionExtractionFacade(Facade):
     """ Subclass of Facade for extracting unique reaction strings from a list of routes. """
     info = 'To extract a list of unique reaction strings from a list of SynGraph objects'
 
-    def perform_functionality(self, routes: list) -> tuple[list, dict]:
+    def perform_functionality(self, routes: List) -> Tuple[List, dict]:
         """
             Extracts a list of reaction strings
 
@@ -710,10 +712,10 @@ class AtomMappingFacade(Facade):
     """ Subclass of Facade for mapping the chemical equations in a list of routes. """
     info = 'To get a list of mapped SynGraph objects'
 
-    def perform_functionality(self, routes: list,
-                              mapper: str = DEFAULT_FACADE['atom_mapping']['value']['mapper'],
+    def perform_functionality(self, routes: List,
+                              mapper: Union[str, None] = DEFAULT_FACADE['atom_mapping']['value']['mapper'],
                               out_data_model: str = DEFAULT_FACADE['atom_mapping']['value'][
-                                  'out_data_model']) -> tuple[list, dict]:
+                                  'out_data_model']) -> Tuple[List, dict]:
         """
             Generates a list of SynGraph objects with mapped chemical equations
 
@@ -731,7 +733,7 @@ class AtomMappingFacade(Facade):
 
                 meta: a dictionary storing information about the run
         """
-        out_syngraphs: list = []
+        out_syngraphs: List = []
         out_syngraph_type = Converter.out_datamodels[out_data_model]
         tot_success_rate: Union[float, int] = 0
         for route in routes:
@@ -784,7 +786,96 @@ class AtomMappingFacade(Facade):
                 }
 
     def print_available_options(self):
-        print('Atom mappingof routes reactions options and default:')
+        print('Atom mapping of routes reactions options and default:')
+        data = self.get_available_options()
+        for d, info in data.items():
+            print('argument:', d)
+            print('     info: ', info['help'])
+            print('     default: ', info['default'])
+            print('     available options: ', info['choices'])
+        return data
+
+
+class RouteSanityCheckFacade(Facade):
+    """ Subclass of Facade for performing sanity checks on a list of routes. """
+    info = 'To perform sanity checks on a list of routes'
+
+    def perform_functionality(self, routes: List,
+                              checks: Union[List, None] = DEFAULT_FACADE['route_sanity_checks']['value']['checks'],
+                              out_data_model: str = DEFAULT_FACADE['route_sanity_checks']['value'][
+                                  'out_data_model']) -> Tuple[List, dict]:
+        """
+            Returns a list of checked routes in which possible issues are removed
+
+            :param:
+                    routes: a list of SynGraph instances
+
+                    check: a list of strings indicating which sanity checks should be performed
+                            (default: None -> all the available sanity checks are performed)
+
+                    out_data_model: a string indicting the desired output data model
+                                    (default: 'bipartite' -> a list of bipartite SynGraphs is returned)
+
+            :return:
+                output: a list of checked SynGraph objects
+
+                meta: a dictionary storing information about the run
+        """
+        if checks is None:
+            checks = get_available_route_sanity_checks()
+
+        checked_routes: List = []
+        exceptions = []
+        valid_routes = [r for r in routes if r is not None]
+        invalid_routes = len(routes) - len(valid_routes)
+
+        for check in checks:
+            try:
+                for r in valid_routes:
+                    checked_route = route_checker(r, check)
+                    checked_routes.append(checked_route)
+
+            except Exception as ke:
+                exceptions.append(ke)
+        out_routes = [converter(r, out_data_model) for r in checked_routes]
+
+        meta = {'checks': checks,
+                'invalid_routes': invalid_routes,
+                'errors': exceptions}
+        return out_routes, meta
+
+    def get_available_options(self):
+        """
+            Returns the available options for route sanity checks as a dictionary.
+        """
+        return {'routes': {'name_or_flags': ['-routes'],
+                           'default': None,
+                           'required': True,
+                           'type': List[SynGraph],
+                           'choices': None,
+                           'help': 'List of SynGraph objects for which the selected sanity checks should be performed',
+                           'dest': 'routes'},
+                'checks': {'name_or_flags': ['-checks'],
+                           'default': DEFAULT_FACADE['route_sanity_checks']['value'],
+                           'required': False,
+                           'type': List[str],
+                           'choices': get_available_descriptors(),
+                           'help': 'List of sanity checks to be performed',
+                           'dest': 'checks'},
+                'out_data_model': {'name_or_flags': ['-out_data_model'],
+                                   'default': DEFAULT_FACADE['route_sanity_checks']['value']['out_data_model'],
+                                   'required': False,
+                                   'type': str,
+                                   'choices': get_available_data_models(),
+                                   'help': 'Data model of the output graphs',
+                                   'dest': 'out_data_model'},
+                }
+
+    def print_available_options(self):
+        """
+            Prints the available options for routes sanity checks.
+        """
+        print('Routes sanity checks options and default:')
         data = self.get_available_options()
         for d, info in data.items():
             print('argument:', d)
@@ -813,6 +904,8 @@ class FacadeFactory:
                                                      'info': ReactionExtractionFacade.info},
                        'atom_mapping': {'value': AtomMappingFacade,
                                         'info': AtomMappingFacade.info},
+                       'routes_sanity_checks': {'value': RouteSanityCheckFacade,
+                                                'info': RouteSanityCheckFacade.info},
                        }
 
     def select_functionality(self, functionality: str, *args, **kwargs):

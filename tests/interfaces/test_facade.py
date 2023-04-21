@@ -185,7 +185,7 @@ def test_mapping(mock_pipeline, mock_rxnmapper, ibm1_path):
     graph = json.loads(open(ibm1_path).read())
     routes, meta = facade('translate', 'ibm_retro', graph, out_data_model='monopartite_reactions')
     # with mapping pipeline
-    mapped_routes, meta = facade('atom_mapping', routes,  mapper=None)
+    mapped_routes, meta = facade('atom_mapping', routes, mapper=None)
     mock_pipeline.assert_called()
     assert meta['mapping_success_rate']
     for r in mapped_routes:
@@ -193,8 +193,51 @@ def test_mapping(mock_pipeline, mock_rxnmapper, ibm1_path):
         assert r.source
 
     # with other values
-    mapped_routes, meta = facade('atom_mapping', routes, mapper='rxnmapper', out_data_model='monopartite_reactions')
+    mapped_routes, meta = facade('atom_mapping',
+                                 routes,
+                                 mapper='rxnmapper',
+                                 out_data_model='monopartite_reactions')
     mock_rxnmapper.assert_called()
     assert meta['mapping_success_rate']
     for r in mapped_routes:
         assert type(r) == MonopartiteReacSynGraph
+
+
+def test_routes_sanity_checks():
+    route_cycle = [
+        {'query_id': 0,
+         'output_string': '[CH3:3][C:2]#[N:1].[OH2:4]>>[CH3:3][C:2]([OH:4])=[O:4]'},
+        {'query_id': 1,
+         'output_string': 'O[C:2]([CH3:1])=[O:3].[CH3:4][NH2:5]>>[CH3:1][C:2](=[O:3])[NH:5][CH3:4]'},
+        {'query_id': 2,
+         'output_string': '[CH3:5][NH:4][C:2]([CH3:1])=[O:3].[OH2:6]>>[CH3:1][C:2]([OH:6])=[O:3]'},
+        {'query_id': 3,
+         'output_string': 'ClP(Cl)[Cl:4].O[C:2]([CH3:1])=[O:3]>>[Cl:4][C:2]([CH3:1])=[O:3]'},
+    ]
+    route_isolated_nodes = [
+        {'output_string': 'Cl[C:2]([CH3:1])=[O:3].[CH3:4][OH:5]>>[CH3:1][C:2](=[O:3])[O:5][CH3:4]',
+         'query_id': '0'},
+        {'output_string': '[CH3:5][O:4][C:3]([CH3:2])=[O:1]>>[CH3:2][C:3]([OH:4])=[O:1]',
+         'query_id': '1'},
+        {
+            'output_string': '[CH3:4][C:5](Cl)=[O:6].CC(O)=O.[CH3:1][CH2:2][OH:3]>>[CH3:1][CH2:2][O:3][C:5]([CH3:4])=[O:6]',
+            'query_id': '2'},
+        {'output_string': 'O=[C:2](OC[CH3:4])[CH3:1].[Li][CH3:3]>>[CH2:1]=[C:2]([CH3:3])[CH3:4]',
+         'query_id': '3'}
+    ]
+    routes = [BipartiteSynGraph(route_cycle),
+              BipartiteSynGraph(route_isolated_nodes),
+              None]
+    checked_routes, meta = facade('routes_sanity_checks',
+                                  routes,
+                                  checks=None)
+    assert [isinstance(r, BipartiteSynGraph) for r in checked_routes]
+    assert meta['invalid_routes'] == 1
+
+    checked_routes, meta = facade('routes_sanity_checks',
+                                  routes,
+                                  checks=['cycle_check'],
+                                  out_data_model='monopartite_reactions')
+    assert [isinstance(r, MonopartiteReacSynGraph) for r in checked_routes]
+
+    assert facade_helper(functionality='routes_sanity_checks')

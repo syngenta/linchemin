@@ -96,9 +96,15 @@ DEFAULT_FACADE = {
         "info": 'A new, "merged", bipartite SynGraph',
     },
     "atom_mapping": {
-        "value": {"mapper": "rxnmapper", "out_data_model": "bipartite"},
+        "value": {"mapper": "rxnmapper",
+                  "out_data_model": "bipartite"},
         "info": "The rxnmapper tool is used; a list of bipartite SynGraph is generated",
     },
+    "route_sanity_checks": {
+        "value": {"checks": None,
+                  "out_data_model": "bipartite"},
+        "info": "All the available sanity checks are performed",
+    }
 }
 
 DEFAULT_CONSTRUCTORS = {
