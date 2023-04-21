@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import unittest.mock
 
@@ -7,13 +6,11 @@ import networkx as nx
 import pydot
 import pytest
 
-from linchemin.cgu.iron import Direction, Edge, Iron, Node
+from linchemin.cgu.iron import Iron, Node, Edge, Direction
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
-from linchemin.cgu.translate import (TranslationError, az_dict_to_iron,
-                                     get_available_data_models,
-                                     get_available_formats, get_input_formats,
-                                     get_output_formats, ibm_dict_to_iron,
-                                     translator)
+from linchemin.cgu.translate import (translator, ibm_dict_to_iron, get_available_formats, az_dict_to_iron,
+                                     get_available_data_models, get_output_formats, get_input_formats,
+                                     TranslationError)
 from linchemin.cheminfo.models import ChemicalEquation
 
 

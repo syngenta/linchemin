@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Union
 
 from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
                                     MonopartiteReacSynGraph, SynGraph)
@@ -81,7 +82,7 @@ class MonopartiteMoleculesToMonopartiteReactions(Converter):
     input_data_model = MonopartiteMolSynGraph
     output_data_model = MonopartiteReacSynGraph
 
-    def convert(self, graph: MonopartiteMolSynGraph):
+    def convert(self, graph: MonopartiteMolSynGraph) -> MonopartiteReacSynGraph:
         raise NotImplementedError
 
 
@@ -90,7 +91,7 @@ class MonopartiteMoleculesToBiparite(Converter):
     input_data_model = MonopartiteMolSynGraph
     output_data_model = BipartiteSynGraph
 
-    def convert(self, graph: MonopartiteMolSynGraph):
+    def convert(self, graph: MonopartiteMolSynGraph) -> BipartiteSynGraph:
         raise NotImplementedError
 
 
@@ -99,7 +100,7 @@ class MonopartiteReactionsToMonopartiteMolecules(Converter):
     input_data_model = MonopartiteReacSynGraph
     output_data_model = MonopartiteMolSynGraph
 
-    def convert(self, graph: MonopartiteReacSynGraph):
+    def convert(self, graph: MonopartiteReacSynGraph) -> MonopartiteMolSynGraph:
         mp_mol_syngraph = MonopartiteMolSynGraph()
 
         for parent, children in graph.graph.items():
@@ -132,7 +133,7 @@ class MonopartiteReactionsToBipartite(Converter):
     input_data_model = MonopartiteReacSynGraph
     output_data_model = BipartiteSynGraph
 
-    def convert(self, graph: MonopartiteReacSynGraph):
+    def convert(self, graph: MonopartiteReacSynGraph) -> BipartiteSynGraph:
         bp_graph = BipartiteSynGraph()
 
         for parent, children in graph.graph.items():
@@ -173,11 +174,15 @@ class Conversion:
         return self.converter.convert(graph)
 
 
-def converter(graph: SynGraph, out_data_model: str):
+def converter(graph: Union[MonopartiteReacSynGraph,
+                           BipartiteSynGraph,
+                           MonopartiteMolSynGraph],
+              out_data_model: str):
     """ Takes a SynGraph and convert it into the desired data model.
 
         :param:
-            graph: a SynGraph object. It is the input graph as instance of one of the available SynGraph subclasses
+            graph: a SynGraph object.
+                It is the input graph as instance of one of the available SynGraph subclasses
 
             out_data_model: a string It indicates the desired output data model.
             Available data models are:'bipartite, 'monopartite_reactions', and 'monopartite_molecules'
