@@ -355,14 +355,17 @@ def get_available_descriptors():
     return {f: additional_info['info'] for f, additional_info in DescriptorsCalculatorFactory.route_descriptors.items()}
 
 
-def find_path(graph: SynGraph, leaf: Molecule, root: Molecule, path: Union[list, None] = None) -> list:
+def find_path(graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
+              leaf: Union[Molecule, ChemicalEquation],
+              root: Union[Molecule, ChemicalEquation],
+              path: Union[list, None] = None) -> list:
     """ Returns the path between two nodes in a SynGraph.
 
             :param:
                 graph: a SynGraph
-                leaf: the Molecule instance corresponding to the leaf of interest
-                root: the Molecule instance corresponding to the root
-                path: a list of Molecule instances (default: empty list)
+                leaf: the Molecule/ChemicalEquation instance corresponding to the leaf of interest
+                root: the Molecule/ChemicalEquation instance corresponding to the root
+                path: a list of Molecule/ChemicalEquation instances (default: empty list)
 
             :return:
                 path/newpath: a list of  Molecule instances

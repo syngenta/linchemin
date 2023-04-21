@@ -1,6 +1,7 @@
 import itertools
 from abc import ABC, abstractmethod
 from typing import List, Union, Type
+import copy
 
 import networkx as nx
 
@@ -8,6 +9,8 @@ from linchemin.cgu.convert import converter
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph
 from linchemin.cgu.translate import translator
 from linchemin.utilities import console_logger
+from linchemin.rem.route_descriptors import find_path
+from linchemin.cheminfo.models import Molecule, ChemicalEquation
 
 """ Module containing functions and classes to check the presence of issues in routes and handle them """
 logger = console_logger(__name__)
@@ -101,11 +104,11 @@ class CyclesChecker(RouteChecker):
         nx_route = translator('syngraph', route, 'networkx', 'monopartite_reactions')
         try:
             if cycle_info := nx.find_cycle(nx_route, orientation="original"):
-                print('cycles!')
                 cycle_nodes = self.identify_cycle_nodes(cycle_info)
                 route = self.handle_issue(nx_route, cycle_nodes)
         except nx.NetworkXNoCycle:
             return route
+
         d = [{'query_id': n, 'output_string': reaction} for n, reaction in enumerate(list(nx_route.nodes()))]
         return MonopartiteReacSynGraph(d)
 
@@ -126,6 +129,63 @@ class CyclesChecker(RouteChecker):
             if j >= i and route.number_of_edges(u=n1, v=n2) + route.number_of_edges(u=n2, v=n1) > 1:
                 nodes_to_remove.extend([n1, n2])
         route.remove_nodes_from(nodes_to_remove)
+        return route
+
+
+@CheckerFactory.register_checker("isolated_nodes_check",
+                                 "To handle any isolated sequence of nodes in the route")
+class IsolatedNodesChecker(RouteChecker):
+    """ Concrete class to check and handle isolated sequences of nodes in a route"""
+
+    def check_route(self,
+                    route: MonopartiteReacSynGraph) -> MonopartiteReacSynGraph:
+        """ To check if the input route could contain isolated sequences of nodes"""
+        # if there is only one molecule root, there are no isolated sequences of nodes
+        mol_roots = route.get_molecule_roots()
+        if len(mol_roots) == 1:
+            return route
+
+        return self.search_isolated_nodes(route, mol_roots)
+
+    def search_isolated_nodes(self,
+                              route: MonopartiteReacSynGraph,
+                              mol_roots: List[Molecule]) -> MonopartiteReacSynGraph:
+        """ To search any isolated sequences of nodes """
+        reaction_roots = route.get_roots()
+        reaction_leaves = route.get_leaves()
+        route_copy = copy.deepcopy(route)
+        for mol_root in mol_roots:
+            # if a reaction leaf having the mol root as reagents exists
+            if leaf := self.identify_reaction_leaf(reaction_leaves, mol_root):
+                # identify the reaction root that has the mol root as product
+                reaction_root = self.identify_reaction_root(reaction_roots, mol_root)
+                # if there is a path between the reaction leaf and the reaction root, the route is ok
+                if find_path(route, leaf, reaction_root):
+                    return route_copy
+
+                # otherwise, the path between them is retrieved and deleted from the route
+                for reaction_leaf in reaction_leaves:
+                    if path := find_path(route, reaction_leaf, reaction_root):
+                        self.handle_issue(route_copy, path)
+        return route_copy
+
+    @staticmethod
+    def identify_reaction_root(reaction_roots: List[ChemicalEquation],
+                               mol_root: Molecule) -> ChemicalEquation:
+        """ To identify the reaction root having the molecule root as product """
+        return next(r for r in reaction_roots if mol_root.uid in r.role_map['products'])
+
+    @staticmethod
+    def identify_reaction_leaf(reaction_leaves: List[ChemicalEquation],
+                               mol_root: Molecule) -> ChemicalEquation:
+        """ To identify the reaction leaf having the molecule root as reagent """
+        return next((l for l in reaction_leaves if mol_root.uid in l.role_map['reagents']), None)
+
+    def handle_issue(self,
+                     route: MonopartiteReacSynGraph,
+                     nodes_to_remove: List) -> MonopartiteReacSynGraph:
+        """ To remove the nodes in the isolated sequences of nodes """
+        [route.graph.pop(r, None) for r in nodes_to_remove]
         return route
 
 
