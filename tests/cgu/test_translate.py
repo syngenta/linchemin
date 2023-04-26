@@ -237,9 +237,9 @@ def test_route_depiction(az_path):
     graph_az = json.loads(open(az_path).read())
     syngraph = translator('az_retro', graph_az[0], 'syngraph', out_data_model='bipartite')
     translator('syngraph', syngraph, 'pydot_visualization', out_data_model='bipartite')
-    fname_png = f'route_{syngraph.source}.png'
+    fname_png = f'route_{syngraph.uid}.png'
     assert os.path.exists(fname_png)
-    fname_dot = f'route_{syngraph.source}.dot'
+    fname_dot = f'route_{syngraph.uid}.dot'
     assert os.path.exists(fname_dot)
     os.remove(fname_png)
     os.remove(fname_dot)

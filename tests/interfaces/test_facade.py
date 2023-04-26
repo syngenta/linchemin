@@ -233,11 +233,13 @@ def test_routes_sanity_checks():
                                   checks=None)
     assert [isinstance(r, BipartiteSynGraph) for r in checked_routes]
     assert meta['invalid_routes'] == 1
+    assert [len(r.get_roots()) == 1 for r in checked_routes]
 
     checked_routes, meta = facade('routes_sanity_checks',
                                   routes,
                                   checks=['cycle_check'],
                                   out_data_model='monopartite_reactions')
     assert [isinstance(r, MonopartiteReacSynGraph) for r in checked_routes]
+    assert [len(r.get_roots()) == 1 for r in checked_routes]
 
     assert facade_helper(functionality='routes_sanity_checks')

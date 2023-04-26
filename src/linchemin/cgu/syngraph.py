@@ -12,14 +12,6 @@ from linchemin.cheminfo.models import ChemicalEquation, Molecule
 Module containing the implementation of the SynGraph data model and its sub-types: bipartite, monopartite reactions
 and monopartite molecules.
 
-    Abstract classes:
-        SynGraph
-
-    Classes:
-        BipartiteSynGraph(SynGraph)
-        MonopartiteReacSynGraph(SynGraph)
-        MonopartiteMolSynGraph(SynGraph)
-
 """
 
 
@@ -34,7 +26,9 @@ class SynGraph(ABC):
                 uid: a string uniquely identifying the SynGraph instance based on the underlying graph
     """
 
-    def __init__(self, initiator=None):
+    def __init__(self, initiator: Union[List[dict],
+                                        Iron,
+                                        None] = None):
         """
             :param:
                 initiator: object to initialize a SynGraph instance (optional, default: None).
@@ -387,7 +381,9 @@ def get_reaction_instance(reactants: list, products: list) -> ChemicalEquation:
     return chemical_equation
 
 
-def merge_syngraph(list_syngraph: list) -> SynGraph:
+def merge_syngraph(list_syngraph: List) -> Union[MonopartiteReacSynGraph,
+                                                 BipartiteSynGraph,
+                                                 MonopartiteMolSynGraph]:
     """ Takes a list of SynGraph objects and returns a new 'merged' SynGraph.
 
         :param:
@@ -411,8 +407,7 @@ def merge_syngraph(list_syngraph: list) -> SynGraph:
                         'be in the same data model')
     merged.source = 'tree'
     for syngraph in list_syngraph:
-        for step in syngraph:
-            merged.add_node(step)
+        [merged.add_node(step) for step in syngraph]
     return merged
 
 
@@ -421,7 +416,9 @@ class ReactionsExtractor(ABC):
     """ Abstract class for extracting a list of dictionary of reaction strings from a SynGraph object """
 
     @abstractmethod
-    def extract(self, syngraph) -> list:
+    def extract(self, syngraph: Union[MonopartiteReacSynGraph,
+                                      BipartiteSynGraph,
+                                      MonopartiteMolSynGraph]) -> list:
         pass
 
 
@@ -489,11 +486,13 @@ class ExtractorFactory:
         return extractor().extract(syngraph)
 
 
-def extract_reactions_from_syngraph(syngraph: SynGraph) -> list:
+def extract_reactions_from_syngraph(syngraph: Union[MonopartiteReacSynGraph,
+                                                    BipartiteSynGraph,
+                                                    MonopartiteMolSynGraph]) -> list:
     """ Takes a SynGraph object and returns a list of dictionaries of the involved chemical reactions.
 
         :param:
-            syngraph: a SynGraph object (MonopartiteReacSynGraph or BipartiteSynGraph)
+            syngraph: a SynGraph object (MonopartiteReacSynGraph, BipartiteSynGraph or MonopartiteMolSynGraph)
 
         :return:
             reactions: a list of dictionary in the form

@@ -146,7 +146,7 @@ class TranslatorFactory:
     """ Translator Factory to give access to the translations.
 
         Attributes:
-            _translators: a dictionary
+            _formats: a dictionary
                 It maps the strings representing the 'name' of a format to the correct AbsTranslator subclass
 
             _data_models: a dictionary
@@ -317,7 +317,7 @@ class TranslatorMonopartiteReacSynGraph(AbsTranslator):
                     iron.add_edge(str(id_e), e)
                     id_e += 1
 
-            iron.source = mp_syngraph.source
+            iron.source = mp_syngraph.uid
             return iron
 
         except EmptyRoute:
@@ -362,7 +362,7 @@ class TranslatorBipartiteSynGraph(AbsTranslator):
                     iron.add_edge(str(id_e), e)
                     id_e += 1
 
-            iron.source = syngraph.source
+            iron.source = syngraph.uid
             return iron
         except EmptyRoute:
             logger.warning(
@@ -406,7 +406,7 @@ class TranslatorMonopartiteMolSynGraph(AbsTranslator):
                     iron.add_edge(str(id_e), e)
                     id_e += 1
 
-            iron.source = mp_syngraph.source
+            iron.source = mp_syngraph.uid
             return iron
         except EmptyRoute:
             logger.warning(

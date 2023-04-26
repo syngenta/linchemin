@@ -8,6 +8,7 @@ import pandas as pd
 
 from linchemin import settings
 from linchemin.cgu.convert import Converter, converter
+from linchemin.cgu.route_sanity_check import route_checker, get_available_route_sanity_checks
 from linchemin.cgu.syngraph import (MonopartiteReacSynGraph, SynGraph,
                                     extract_reactions_from_syngraph,
                                     merge_syngraph)
@@ -15,7 +16,6 @@ from linchemin.cgu.translate import (TranslationError,
                                      get_available_data_models,
                                      get_input_formats, get_output_formats,
                                      translator)
-from linchemin.cgu.route_sanity_check import route_checker, get_available_route_sanity_checks
 from linchemin.cheminfo.atom_mapping import (get_available_mappers,
                                              perform_atom_mapping,
                                              pipeline_atom_mapping)
