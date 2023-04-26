@@ -63,6 +63,15 @@ Convert
     converter
 
 
+Route Mining
+^^^^^^^^^^^^^
+
+.. automodule:: linchemin.cgu.route_mining
+.. autosummary::
+    :toctree: generated
+
+    route_miner
+
 Interfaces
 ----------
 

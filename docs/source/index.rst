@@ -31,6 +31,8 @@ Contents
    data_structure
    chemical_objects_classes
    atom_mapping
+   route_sanity_check
+   manual_manipulation
    reference/index
 
 License
