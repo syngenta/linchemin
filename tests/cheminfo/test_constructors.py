@@ -867,9 +867,12 @@ def test_molecular_hashing():
         # print()
         # import pprint
         # pprint.pprint(calculated)
-    # dumb testing
-    for k, v in calculated.items():
-        assert v == reference.get(k)
+    # checking only few hashed descriptors that are valid across multiple RDKit versions
+    hashed_descriptors = ['AnonymousGraph', 'CanonicalSmiles', 'inchi', 'inchi_KET_15T', 'inchi_key',
+                          'inchikey_KET_15T']
+    for hd in hashed_descriptors:
+        for k, v in calculated.items():
+            assert v[hd] == reference.get(k).get(hd)
     # clever testing
 
 

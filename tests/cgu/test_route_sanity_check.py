@@ -28,6 +28,19 @@ def test_checker_factory():
         route_checker(route, 'not_a_check')
     assert 'KeyError' in str(e.type)
 
+    # If the input route has no problems, it is returned as it is
+    correct_route = [{'query_id': 0,
+                      'output_string': 'Cc1cccc(C)c1N(CC(=O)Cl)C(=O)C1CCS(=O)(=O)CC1.Nc1ccc(-c2ncon2)cc1>>Cc1cccc(C)c1N(CC(=O)Nc1ccc(-c2ncon2)cc1)C(=O)C1CCS(=O)(=O)CC1'},
+                     {'query_id': 1,
+                      'output_string': 'Cc1cccc(C)c1NCC(=O)Cl.O=C(O)C1CCS(=O)(=O)CC1>>Cc1cccc(C)c1N(CC(=O)Cl)C(=O)C1CCS(=O)(=O)CC1'},
+                     {'query_id': 2,
+                      'output_string': 'Cc1cccc(C)c1NCC(=O)O>>Cc1cccc(C)c1NCC(=O)Cl'}]
+    syngraph = MonopartiteReacSynGraph(correct_route)
+    checked_route = route_checker(syngraph, 'cycle_check')
+    assert checked_route == syngraph
+    checked_route = route_checker(syngraph, 'isolated_nodes_check')
+    assert checked_route == syngraph
+
 
 def test_cycle_checker():
     route_cycle = [

@@ -829,14 +829,15 @@ class RouteSanityCheckFacade(Facade):
         valid_routes = [r for r in routes if r is not None]
         invalid_routes = len(routes) - len(valid_routes)
 
-        for check in checks:
-            try:
-                for r in valid_routes:
-                    checked_route = route_checker(r, check)
-                    checked_routes.append(checked_route)
+        for r in valid_routes:
+            checked_route = r
+            for check in checks:
+                try:
+                    checked_route = route_checker(checked_route, check)
+                except Exception as ke:
+                    exceptions.append(ke)
+            checked_routes.append(checked_route)
 
-            except Exception as ke:
-                exceptions.append(ke)
         out_routes = [converter(r, out_data_model) for r in checked_routes]
 
         meta = {'checks': checks,
