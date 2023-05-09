@@ -469,11 +469,11 @@ class GraphMLWriter(SyngraphWriter):
         nx_routes, meta = facade('translate', 'syngraph', syngraphs, 'networkx', out_data_model=out_data_model)
         for nx_route in nx_routes:
             for n, data in nx_route.nodes.items():
-                r_id = data['attributes']['source']
-                del nx_route.nodes[n]["attributes"]
+                r_id = data['source']
+                del nx_route.nodes[n]["properties"]
 
             for n1, n2, d in nx_route.edges(data=True):
-                del d['attributes']
+                del d['label']
             fname = '.'.join([r_id, 'graphml'])
             lio.write_nx_to_graphml(nx_route, fname)
 
