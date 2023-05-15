@@ -1,17 +1,276 @@
 import copy
-from typing import List, Union
+from typing import List, Union, Tuple
 
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import MonopartiteReacSynGraph, merge_syngraph, BipartiteSynGraph
+from linchemin.cgu.syngraph import MonopartiteReacSynGraph, merge_syngraph, BipartiteSynGraph, MonopartiteMolSynGraph
+from linchemin.cgu.translate import translator, nx
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.route_descriptors import find_path
 from linchemin.utilities import console_logger
 
-""" Module containing functions and classes to identify and extract routes """
+""" Module containing functions and classes to identify, extract and mine routes """
 
 logger = console_logger(__name__)
 
 
+class RouteMiner:
+    """A class for extracting routes from a list of SynGraph objects."""
+
+    def __init__(self,
+                 route_list: List[Union[MonopartiteReacSynGraph,
+                                        BipartiteSynGraph,
+                                        MonopartiteMolSynGraph]],
+                 root: Union[str, None] = None):
+        """ To initialize a RouteMiner object """
+        if all(isinstance(r, MonopartiteReacSynGraph) for r in route_list):
+            self.route_list = route_list
+        elif any(isinstance(r, (BipartiteSynGraph, MonopartiteMolSynGraph)) for r in route_list):
+            self.route_list = [converter(route, 'monopartite_reactions') for route in route_list]
+        else:
+            logger.error("Only syngraph objects can be used.")
+            raise TypeError
+        self.root = root
+
+    def mine_routes(self) -> List[MonopartiteReacSynGraph]:
+        """ To extract a list of MonopartiteSynGraph routes from a tree. """
+        tree = merge_syngraph(self.route_list)
+        return TreeMiner(tree, self.root).mine_tree()
+
+
+class TreeMiner:
+    def __init__(self, tree: Union[MonopartiteReacSynGraph,
+                                   BipartiteSynGraph],
+                 root: Union[str, None] = None):
+        """ To initialize a TreeMiner object """
+        self.tree = self.set_tree(tree)
+        self.root = self.set_root(root)
+
+    def set_root(self, root: Union[str, None]) -> Union[str, None]:
+        """ To set the root attribute """
+        if isinstance(self.tree, MonopartiteReacSynGraph):
+            extracted_roots = list({mol.smiles for mol in self.tree.get_molecule_roots()})
+        else:
+            extracted_roots = list({mol.smiles for mol in self.tree.get_roots()})
+
+        if root is None:
+            return extracted_roots[0]
+        elif root not in extracted_roots:
+            logger.error("The selected root does not appear in the tree")
+            raise KeyError
+        else:
+            return root
+
+    @staticmethod
+    def set_tree(tree: Union[MonopartiteReacSynGraph,
+                             BipartiteSynGraph,
+                             MonopartiteMolSynGraph]):
+        """ To set the tree attribute. """
+        if isinstance(tree, (MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph)):
+            return tree
+        logger.error("Only syngraph objects can be used.")
+        raise TypeError
+
+    def mine_tree(self) -> List[MonopartiteReacSynGraph]:
+        """ To mine routes from a tree. """
+        tree_nx = translator('syngraph', self.tree, 'networkx', 'bipartite')
+        routes_nx = RouteFinder(tree_nx, self.root).find_routes()
+        return self.build_syngraph_routes(routes_nx)
+
+    @staticmethod
+    def build_syngraph_routes(nx_routes: List[nx.DiGraph]) -> List[MonopartiteReacSynGraph]:
+        """ To build a list of MonopartiteSynGraph routes from a list of networkx DiGraph objects. """
+        syngraph_routes = []
+        for nx_graph in nx_routes:
+            chemical_equations = [data['properties']['node_type'] for data in nx_graph.nodes.values()
+                                  if isinstance(data['properties']['node_type'], ChemicalEquation)]
+            syngraph = MonopartiteReacSynGraph()
+            syngraph.builder_from_reaction_list(chemical_equations)
+            syngraph_routes.append(syngraph)
+        return syngraph_routes
+
+
+class RouteFinder:
+    def __init__(self,
+                 nx_tree: nx.DiGraph,
+                 root: str,
+                 product_edge_label: str = 'PRODUCT',
+                 reactant_edge_label: str = 'REACTANT'):
+        """ To initialize a new RouteFinder object. """
+        self.nx_tree = nx_tree
+        self.root = root
+        self.routes: List = []
+        self.product_edge = product_edge_label
+        self.reactant_edge = reactant_edge_label
+
+    def find_routes(self) -> List[nx.DiGraph]:
+        """ To find routes from a tree. """
+        initial_route = nx.DiGraph()
+        initial_seen = set()
+        initial_route.add_node(self.root, **self.nx_tree.nodes[self.root])
+        self.traverse_route(initial_route, self.root, initial_seen)
+        return self.filter_unique_routes()
+
+    def traverse_route(self,
+                       route_graph: nx.DiGraph,
+                       current_node: str,
+                       seen: set, ) -> None:
+        """ To extract routes from a Tree. """
+        # Add the current node with its attributes to the route_graph
+        route_graph.add_node(current_node, **self.nx_tree.nodes[current_node])
+        seen.add(current_node)
+
+        current_label = route_graph.nodes[current_node]["label"]
+        if current_label == "M":
+            self.handle_M_node(route_graph, current_node, seen)
+        elif current_label == "CE":
+            self.handle_CE_node(route_graph, current_node, seen)
+
+    def handle_M_node(self,
+                      route_graph: nx.DiGraph,
+                      current_node: str,
+                      seen: set) -> None:
+        """ To handle Molecule nodes during the Tree traversal. """
+        # Find P edges connected to the current M node
+        p_neighbors = self.get_P_neighbors(current_node)
+        # If the current M node has more than one P edge, it is an OR node
+        if len(p_neighbors) > 1:
+            self.handle_OR_node(route_graph, p_neighbors, seen)
+        elif p_neighbors:
+            self.handle_AND_node(route_graph, p_neighbors, seen)
+        else:
+            # No more P edges, this route is complete
+            self.routes.append(route_graph)
+
+    def handle_CE_node(self,
+                       route_graph: nx.DiGraph,
+                       current_node: str,
+                       seen: set) -> None:
+        """ To handle the ChemicalEquation nodes during the tree traversal. """
+        # Find R edges connected to the current CE node
+        r_neighbors = self.get_R_neighbors(current_node)
+
+        for u, v, edge_data in r_neighbors:
+            route_graph.add_edge(u, v, **edge_data)
+            self.traverse_route(route_graph, u, seen)
+
+    def handle_OR_node(self,
+                       route_graph: nx.DiGraph,
+                       p_neighbors: List[tuple],
+                       seen: set) -> None:
+        """ To handle 'OR' Molecule nodes --> Molecule nodes that are product of more than one ChemicalEquation node."""
+        for i, (u, v, edge_data) in enumerate(p_neighbors):
+            if self.is_loop(u, seen):
+                self.routes.append(route_graph)
+            elif i < len(p_neighbors) - 1:
+                new_route, new_seen = self.crete_new_route(route_graph, seen)
+                new_route.add_edge(u, v, **edge_data)
+                self.traverse_route(new_route, u, new_seen)
+            else:
+                route_graph.add_edge(u, v, **edge_data)
+                self.traverse_route(route_graph, u, seen)
+
+    @staticmethod
+    def crete_new_route(route_graph: nx.DiGraph,
+                        seen: set) -> Tuple[nx.DiGraph, set]:
+        """ To create a new route and the corresponding set of visited nodes. """
+        return copy.deepcopy(route_graph), copy.deepcopy(seen)
+
+    def handle_AND_node(self,
+                        route_graph: nx.DiGraph,
+                        p_neighbors: List[tuple],
+                        seen: set) -> None:
+        """ To handle 'AND' Molecule nodes --> Molecule nodes that are product of a single ChemicalEquation. """
+        u, v, edge_data = p_neighbors[0]
+        if self.is_loop(u, seen):
+            self.routes.append(route_graph)
+        else:
+            route_graph.add_edge(u, v, **edge_data)
+            self.traverse_route(route_graph, u, seen)
+
+    def is_loop(self,
+                node: str,
+                seen: set) -> Union[set, None]:
+        """ To check if the next node is involved in a loop. """
+        r_edge_list = self.get_R_neighbors(node)
+        r_neighbors = {m for (m, ce, d) in r_edge_list}
+        return seen.intersection(r_neighbors)
+
+    def get_P_neighbors(self,
+                        node: str) -> List[tuple]:
+        """ To get the ChemicalEquation nodes, parents of a Molecule node, following the 'PRODUCT' edges. """
+        return [(u, v, d) for u, v, d in self.nx_tree.in_edges(node, data=True) if d["label"] == self.product_edge]
+
+    def get_R_neighbors(self,
+                        node: str) -> List[tuple]:
+        """ To get the Molecule nodes, parents of a ChemicalEquation node, following the 'REACTANT' edges. """
+        return [(u, v, d) for u, v, d in self.nx_tree.in_edges(node, data=True) if d["label"] == self.reactant_edge]
+
+    def filter_unique_routes(self) -> List[nx.DiGraph]:
+        """ To get a list of unique nx.DiGraph routes. """
+        unique_routes = []
+
+        for route in self.routes:
+            is_unique = True
+            for unique_route in unique_routes:
+                if nx.is_isomorphic(route, unique_route,
+                                    node_match=lambda n1, n2: n1['label'] == n2['label'] and n1['uid'] == n2['uid'],
+                                    edge_match=lambda e1, e2: e1['label'] == e2['label']):
+                    is_unique = False
+                    break
+            if is_unique:
+                unique_routes.append(route)
+
+        return unique_routes
+
+
+def find_new_routes(input_list: Union[List[Union[MonopartiteReacSynGraph,
+                                                 BipartiteSynGraph,
+                                                 MonopartiteMolSynGraph]]],
+                    root: Union[str, None] = None,
+                    new_reaction_list: Union[List[str], None] = None) -> list:
+    """
+    To mine all the routes that can be found in tree obtained by merging the input list of routes.
+
+    Parameters:
+    ----------
+    input_list: (Union[List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]])
+                A list of SynGraph routes.
+    root : (Optional[Union[str, None]])
+            The smiles of the target molecule for which routes should be searched.
+            If not provided, the root node will be determined automatically. (default None)
+    new_reaction_list : (Optional[Union[List[str], None]])
+        The list of smiles of the chemical reactions to be added.
+        If not provided, only the input graph objects are considered. (default None)
+
+    Returns:
+    --------
+    extracted routes : List
+        A list of MonopartiteReacSynGraph objects.
+
+    Raises:
+    -------
+    TypeError: If the input data is not a list of SynGraph objects.
+
+    Example:
+    --------
+    >>> input_list = [route1, route2]
+    >>> root = 'CCC(=O)Nc1ccc(cc1)C(=O)N[C@@H](CO)C(=O)O'
+    >>> new_reaction_list = ['CC(=O)Nc1ccccc1C(=O)O.[O-]S(=O)(=O)C(F)(F)F>>CC(=O)Nc1ccccc1C(=O)OS(=O)(=O)C(F)(F)F']
+    >>> find_new_routes(input_list, root, new_reaction_list)
+    """
+    if isinstance(input_list, list) and all(isinstance(r, (MonopartiteReacSynGraph,
+                                                           BipartiteSynGraph,
+                                                           MonopartiteMolSynGraph))
+                                            for r in input_list):
+        if new_reaction_list is not None:
+            new_graph = build_graph_from_node_sequence(new_reaction_list)
+            input_list.append(new_graph)
+        return RouteMiner(input_list, root).mine_routes()
+    logger.error("Only a list of syngraph objects can be used.")
+    raise TypeError
+
+
+######### OLD CODE #########
 class NewRouteBuilder:
     """ RouteBuilder to handle the creation of new routes from a pre-existing list of routes
         and a sequence of new nodes

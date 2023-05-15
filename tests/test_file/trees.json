@@ -1,0 +1,624 @@
+{
+  "001": {
+    "tree": {
+      "nodes": [
+        {
+          "label": "M",
+          "uid": "1"
+        },
+        {
+          "label": "M",
+          "uid": "2"
+        },
+        {
+          "label": "M",
+          "uid": "3"
+        },
+        {
+          "label": "M",
+          "uid": "4"
+        },
+        {
+          "label": "M",
+          "uid": "5"
+        },
+        {
+          "label": "M",
+          "uid": "6"
+        },
+        {
+          "label": "M",
+          "uid": "7"
+        },
+        {
+          "label": "M",
+          "uid": "8"
+        },
+        {
+          "label": "CE",
+          "uid": "101"
+        },
+        {
+          "label": "CE",
+          "uid": "102"
+        },
+        {
+          "label": "CE",
+          "uid": "103"
+        },
+        {
+          "label": "CE",
+          "uid": "104"
+        },
+        {
+          "label": "CE",
+          "uid": "105"
+        },
+        {
+          "label": "CE",
+          "uid": "106"
+        }
+      ],
+      "edges": [
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "101",
+            "1"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "102",
+            "1"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "103",
+            "1"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "2",
+            "101"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "2",
+            "102"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "3",
+            "102"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "2",
+            "103"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "3",
+            "103"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "4",
+            "103"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "104",
+            "2"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "105",
+            "4"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "106",
+            "4"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "5",
+            "104"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "6",
+            "105"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "7",
+            "105"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "8",
+            "106"
+          ]
+        }
+      ]
+    },
+    "routes": [
+      {
+        "nodes": [
+          "1",
+          "101",
+          "2",
+          "104",
+          "5"
+        ],
+        "edges": []
+      },
+      {
+        "nodes": [
+          "1",
+          "102",
+          "3",
+          "2",
+          "104",
+          "5"
+        ],
+        "edges": []
+      },
+      {
+        "nodes": [
+          "1",
+          "103",
+          "4",
+          "3",
+          "2",
+          "104",
+          "5",
+          "105",
+          "6",
+          "7"
+        ],
+        "edges": []
+      },
+      {
+        "nodes": [
+          "1",
+          "103",
+          "4",
+          "3",
+          "2",
+          "104",
+          "5",
+          "106",
+          "8"
+        ],
+        "edges": []
+      }
+    ]
+  },
+  "002": {
+    "tree": {
+      "nodes": [
+        {
+          "label": "M",
+          "uid": "1"
+        },
+        {
+          "label": "M",
+          "uid": "2"
+        },
+        {
+          "label": "M",
+          "uid": "3"
+        },
+        {
+          "label": "M",
+          "uid": "4"
+        },
+        {
+          "label": "M",
+          "uid": "5"
+        },
+        {
+          "label": "M",
+          "uid": "6"
+        },
+        {
+          "label": "CE",
+          "uid": "101"
+        },
+        {
+          "label": "CE",
+          "uid": "102"
+        },
+        {
+          "label": "CE",
+          "uid": "103"
+        }
+      ],
+      "edges": [
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "101",
+            "1"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "2",
+            "101"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "3",
+            "101"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "3",
+            "102"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "102",
+            "2"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "4",
+            "102"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "103",
+            "3"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "5",
+            "103"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "6",
+            "103"
+          ]
+        }
+      ]
+    },
+    "routes": [
+      {
+        "nodes": [
+          "1",
+          "101",
+          "2",
+          "102",
+          "3",
+          "103",
+          "5",
+          "6",
+          "4"
+        ],
+        "edges": []
+      }
+    ]
+  },
+  "003": {
+    "tree": {
+      "nodes": [
+        {
+          "label": "M",
+          "uid": "1"
+        },
+        {
+          "label": "M",
+          "uid": "2"
+        },
+        {
+          "label": "M",
+          "uid": "3"
+        },
+        {
+          "label": "M",
+          "uid": "4"
+        },
+        {
+          "label": "CE",
+          "uid": "101"
+        },
+        {
+          "label": "CE",
+          "uid": "102"
+        },
+        {
+          "label": "CE",
+          "uid": "103"
+        }
+      ],
+      "edges": [
+         {
+          "label": "PRODUCT",
+          "nodes": [
+            "101",
+            "1"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "2",
+            "101"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "3",
+            "101"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "3",
+            "102"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "103",
+            "3"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "102",
+            "4"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "4",
+            "103"
+          ]
+        }
+      ]
+    },
+    "routes": [
+      {
+        "nodes": [
+          "1",
+          "101",
+          "2",
+          "3",
+          "103",
+          "4"
+        ],
+        "edges": []
+      }
+    ]
+  },
+  "004": {
+    "tree": {
+      "nodes": [
+        {
+          "label": "M",
+          "uid": "1"
+        },
+        {
+          "label": "M",
+          "uid": "2"
+        },
+        {
+          "label": "M",
+          "uid": "3"
+        },
+        {
+          "label": "M",
+          "uid": "4"
+        },
+        {
+          "label": "M",
+          "uid": "5"
+        },
+        {
+          "label": "M",
+          "uid": "6"
+        },
+        {
+          "label": "M",
+          "uid": "7"
+        },
+        {
+          "label": "CE",
+          "uid": "101"
+        },
+        {
+          "label": "CE",
+          "uid": "102"
+        },
+        {
+          "label": "CE",
+          "uid": "103"
+        },
+        {
+          "label": "CE",
+          "uid": "104"
+        },
+        {
+          "label": "CE",
+          "uid": "105"
+        }
+      ],
+      "edges": [
+         {
+          "label": "PRODUCT",
+          "nodes": [
+            "101",
+            "1"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "2",
+            "101"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "4",
+            "101"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "102",
+            "2"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "3",
+            "102"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "103",
+            "3"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "2",
+            "103"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "4",
+            "104"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "7",
+            "104"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "105",
+            "4"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "5",
+            "105"
+          ]
+        },
+        {
+          "label": "REACTANT",
+          "nodes": [
+            "6",
+            "105"
+          ]
+        },
+        {
+          "label": "PRODUCT",
+          "nodes": [
+            "104",
+            "2"
+          ]
+        }
+      ]
+    },
+    "routes": [
+       {
+        "nodes": [
+          "1",
+          "101",
+          "2",
+          "102",
+          "3"
+        ],
+        "edges": []
+      },
+      {
+        "nodes": [
+          "1",
+          "101",
+          "2",
+          "4",
+          "104",
+          "7",
+          "105",
+          "5",
+          "6"
+        ],
+        "edges": []
+      }
+    ]
+  }
+}

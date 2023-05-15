@@ -71,6 +71,7 @@ Route Mining
     :toctree: generated
 
     route_miner
+    find_new_routes
 
 Interfaces
 ----------

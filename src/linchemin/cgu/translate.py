@@ -462,17 +462,19 @@ class TranslatorNetworkx(AbsTranslator):
                                 route_iron: Iron) -> None:
         """ To add attributes to the nodes in the networkx DiGraph instance """
         for node in route_iron.nodes.values():
+            node_instance = node.properties['node_type']
 
-            if isinstance(node.properties['node_type'], Molecule):
+            if isinstance(node_instance, Molecule):
                 attrs_n = {node.properties['node_smiles']: {'properties': node.properties,
                                                             'source': route_iron.source,
-                                                            'label': 'M'}}
-            elif isinstance(node.properties['node_type'], ChemicalEquation):
+                                                            'label': 'M',
+                                                            'uid': node_instance.uid}}
+            elif isinstance(node_instance, ChemicalEquation):
                 attrs_n = {node.properties['node_smiles']: {'properties': node.properties,
                                                             'source': route_iron.source,
-                                                            'label': 'CE'}}
-                # if {data['label'] for data in nx_graph.nodes.values()} == {'M', 'CE'}:
-                self.set_nx_edges_labels(node.properties['node_type'], nx_graph)
+                                                            'label': 'CE',
+                                                            'uid': node_instance.uid}}
+                self.set_nx_edges_labels(node_instance, nx_graph)
             else:
                 attrs_n = {node.properties['node_smiles']: {'properties': node.properties,
                                                             'source': route_iron.source,

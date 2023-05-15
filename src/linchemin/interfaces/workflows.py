@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Union, List
 
 import pandas as pd
 
@@ -340,17 +340,17 @@ class WorkflowBuilder:
 
 
 def process_routes(input_dict: dict,
-                   output_format=settings.WORKFLOW.output_format,
-                   mapping=settings.WORKFLOW.mapping,
-                   functionalities=settings.WORKFLOW.functionalities,
-                   mapper=settings.FACADE.mapper,
-                   out_data_model=settings.FACADE.out_data_model,
-                   descriptors=settings.FACADE.descriptors,
-                   ged_method=settings.FACADE.ged_method,
-                   ged_params=settings.FACADE.ged_params,
-                   clustering_method=settings.FACADE.clustering_method,
-                   parallelization=settings.FACADE.parallelization,
-                   n_cpu=settings.FACADE.n_cpu, ):
+                   output_format: str=settings.WORKFLOW.output_format,
+                   mapping: bool=settings.WORKFLOW.mapping,
+                   functionalities: Union[List[str], None]=settings.WORKFLOW.functionalities,
+                   mapper: Union[str, None]=settings.FACADE.mapper,
+                   out_data_model: str=settings.FACADE.out_data_model,
+                   descriptors: List[str]=settings.FACADE.descriptors,
+                   ged_method: str=settings.FACADE.ged_method,
+                   ged_params: Union[dict, None]=settings.FACADE.ged_params,
+                   clustering_method: Union[str, None]=settings.FACADE.clustering_method,
+                   parallelization: bool=settings.FACADE.parallelization,
+                   n_cpu: int=settings.FACADE.n_cpu) -> WorkflowOutput:
     """ Function to start the workflow chain of responsibility: based on the input arguments, only the selected
         functionalities are performed. The mandatory start and stop actions are (i) to read a json file containing the
         routes predicted by a CASP tool, and (ii) to write the routes as dictionaries in an output file.
@@ -494,7 +494,10 @@ class SyngraphWriterFactory:
         writer().write_file(syngraphs, out_data_model, output_format, file_name)
 
 
-def write_syngraph(syngraphs: list, out_data_model: str, output_format: str, file_name: str):
+def write_syngraph(syngraphs: list,
+                   out_data_model: str,
+                   output_format: str,
+                   file_name: str) -> None:
     """
     Takes a list of SynGraph instances and writes them to a file
 

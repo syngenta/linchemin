@@ -22,3 +22,5 @@ All you need is the :func:`~linchemin.cgu.route_mining.route_miner` function!
 The input routes should be :class:`~linchemin.cgu.syngraph.MonopartiteReacSynGraph` or
 :class:`~linchemin.cgu.syngraph.BipartiteSynGraph` objects and the output, brand-new routes
 will be :class:`~linchemin.cgu.syngraph.MonopartiteReacSynGraph` objects.
+
+Another possibility is to use the :func:`~linchemin.cgu.route_mining.find_new_routes` function.

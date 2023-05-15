@@ -2,8 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Union
 
 from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
-                                    MonopartiteReacSynGraph, SynGraph)
-from linchemin.cheminfo.models import ChemicalEquation, Molecule
+                                    MonopartiteReacSynGraph, extract_reactions_from_syngraph, SynGraph)
 
 """
 Module containing all the functions to convert from and into different SynGraph data models:
@@ -16,8 +15,8 @@ Module containing all the functions to convert from and into different SynGraph 
 # Abstract strategy class
 class Converter(ABC):
     """ Abstract class for data model converters"""
-    input_data_model: SynGraph
-    output_data_model: SynGraph
+    input_data_model: Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph]
+    output_data_model: Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph]
 
     out_datamodels = {
         'bipartite': BipartiteSynGraph,
@@ -26,7 +25,7 @@ class Converter(ABC):
     }
 
     @abstractmethod
-    def convert(self, graph: SynGraph):
+    def convert(self, graph: Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph]):
         pass
 
 
@@ -38,18 +37,9 @@ class BipartiteToMonopartiteReactions(Converter):
 
     def convert(self, graph: BipartiteSynGraph):
         """ To build a MonopartiteSynGraph with only ReactionStep nodes from a bipartite SynGraph. """
-        mp_graph = MonopartiteReacSynGraph()
-        for r, connections in graph.graph.items():
-            if isinstance(r, ChemicalEquation):
-                if connections:
-                    for c in connections:
-                        if products := [set_products for mol, set_products in graph.graph.items() if mol == c]:
-                            r2 = [p for p in products[0] if p != r and isinstance(p, ChemicalEquation)]
-                            mp_graph.add_node((r, r2))
-
-                else:
-                    mp_graph.add_node((r, []))
-
+        out_reaction_list = extract_reactions_from_syngraph(graph)
+        in_reaction_list = [{'query_id': d['query_id'], 'output_string': d['input_string']} for d in out_reaction_list]
+        mp_graph = MonopartiteReacSynGraph(in_reaction_list)
         mp_graph.source = graph.source
         return mp_graph
 
@@ -61,18 +51,9 @@ class BipartiteToMonopartiteMolecules(Converter):
 
     def convert(self, graph: BipartiteSynGraph):
         """ To build a MonopartiteSynGraph with only Molecules nodes from a bipartite SynGraph. """
-        mp_graph = MonopartiteMolSynGraph()
-        for parent, children in graph.graph.items():
-            if isinstance(parent, Molecule):
-                if children:
-                    for child in children:
-                        if products := [set_products for mol, set_products in graph.graph.items() if mol == child]:
-                            r2 = [p for p in products[0] if p != parent and isinstance(p, Molecule)]
-                            mp_graph.add_node((parent, r2))
-
-                else:
-                    mp_graph.add_node((parent, []))
-
+        out_reaction_list = extract_reactions_from_syngraph(graph)
+        in_reaction_list = [{'query_id': d['query_id'], 'output_string': d['input_string']} for d in out_reaction_list]
+        mp_graph = MonopartiteMolSynGraph(in_reaction_list)
         mp_graph.source = graph.source
         return mp_graph
 
@@ -83,7 +64,11 @@ class MonopartiteMoleculesToMonopartiteReactions(Converter):
     output_data_model = MonopartiteReacSynGraph
 
     def convert(self, graph: MonopartiteMolSynGraph) -> MonopartiteReacSynGraph:
-        raise NotImplementedError
+        out_reaction_list = extract_reactions_from_syngraph(graph)
+        in_reaction_list = [{'query_id': d['query_id'], 'output_string': d['input_string']} for d in out_reaction_list]
+        mp_graph = MonopartiteReacSynGraph(in_reaction_list)
+        mp_graph.source = graph.source
+        return mp_graph
 
 
 class MonopartiteMoleculesToBiparite(Converter):
@@ -92,7 +77,11 @@ class MonopartiteMoleculesToBiparite(Converter):
     output_data_model = BipartiteSynGraph
 
     def convert(self, graph: MonopartiteMolSynGraph) -> BipartiteSynGraph:
-        raise NotImplementedError
+        out_reaction_list = extract_reactions_from_syngraph(graph)
+        in_reaction_list = [{'query_id': d['query_id'], 'output_string': d['input_string']} for d in out_reaction_list]
+        bp_graph = BipartiteSynGraph(in_reaction_list)
+        bp_graph.source = graph.source
+        return bp_graph
 
 
 class MonopartiteReactionsToMonopartiteMolecules(Converter):
@@ -101,31 +90,11 @@ class MonopartiteReactionsToMonopartiteMolecules(Converter):
     output_data_model = MonopartiteMolSynGraph
 
     def convert(self, graph: MonopartiteReacSynGraph) -> MonopartiteMolSynGraph:
-        mp_mol_syngraph = MonopartiteMolSynGraph()
-
-        for parent, children in graph.graph.items():
-            mol_reactants = [mol for h, mol in parent.catalog.items() if h in parent.role_map['reactants']]
-            mol_products = [mol for h, mol in parent.catalog.items() if h in parent.role_map['products']]
-
-            for reactant in mol_reactants:
-                for product in mol_products:
-                    mp_mol_syngraph.add_node((reactant, [product]))
-
-            if children:
-                for child in children:
-                    mol_reactants = [mol for h, mol in child.catalog.items() if h in parent.role_map['reactants']]
-                    mol_products = [mol for h, mol in child.catalog.items() if h in parent.role_map['products']]
-
-                    for reactant in mol_reactants:
-                        for product in mol_products:
-                            mp_mol_syngraph.add_node((reactant, [product]))
-
-            else:
-                for product in mol_products:
-                    mp_mol_syngraph.add_node((product, []))
-
-        mp_mol_syngraph.source = graph.source
-        return mp_mol_syngraph
+        out_reaction_list = extract_reactions_from_syngraph(graph)
+        in_reaction_list = [{'query_id': d['query_id'], 'output_string': d['input_string']} for d in out_reaction_list]
+        bp_graph = MonopartiteMolSynGraph(in_reaction_list)
+        bp_graph.source = graph.source
+        return bp_graph
 
 
 class MonopartiteReactionsToBipartite(Converter):
@@ -134,31 +103,9 @@ class MonopartiteReactionsToBipartite(Converter):
     output_data_model = BipartiteSynGraph
 
     def convert(self, graph: MonopartiteReacSynGraph) -> BipartiteSynGraph:
-        bp_graph = BipartiteSynGraph()
-
-        for parent, children in graph.graph.items():
-            mol_reactants = [mol for h, mol in parent.catalog.items() if h in parent.role_map['reactants']]
-            mol_products = [mol for h, mol in parent.catalog.items() if h in parent.role_map['products']]
-
-            for reactant in mol_reactants:
-                bp_graph.add_node((reactant, [parent]))
-            for product in mol_products:
-                bp_graph.add_node((parent, [product]))
-
-            if children:
-                for child in children:
-                    mol_reactants = [mol for h, mol in child.catalog.items() if h in child.role_map['reactants']]
-                    mol_products = [mol for h, mol in child.catalog.items() if h in child.role_map['products']]
-
-                    for reactant in mol_reactants:
-                        bp_graph.add_node((reactant, [child]))
-                    for product in mol_products:
-                        bp_graph.add_node((child, [product]))
-
-            else:
-                for product in mol_products:
-                    bp_graph.add_node((product, []))
-
+        out_reaction_list = extract_reactions_from_syngraph(graph)
+        in_reaction_list = [{'query_id': d['query_id'], 'output_string': d['input_string']} for d in out_reaction_list]
+        bp_graph = BipartiteSynGraph(in_reaction_list)
         bp_graph.source = graph.source
         return bp_graph
 
@@ -167,7 +114,9 @@ class MonopartiteReactionsToBipartite(Converter):
 class Conversion:
 
     def __init__(self, input_data_model, output_data_model):
-        c = [subclass for subclass in Converter.__subclasses__() if subclass.input_data_model == input_data_model and subclass.output_data_model == output_data_model][0]
+        c = [subclass for subclass in Converter.__subclasses__()
+             if subclass.input_data_model == input_data_model
+             and subclass.output_data_model == output_data_model][0]
         self.converter = c()
 
     def apply_conversion(self, graph):
@@ -185,7 +134,7 @@ def converter(graph: Union[MonopartiteReacSynGraph,
                 It is the input graph as instance of one of the available SynGraph subclasses
 
             out_data_model: a string It indicates the desired output data model.
-            Available data models are:'bipartite, 'monopartite_reactions', and 'monopartite_molecules'
+                Available data models are:'bipartite, 'monopartite_reactions', and 'monopartite_molecules'
 
         :return: a SynGraph object in the desired data model
 

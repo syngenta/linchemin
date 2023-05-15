@@ -1,12 +1,9 @@
 import json
-import os
-from pathlib import Path
 
 import pytest
 
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteReacSynGraph,
-                                    SynGraph)
+from linchemin.cgu.syngraph import MonopartiteReacSynGraph
 from linchemin.cgu.translate import translator
 
 
@@ -62,13 +59,19 @@ def test_mpr_to_bp(az_path):
     assert bp_syngraph == bp_syngraphs_t
 
 
-# Testing not implemented converters
-def test_not_implemented(az_path):
+def test_mpm_to_mpt(az_path):
     graphs = json.loads(open(az_path).read())
-    mpr_syngraphs = translator('az_retro', graphs[1], 'syngraph', out_data_model='monopartite_molecules')
-    with pytest.raises(NotImplementedError) as ke:
-        converter(mpr_syngraphs, 'bipartite')
-    assert "NotImplementedError" in str(ke.type)
-    with pytest.raises(NotImplementedError) as ke:
-        converter(mpr_syngraphs, 'monopartite_reactions')
-    assert "NotImplementedError" in str(ke.type)
+    mpm_syngraphs = translator('az_retro', graphs[1], 'syngraph', out_data_model='monopartite_molecules')
+    mpr_syngraph = converter(mpm_syngraphs, 'monopartite_reactions')
+    mpr_syngraph_t = translator('az_retro', graphs[1], 'syngraph', out_data_model='monopartite_reactions')
+
+    assert mpr_syngraph == mpr_syngraph_t
+
+
+def test_mpm_to_bp(az_path):
+    graphs = json.loads(open(az_path).read())
+    mpm_syngraphs = translator('az_retro', graphs[1], 'syngraph', out_data_model='monopartite_molecules')
+    bp_syngraph = converter(mpm_syngraphs, 'bipartite')
+    bp_syngraph_t = translator('az_retro', graphs[1], 'syngraph', out_data_model='bipartite')
+
+    assert bp_syngraph == bp_syngraph_t
