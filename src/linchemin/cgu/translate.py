@@ -111,7 +111,7 @@ class AbsTranslator(ABC):
         pass
 
     def get_node_info(self,
-                      node: ChemicalEquation,
+                      node: Union[ChemicalEquation, Molecule],
                       iron: Iron) -> Tuple[int, Node]:
         """ To create or identify a specif node in an Iron instance """
         # if the node is not yet in the Iron instance, it is created and added to Iron
@@ -125,7 +125,7 @@ class AbsTranslator(ABC):
         return id_n1, node1
 
     @staticmethod
-    def build_iron_node(node: ChemicalEquation,
+    def build_iron_node(node: Union[ChemicalEquation, Molecule],
                         id_n: int) -> Tuple[int, Node]:
         """ To build an Iron's node instance from a ChemicalEquation """
         # the unmapped smiles is built so that the route is suitable to be correctly displayed in a png file
@@ -146,7 +146,7 @@ class TranslatorFactory:
     """ Translator Factory to give access to the translations.
 
         Attributes:
-            _translators: a dictionary
+            _formats: a dictionary
                 It maps the strings representing the 'name' of a format to the correct AbsTranslator subclass
 
             _data_models: a dictionary
@@ -317,7 +317,7 @@ class TranslatorMonopartiteReacSynGraph(AbsTranslator):
                     iron.add_edge(str(id_e), e)
                     id_e += 1
 
-            iron.source = mp_syngraph.source
+            iron.source = mp_syngraph.uid
             return iron
 
         except EmptyRoute:
@@ -362,7 +362,7 @@ class TranslatorBipartiteSynGraph(AbsTranslator):
                     iron.add_edge(str(id_e), e)
                     id_e += 1
 
-            iron.source = syngraph.source
+            iron.source = syngraph.uid
             return iron
         except EmptyRoute:
             logger.warning(
@@ -406,7 +406,7 @@ class TranslatorMonopartiteMolSynGraph(AbsTranslator):
                     iron.add_edge(str(id_e), e)
                     id_e += 1
 
-            iron.source = mp_syngraph.source
+            iron.source = mp_syngraph.uid
             return iron
         except EmptyRoute:
             logger.warning(
@@ -440,7 +440,7 @@ class TranslatorNetworkx(AbsTranslator):
             logger.warning('While translating from Iron to NetworkX object an empty route was found: "None" returned')
             return None
 
-    def build_multi_nodes_nx(self, route_iron: Iron) -> nx.classes.digraph.DiGraph:
+    def build_multi_nodes_nx(self, route_iron: Iron) -> nx.DiGraph:
         """ To build a networkx GiGraph with multiple nodes connected by edges """
         nx_graph = nx.DiGraph()
         nx_graph.graph['source'] = route_iron.source
@@ -450,41 +450,62 @@ class TranslatorNetworkx(AbsTranslator):
         return nx_graph
 
     @staticmethod
-    def add_nx_nodes_edges(nx_graph: nx.classes.digraph.DiGraph,
+    def add_nx_nodes_edges(nx_graph: nx.DiGraph,
                            route_iron: Iron) -> None:
-        """ To add nodes and edges to a networky DiGraph instance """
+        """ To add nodes and edges to a networkx DiGraph instance """
         for id_e, edge in route_iron.edges.items():
             a = next(n.properties['node_smiles'] for i, n in route_iron.nodes.items() if i == edge.a_iid)
             b = next(n.properties['node_smiles'] for i, n in route_iron.nodes.items() if i == edge.b_iid)
             nx_graph.add_edge(a, b)
-            attrs_e = {
-                (a, b):
-                    {'direction': edge.direction.string, 'properties': edge.properties,
-                     'labels': edge.labels}
-            }
-            nx.set_edge_attributes(nx_graph, attrs_e, 'attributes')
 
-    @staticmethod
-    def add_nx_nodes_attributes(nx_graph: nx.classes.digraph.DiGraph,
+    def add_nx_nodes_attributes(self, nx_graph: nx.DiGraph,
                                 route_iron: Iron) -> None:
         """ To add attributes to the nodes in the networkx DiGraph instance """
         for node in route_iron.nodes.values():
-            attrs_n = {node.properties['node_smiles']: {'properties': node.properties, 'labels': node.labels,
-                                                        'source': route_iron.source}}
+            node_instance = node.properties['node_type']
 
-            nx.set_node_attributes(nx_graph, attrs_n, 'attributes')
+            if isinstance(node_instance, Molecule):
+                attrs_n = {node.properties['node_smiles']: {'properties': node.properties,
+                                                            'source': route_iron.source,
+                                                            'label': 'M',
+                                                            'uid': node_instance.uid}}
+            elif isinstance(node_instance, ChemicalEquation):
+                attrs_n = {node.properties['node_smiles']: {'properties': node.properties,
+                                                            'source': route_iron.source,
+                                                            'label': 'CE',
+                                                            'uid': node_instance.uid}}
+                self.set_nx_edges_labels(node_instance, nx_graph)
+            else:
+                attrs_n = {node.properties['node_smiles']: {'properties': node.properties,
+                                                            'source': route_iron.source,
+                                                            'label': node.labels}}
+
+            nx.set_node_attributes(nx_graph, attrs_n, )
 
     @staticmethod
-    def build_single_node_nx(route_iron: Iron) -> nx.classes.digraph.DiGraph:
+    def set_nx_edges_labels(node_instance: ChemicalEquation,
+                            nx_graph: nx.DiGraph):
+        """ To assign labels to the networkx edges based on chemical roles"""
+        role_label_map = {'reactants': 'REACTANT',
+                          'reagents': 'REAGENT',
+                          'products': 'PRODUCT'}
+        for role, label in role_label_map.items():
+            for h in node_instance.role_map[role]:
+                mol_smiles = [m.smiles for uid, m in node_instance.catalog.items() if uid == h]
+                if role == 'products':
+                    nx.set_edge_attributes(nx_graph, {(node_instance.smiles, smiles): {'label': label} for smiles in
+                                                      mol_smiles})
+                else:
+                    nx.set_edge_attributes(nx_graph, {(smiles, node_instance.smiles): {'label': label} for smiles in
+                                                      mol_smiles})
+
+    def build_single_node_nx(self, route_iron: Iron) -> nx.classes.digraph.DiGraph:
         """ To create a networky network with only isolated nodes"""
         nx_graph = nx.DiGraph()
         nx_graph.graph['source'] = route_iron.source
         for node in route_iron.nodes.values():
             nx_graph.add_node(node.properties['node_smiles'])
-            attrs_n = {node.properties['node_smiles']: {'properties': node.properties, 'labels': node.labels,
-                                                        'source': route_iron.source}}
-
-            nx.set_node_attributes(nx_graph, attrs_n, 'attributes')
+        self.add_nx_nodes_attributes(nx_graph, route_iron)
         return nx_graph
 
     def to_iron(self, route: nx.classes.digraph.DiGraph) -> Union[Iron, None]:
@@ -494,11 +515,9 @@ class TranslatorNetworkx(AbsTranslator):
         for id_n, (node, data) in enumerate(route.nodes.items()):
             iron_node = Node(iid=str(id_n), properties={'node_smiles': node}, labels=[])
             iron.add_node(str(id_n), iron_node)
-        id_e = 0
-        for edge, data in route.edges.items():
+        for id_e, (edge, data) in enumerate(route.edges.items()):
             iron_edge = self.nx_edge_to_iron_edge(edge, id_e, iron)
             iron.add_edge(id_e, iron_edge)
-            id_e = id_e + 1
 
         return iron
 
@@ -550,11 +569,9 @@ class TranslatorDot(AbsTranslator):
             # that no extra, unwanted double quotes remain in the node_smiles string
             iron_node = Node(properties={'node_smiles': node.get_name().strip('\"')}, iid=str(id_n), labels=[])
             iron.add_node(str(id_n), iron_node)
-        id_e = 0
-        for edge in route.get_edges():
+        for id_e, edge in enumerate(route.get_edges()):
             iron_edge = self.pydot_edges_to_iron_edge(edge, id_e, iron)
             iron.add_edge(id_e, iron_edge)
-            id_e = id_e + 1
         return iron
 
     @staticmethod

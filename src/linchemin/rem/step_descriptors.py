@@ -36,11 +36,12 @@ class StepDescriptor(metaclass=abc.ABCMeta):
         pass
 
     @staticmethod
-    def extract_all_atomic_paths(target, all_transformations: list) -> list:
-        target_transformations = [at for at in all_transformations if at.product_uid == target.uid]
-        # print('nr of target atomic transformation = ', len(target_transformations))
+    def extract_all_atomic_paths(desired_product, all_transformations: list) -> list:
+        """ To identify the atomic paths starting from the desired product."""
+        # identify all the atom transformations that involve atoms of the desired product
+        target_transformations = [at for at in all_transformations if at.product_uid == desired_product.uid]
         all_atomic_paths = []
-        # One path is created for each mapped atom in the target molecule
+        # One path is created from each mapped atom in the desired product to the corresponding atom in a leaf
         for t in target_transformations:
             path = find_atom_path(t, all_transformations)
             all_atomic_paths.append(path)
@@ -107,17 +108,15 @@ class StepDescriptorsFactory:
 class StepEffectiveness(StepDescriptor):
     """ Subclass to compute the atom effectiveness of the step """
 
-    def compute_step_descriptor(self, unique_reactions: set, all_transformations: list, target,
+    def compute_step_descriptor(self, unique_reactions: set,
+                                all_transformations: list,
+                                target,
                                 step) -> DescriptorCalculationOutput:
         out = DescriptorCalculationOutput()
         n_atoms_prod = target.rdmol.GetNumAtoms()
-        # print('atoms in the target = ', n_atoms_prod)
         all_atomic_paths = self.extract_all_atomic_paths(target, all_transformations)
-        # print('nr atomic paths = ', len(all_atomic_paths))
         contributing_atoms = sum(1 for ap in all_atomic_paths if
                                  list(filter(lambda at: at.reactant_uid in list(step.role_map['reactants']), ap)))
-        all_reactants_atoms = sum(mol.rdmol_mapped.GetNumAtoms() for uid, mol in step.catalog.items()
-                                  if uid in list(step.role_map['reactants']))
         out.descriptor_value = contributing_atoms / n_atoms_prod
 
         out.additional_info['contributing_atoms'] = contributing_atoms
@@ -207,13 +206,13 @@ def extract_unique_ce(route):
     return unique_ce
 
 
-def find_atom_path(transformation, all_transformations, path=None):
+def find_atom_path(current_transformation, all_transformations, path=None):
     """ To find an 'atomic path' from one of the target atoms to the starting material from which the atom arrives"""
     if path is None:
         path = []
-    path += [transformation]
-    if not (next_t := [t for t in all_transformations if t.prod_atom_id == transformation.react_atom_id
-                                                         and t.product_uid == transformation.reactant_uid]):
+    path += [current_transformation]
+    if not (next_t := [t for t in all_transformations if t.prod_atom_id == current_transformation.react_atom_id
+                                                         and t.product_uid == current_transformation.reactant_uid]):
         return path
     for t in next_t:
         if new_path := find_atom_path(t, all_transformations, path):

@@ -25,7 +25,9 @@ class ChemicalEquationDescriptor(metaclass=abc.ABCMeta):
 
 
 class CEHypsicity(ChemicalEquationDescriptor):
-    """ Subclass to compute the hypsicity of a ChemicalEquation """
+    """ Subclass to compute the hypsicity of a ChemicalEquation as the absolute value of the change in the oxidation
+        state of each atom.
+    """
 
     def compute_descriptor(self, reaction: ChemicalEquation) -> float:
         """ Takes a ChemicalEquation instance and returns its hypsicity, i.e., the change in the oxidation state of
@@ -77,7 +79,9 @@ class CEAtomEfficiency(ChemicalEquationDescriptor):
     """ Subclass of atom efficiency at ChemicalEquation level """
 
     def compute_descriptor(self, reaction: ChemicalEquation) -> float:
-        """ Takes a ChemicalEquation instance and compute the atom efficiency """
+        """ Takes a ChemicalEquation instance and computes the atom efficiency as the ratio between the number of
+            mapped atoms in the desired product and the number of atom sin the reactants.
+        """
         if reaction.mapping is None:
             logger.error("No atom mapping: the descriptor cannot be computed")
             raise NoMapping
