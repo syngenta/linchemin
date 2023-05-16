@@ -368,48 +368,45 @@ def process_routes(input_dict: dict,
     input_dict: dict
         The path to the input files and the relative casp names in the form {'file_path': 'casp_name'}
 
-    output_format: Optional[str]]
-        It indicates which format should be used while writing the routes (default 'json')
+    output_format: Optional[str]
+        The type of file to which the routes should be written (default 'json')
 
-    mapping: Optional[bool]]
-        It indicate whether the reactions involved in the routes should go through the atom-to-atom mapping
-        (default False)
+    mapping: Optional[bool]
+        Whether the reactions involved in the routes should go through the atom-to-atom mapping (default False)
 
     functionalities: Optional[Union[List[str], None]]
-        It contains the names of the functionalities to be performed; if it is None, the input routes are read
+        The list of the functionalities to be performed; if it is None, the input routes are read
         and written to a file (default None)
 
-    mapper: Optional[str]]
-        It indicates which mapping tools should be used; if it is None, the mapping pipeline is used
-        (default None)
+    mapper: Optional[str]
+        The name of the mapping tool to be used; if it is None, the mapping pipeline is used (default None)
 
-    out_data_model: Optional[str]]
-        It indicates the desired data model for the output routes (default 'bipartite')
+    out_data_model: Optional[str]
+        The data model for the output routes (default 'bipartite')
 
     descriptors: Optional[Union[List[str], None]]
-        It contains the names of the descriptos to be computed; if it is None, all the available are calculated
-        (default None)
+        The list of the descriptos to be computed; if it is None, all the available are calculated (default None)
 
-    ged_method: Optional[str]]
-        It indicates the method to be used for graph similarity calculations (default 'nx_ged')
+    ged_method: Optional[str]
+        The method to be used for graph similarity calculations (default 'nx_ged')
 
     ged_params: Optional[Union[dict, None]]
-        It contains the parameters for specifying reaction and molecular fingerprints and similarity functions;
+        The dictionary with the parameters for specifying reaction and molecular fingerprints and similarity functions;
         if it is None, the default values are used (default None)
 
     clustering_method: Optional[Union[str, None]]
-        It indicates which clustering algorithm to be used for clustering the routes; if it is None, hdbscan
+        The clustering algorithm to be used for clustering the routes; if it is None, hdbscan
         is used when there are more than 15 routes, Agglomerative Clustering otherwise (default None)
 
-    parallelization: Optional[bool]]
-        It indicates whether parallel computing should be used where possible (default False)
+    parallelization: Optional[bool]
+        Whether parallel computing should be used where possible (default False)
 
-    n_cpu: Optional[int]]
-        It indicates the number of cpus to be used if parallelization is used (default 'mp.cpu_count()')
+    n_cpu: Optional[int]
+        The number of cpus to be used if parallelization is used (default 'mp.cpu_count()')
 
     Returns:
     --------
-    output: a WorkflowOutput object
+    output: WorkflowOutput
         Its attributes store the results of the selected functionalities. The outcomes are also written to files.
 
     Raises:
@@ -545,8 +542,8 @@ def get_workflow_options(verbose=False):
 
     Returns:
     --------
-        dict
-            a dictionary listing arguments, options and default values of the 'process_routes' function
+        available options: dict
+            The dictionary listing arguments, options and default values of the 'process_routes' function
 
     Example:
     --------

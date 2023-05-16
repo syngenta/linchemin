@@ -134,13 +134,34 @@ class MapperFactory:
         return mapper().map_chemical_equations(reactions_list)
 
 
-def perform_atom_mapping(reactions_list: List[dict], mapper_name: str) -> MappingOutput:
-    """ Gives access to the mapper factory.
+def perform_atom_mapping(reactions_list: List[dict],
+                         mapper_name: str) -> MappingOutput:
+    """
+    To map a list of reaction smiles
 
-        :param:
-            reactions_list: a list of dictionaries with the reaction strings to be mapped
+    Parameters:
+    -----------
+    reactions_list:  List[dict]
+        The list of dictionaries with the reaction strings to be mapped in the form [{'query_id': n, 'input_string': s}]
 
-            mapper_name: a string indicating the name of the mapper to be used
+    mapper_name: str
+        the name of the mapper to be used.
+
+    Returns:
+    ---------
+    mapped reactions: MappingOutput
+        Its attributes contain (i) the mapped reaction strings (ii) the reaction strings that remained unmapped
+
+    Raises:
+    -------
+    UnavailableMapper: if the selected mapper is not available
+
+    Example:
+    --------
+    >>> graph_az = json.loads(open('az_file.json').read())  # the json file with routes is read
+    >>> syngraph = translator('az_retro', graph_az[0], 'syngraph', 'monopartite_reactions') # a route are translated into syngraph
+    >>> reaction_list = extract_reactions_from_syngraph(syngraph) # the list of reaction smiles is extracted
+    >>> out = perform_atom_mapping(reaction_list, 'rxnmapper') # the mapping is performed with the rxnmapper tool
     """
     factory = MapperFactory()
     return factory.call_mapper(mapper_name, reactions_list)
