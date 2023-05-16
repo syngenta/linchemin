@@ -233,14 +233,14 @@ def find_new_routes(input_list: Union[List[Union[MonopartiteReacSynGraph,
 
     Parameters:
     ----------
-    input_list: (Union[List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]])
+    input_list: Union[List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]]
                 A list of SynGraph routes.
-    root : (Optional[Union[str, None]])
+    root : Optional[Union[str, None]]
             The smiles of the target molecule for which routes should be searched.
-            If not provided, the root node will be determined automatically. (default None)
-    new_reaction_list : (Optional[Union[List[str], None]])
+            If not provided, the root node will be determined automatically (default None)
+    new_reaction_list : Optional[Union[List[str], None]]
         The list of smiles of the chemical reactions to be added.
-        If not provided, only the input graph objects are considered. (default None)
+        If not provided, only the input graph objects are considered (default None)
 
     Returns:
     --------

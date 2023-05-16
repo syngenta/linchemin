@@ -351,9 +351,9 @@ def process_routes(input_dict: dict,
                    clustering_method: Union[str, None]=settings.FACADE.clustering_method,
                    parallelization: bool=settings.FACADE.parallelization,
                    n_cpu: int=settings.FACADE.n_cpu) -> WorkflowOutput:
-    """ Function to start the workflow chain of responsibility: based on the input arguments, only the selected
+    """ Function process routed predicted by CASP tools: based on the input arguments, only the selected
         functionalities are performed. The mandatory start and stop actions are (i) to read a json file containing the
-        routes predicted by a CASP tool, and (ii) to write the routes as dictionaries in an output file.
+        routes predicted by a CASP tool, and (ii) to write the routes in an output file.
         Possible additional actions are:
             - performing the atom mapping of the reactions involved in the routes
             - computing route descriptors
@@ -362,50 +362,69 @@ def process_routes(input_dict: dict,
             - merging the routes
             - extracting the reaction strings from the routes
 
-        :param:
-            input_dict: a dictionary
-                It contains the path to the input files and the relative casp names in the form
-                {'file_path': 'casp_name'}
+        Parameters:
+        ----------
+        input_dict: dict
+            The path to the input files and the relative casp names in the form {'file_path': 'casp_name'}
 
-            output_format: a string (optional; default: 'json')
-                It indicates which format should be used while writing the routes (csv or json)
+        output_format: Optional[str]]
+            It indicates which format should be used while writing the routes (default 'json')
 
-            mapping: a boolean (optional; default: False)
-                It indicate whether the reactions involved in the routes should go through the atom-to-atom mapping
+        mapping: Optional[bool]]
+            It indicate whether the reactions involved in the routes should go through the atom-to-atom mapping
+            (default False)
 
-            functionalities: a list of strings (optional; default: None)
-                It contains the names of the functionalities to be performed; if it is None, the input routes are read
-                and written to a file
+        functionalities: Optional[Union[List[str], None]]
+            It contains the names of the functionalities to be performed; if it is None, the input routes are read
+            and written to a file (default None)
 
-            mapper: a string (optional; default: None)
-                It indicates which mapping tools should be used; if it is None, the mapping pipeline is used
+        mapper: Optional[str]]
+            It indicates which mapping tools should be used; if it is None, the mapping pipeline is used
+            (default None)
 
-            out_data_model: a string (optional; default: 'monopartite_reactions')
-                It indicates the desired data model for the output routes
+        out_data_model: Optional[str]]
+            It indicates the desired data model for the output routes (default 'bipartite')
 
-            descriptors: a list of strings (optional; default: None)
-                It contains the names of the descriptos to be computed; if it is None, all the available are calculated
+        descriptors: Optional[Union[List[str], None]]
+            It contains the names of the descriptos to be computed; if it is None, all the available are calculated
+            (default None)
 
-            ged_method: a string (optional; default: 'nx_ged')
-                It indicates the method to be used for graph similarity calculations
+        ged_method: Optional[str]]
+            It indicates the method to be used for graph similarity calculations (default 'nx_ged')
 
-            ged_params: a dictionary (optional; default: None)
-                It contains the parameters for specifying reaction and molecular fingerprints and similarity functions;
-                if it is None, the default values are used
+        ged_params: Optional[Union[dict, None]]
+            It contains the parameters for specifying reaction and molecular fingerprints and similarity functions;
+            if it is None, the default values are used (default None)
 
-            clustering_method: a string (optional; default: None)
-                It indicates which clustering algorithm to be used for clustering the routes; if it is None, hdbscan
-                is used when there are more than 15 routes, Agglomerative Clustering otherwise
+        clustering_method: Optional[Union[str, None]]
+            It indicates which clustering algorithm to be used for clustering the routes; if it is None, hdbscan
+            is used when there are more than 15 routes, Agglomerative Clustering otherwise (default None)
 
-            parallelization: a boolean (optional, default: False)
-                It indicates whether parallel computing should be used where possible
+        parallelization: Optional[bool]]
+            It indicates whether parallel computing should be used where possible (default False)
 
-            n_cpu: an integer (optional; default: 'mp.cpu_count()')
-                It indicates the number of cpus to be used if parallelization is used.
+        n_cpu: Optional[int]]
+            It indicates the number of cpus to be used if parallelization is used (default 'mp.cpu_count()')
 
-        :return:
-            output: a WorkflowOutput object
-                Its attributes store the results of the selected functionalities. The outcomes are also written to files
+        Returns:
+        --------
+        output: a WorkflowOutput object
+            Its attributes store the results of the selected functionalities. The outcomes are also written to files.
+
+        Raises:
+        -------
+        NoValidRoute: if the input file(s) does not contain any valid route
+
+        KeyError: if a selected option is not available
+
+        Example:
+        --------
+        >>> output = process_routes({'ibmrxn_file.json': 'ibmrxn',  # path to json file from ibmrxn
+        >>>                         'az_file.json': 'az'},         # path to json file from az casp
+        >>>                         functionalities=[              # the functionalities to be activated
+        >>>                            'compute_descriptors',      # calculation of routes descriptors
+        >>>                            'clustering_and_d_matrix',  # calculation of distance matrix and clustering
+        >>>                            'merging'])                 # merging of the routes to obtain a "tree"
 
     """
 
