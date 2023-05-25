@@ -1,6 +1,6 @@
-from linchemin.rem.node_descriptors import node_descriptor_calculator, reaction_mapping, NoMapping
-from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 import pytest
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor
+from linchemin.rem.node_descriptors import node_descriptor_calculator, NoMapping
 
 
 def test_factory():
@@ -34,38 +34,11 @@ def test_CDScores():
     assert "TypeError" in str(te.type)
 
 
-def test_reaction_mapping():
-    map_dictionaries = {
-        'map1': {1: 1, 2: 2, 3: 3, 4: 5, 5: 7, 6: 8, 7: 10},
-        'map2': {1: 2, 2: 6, 3: 3, 4: 4, 5: 11, 6: 12},
-        'map3': {1: 2, 2: 3, 3: 6, 4: 11, 5: 4, 6: 12},
-        'map4': {1: 1, 2: 7, 3: 8},
-        'map5': {1: 2, 2: 4, 3: 5, 4: 6, 5: 8, 6: 9},
-        'map6': {1: 3, 2: 5, 3: 6, 4: 9, 5: 10},
-        'map7': {1: 0, 2: 1, 3: 2, 4: 0},
-        'map8': {1: 0, 2: 1, 3: 5}
-    }
-    # atoms are transferred in the first step
-    assert reaction_mapping(map_dictionaries['map1'], map_dictionaries['map2']) == [1, 3]
-    # all atoms are transferred in the first step
-    assert reaction_mapping(map_dictionaries['map2'], map_dictionaries['map3']) == list(map_dictionaries['map2'].keys())
-    # no atoms are transferred in the first step
-    assert reaction_mapping(map_dictionaries['map2'], map_dictionaries['map4']) == []
-    # atoms are transferred in the first step, but not in the second step
-    t1 = reaction_mapping(map_dictionaries['map1'], map_dictionaries['map2'])
-    assert reaction_mapping(map_dictionaries['map3'], map_dictionaries['map4'], ids_transferred_atoms=t1) == []
-    # atoms are transferred in both the first and the second step
-    assert reaction_mapping(map_dictionaries['map5'], map_dictionaries['map6'], ids_transferred_atoms=t1) == [2]
-    # no atoms are transferred in the first step, but atoms are transferred in the second step
-    assert reaction_mapping(map_dictionaries['map5'], map_dictionaries['map6'], ids_transferred_atoms=[]) == [2, 3, 4]
-    # unmapped atoms (map index = 0) are ignored
-    assert reaction_mapping(map_dictionaries['map7'], map_dictionaries['map8']) == [2]
-
-
 def test_atom_efficiency():
     ce_test_set = {
         # fully efficient reaction (ae = 1)
-        0: {'smiles': '[N:8]#[C:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1>>[NH2:8][CH2:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1',
+        0: {
+            'smiles': '[N:8]#[C:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1>>[NH2:8][CH2:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1',
             'expected': 1.},
         # reaction with missing reactants (ae > 1)
         1: {'smiles': '[CH3:4][NH2:5]>>[CH3:5][NH:4][C:3]([CH3:2])=[O:1]',
@@ -98,7 +71,8 @@ def test_hypsicity():
         3: {'smiles': '[O-:3][C:2]([O-:4])=[O:1]>>[O:1]=[C:2]=[O:3]',
             'expected': 0.0},
         # reduction from triple CN bond to single CN bond
-        4: {'smiles': '[N:8]#[C:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1>>[NH2:8][CH2:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1',
+        4: {
+            'smiles': '[N:8]#[C:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1>>[NH2:8][CH2:7][C:6]1=[CH:5][CH:4]=[CH:3][CH:2]=[CH:1]1',
             'expected': -4.0},
         # reductive amination giving an imine -> no change detected
         # 5: {'smiles': '[CH3:1][C:2]([CH3:3])=[O:4].[CH3:5][NH:6][CH3:7]>>[CH3:1][C:2]([CH3:3])=[N+:6]([CH3:5])[CH3:7]',

@@ -1,8 +1,7 @@
-from linchemin.rem.step_descriptors import step_descriptor_calculator, get_available_step_descriptors
-from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph
-from linchemin.cheminfo.constructors import ChemicalEquationConstructor
-
 import pytest
+from linchemin.cgu.syngraph import MonopartiteReacSynGraph
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor
+from linchemin.rem.step_descriptors import step_descriptor_calculator, get_available_step_descriptors
 
 
 def test_factory():
@@ -14,7 +13,7 @@ def test_factory():
         step_descriptor_calculator('some_score', route, 'step')
     assert "KeyError" in str(ke.type)
     # when an object of the wring type is passed as route, an error is raised
-    route = MonopartiteMolSynGraph()
+    route = {}
     with pytest.raises(TypeError) as ke:
         step_descriptor_calculator('step_effectiveness', route, 'step')
     assert "TypeError" in str(ke.type)
