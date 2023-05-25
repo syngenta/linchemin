@@ -19,13 +19,13 @@ DEFAULT_GED = {
     "reaction_fp_params": {
         "value": None,
         "info": "The default parameters provided by RDKit are used for the specified reaction "
-        "fingerprints",
+                "fingerprints",
         "general_info": "Chemical reaction fingerprints parameters",
     },
     "reaction_similarity_name": {
         "value": "tanimoto",
         "info": "The Tanimoto similarity as defined in RDKit is used for computing the "
-        "reaction similarity",
+                "reaction similarity",
         "general_info": "Chemical similarity method for reactions",
     },
     "molecular_fp": {
@@ -36,21 +36,25 @@ DEFAULT_GED = {
     "molecular_fp_params": {
         "value": None,
         "info": "The default parameters provided by RDKit are used for the specified molecular "
-        "fingerprints",
+                "fingerprints",
         "general_info": "Molecular fingerprints parameters",
     },
     "molecular_fp_count_vect": {
         "value": False,
         "info": "False. If set to True, GetCountFingerprint is used for the molecular "
-        "fingerprints",
+                "fingerprints",
         "general_info": "If set to True, GetCountFingerprint is used for the molecular "
-        "fingerprints",
+                        "fingerprints",
     },
     "molecular_similarity_name": {
         "value": "tanimoto",
-        "info": "The Tanimoto similarity as defined in RDKit is used for computing the "
-        "molecular similarity",
+        "info": "The Tanimoto similarity as defined in RDKit used to compute the molecular similarity",
         "general_info": "Chemical similarity method for molecules",
+    },
+    "n_cpu": {
+        "value": 8,
+        "info": "The number of CPU to be used for parallelization",
+        "general_info": "The number of CPU to be used for parallelization",
     },
 }
 
@@ -85,11 +89,11 @@ DEFAULT_FACADE = {
             "save_dist_matrix": False,
             "compute_metrics": False,
             "parallelization": False,
-            "n_cpu": mp.cpu_count(),
+            "n_cpu": 8,
         },
         "info": "AgglomerativeClustering is used when there are less than 15 routes, hdbscan otherwise."
-        "The standard NetworkX algorithm and default parameters are used for the distance matrix"
-        "calculation",
+                "The standard NetworkX algorithm and default parameters are used for the distance matrix"
+                "calculation",
     },
     "merging": {
         "value": {"out_data_model": "bipartite"},
@@ -135,11 +139,12 @@ DEFAULT_CLUSTERING = {
 DEFAULT_SERVICES = {
     "namerxn":
         {"url": "http://127.0.0.1",
-         "port": "8004/"},
+         "port": "8002/"},
     "rxnmapper": {
         "url": "http://127.0.0.1",
-        "port": "8002/"}
+        "port": "8003/"}
 }
+
 
 def get_settings():
     """To assemble the default values read from the dictionaries above and written to the settings.yaml file"""

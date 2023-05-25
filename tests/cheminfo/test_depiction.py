@@ -29,10 +29,11 @@ def xtest_color_map_search_by_rgb_tuple_similar():
     print(result)
 
     assert result._asdict() == {'name': 'aliceblue', 'red': 240, 'green': 248, 'blue': 255,
-                                    'hex_string': '#F0F8FF', 'color_blind': None}
+                                'hex_string': '#F0F8FF', 'color_blind': None}
 
-    #results = color_map.closest(rgb=(240, 249, 255))
-    #print(results)
+    # results = color_map.closest(rgb=(240, 249, 255))
+    # print(results)
+
 
 def test_color_map_search_by_hex():
     color_map = depiction.ColorMap()
