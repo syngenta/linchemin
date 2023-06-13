@@ -1,6 +1,7 @@
 import copy
 from typing import List, Union, Tuple
 
+from linchemin import settings
 from linchemin.cgu.convert import converter
 from linchemin.cgu.syngraph import (
     MonopartiteReacSynGraph,
@@ -9,6 +10,7 @@ from linchemin.cgu.syngraph import (
     MonopartiteMolSynGraph,
 )
 from linchemin.cgu.translate import translator, nx
+from linchemin.cheminfo.constructors import MoleculeConstructor
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.route_descriptors import find_path
 from linchemin.utilities import console_logger
@@ -26,7 +28,7 @@ class RouteMiner:
         route_list: List[
             Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
         ],
-        root: Union[str, None] = None,
+        root: Union[str, None] = settings.ROUTE_MINING.root,
     ):
         """To initialize a RouteMiner object"""
         if all(isinstance(r, MonopartiteReacSynGraph) for r in route_list):
@@ -53,7 +55,7 @@ class TreeMiner:
     def __init__(
         self,
         tree: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
-        root: Union[str, None] = None,
+        root: Union[Molecule, None] = settings.ROUTE_MINING.root,
     ):
         """To initialize a TreeMiner object"""
         self.tree = self.set_tree(tree)
@@ -62,11 +64,9 @@ class TreeMiner:
     def set_root(self, root: Union[str, None]) -> Union[str, None]:
         """To set the root attribute"""
         if isinstance(self.tree, MonopartiteReacSynGraph):
-            extracted_roots = list(
-                {mol.smiles for mol in self.tree.get_molecule_roots()}
-            )
+            extracted_roots = list({mol for mol in self.tree.get_molecule_roots()})
         else:
-            extracted_roots = list({mol.smiles for mol in self.tree.get_roots()})
+            extracted_roots = list({mol for mol in self.tree.get_roots()})
 
         if root is None:
             return extracted_roots[0]
@@ -74,7 +74,7 @@ class TreeMiner:
             logger.error("The selected root does not appear in the tree")
             raise KeyError
         else:
-            return root
+            return MoleculeConstructor().build_from_molecule_string(root, "smiles")
 
     @staticmethod
     def set_tree(
@@ -91,7 +91,7 @@ class TreeMiner:
     def mine_tree(self) -> List[MonopartiteReacSynGraph]:
         """To mine routes from a tree."""
         tree_nx = translator("syngraph", self.tree, "networkx", "bipartite")
-        routes_nx = RouteFinder(tree_nx, self.root).find_routes()
+        routes_nx = RouteFinder(tree_nx, self.root.smiles).find_routes()
         return self.build_syngraph_routes(routes_nx)
 
     @staticmethod
@@ -117,8 +117,8 @@ class RouteFinder:
         self,
         nx_tree: nx.DiGraph,
         root: str,
-        product_edge_label: str = "PRODUCT",
-        reactant_edge_label: str = "REACTANT",
+        product_edge_label: str = settings.ROUTE_MINING.product_edge_label,
+        reactant_edge_label: str = settings.ROUTE_MINING.reactant_edge_label,
     ):
         """To initialize a new RouteFinder object."""
         self.nx_tree = nx_tree
@@ -253,13 +253,13 @@ class RouteFinder:
         return unique_routes
 
 
-def find_new_routes(
+def mine_routes(
     input_list: Union[
         List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]
     ],
-    root: Union[str, None] = None,
-    new_reaction_list: Union[List[str], None] = None,
-) -> list:
+    root: Union[str, None] = settings.ROUTE_MINING.root,
+    new_reaction_list: Union[List[str], None] = settings.ROUTE_MINING.new_reaction_list,
+) -> List[MonopartiteReacSynGraph]:
     """
     To mine all the routes that can be found in tree obtained by merging the input list of routes.
 
@@ -276,8 +276,8 @@ def find_new_routes(
 
     Returns:
     --------
-    extracted routes : List
-        A list of MonopartiteReacSynGraph objects.
+    extracted routes : List[MonopartiteReacSynGraph]
+        A list of MonopartiteReacSynGraph objects corresponding to all the mined routes
 
     Raises:
     -------
@@ -288,7 +288,7 @@ def find_new_routes(
     >>> input_list = [route1, route2]
     >>> root = 'CCC(=O)Nc1ccc(cc1)C(=O)N[C@@H](CO)C(=O)O'
     >>> new_reaction_list = ['CC(=O)Nc1ccccc1C(=O)O.[O-]S(=O)(=O)C(F)(F)F>>CC(=O)Nc1ccccc1C(=O)OS(=O)(=O)C(F)(F)F']
-    >>> find_new_routes(input_list, root, new_reaction_list)
+    >>> mine_routes(input_list,root,new_reaction_list)
     """
     if isinstance(input_list, list) and all(
         isinstance(
@@ -424,7 +424,7 @@ def build_graph_from_node_sequence(new_nodes: List[str]) -> MonopartiteReacSynGr
     return MonopartiteReacSynGraph(new_nodes_d)
 
 
-def route_miner(
+def old_route_miner(
     original_routes: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph]],
     new_nodes: List[str],
 ) -> Union[List[MonopartiteReacSynGraph], None]:
@@ -450,7 +450,7 @@ def route_miner(
     Example:
     >>> input_list = [route1, route2]
     >>> new_reaction_list = ['CC(=O)Nc1ccccc1C(=O)O.[O-]S(=O)(=O)C(F)(F)F>>CC(=O)Nc1ccccc1C(=O)OS(=O)(=O)C(F)(F)F']
-    >>> new_routes = route_miner(input_list, new_reaction_list)
+    >>> new_routes = old_route_miner(input_list,new_reaction_list)
     """
     if all(isinstance(r, MonopartiteReacSynGraph) for r in original_routes):
         original_routes = original_routes

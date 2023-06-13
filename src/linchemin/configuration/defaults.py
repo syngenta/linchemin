@@ -145,6 +145,13 @@ DEFAULT_SERVICES = {
         "port": "8003/"}
 }
 
+DEFAULT_ROUTE_MINING = {
+    "root": None,
+    "new_reaction_list": None,
+    "product_edge_label": "PRODUCT",
+    "reactant_edge_label": "REACTANT"
+}
+
 
 def get_settings():
     """To assemble the default values read from the dictionaries above and written to the settings.yaml file"""
@@ -161,6 +168,7 @@ def get_settings():
     all_settings["CHEMICAL_SIMILARITY"] = DEFAULT_CHEMICAL_SIMILARITY
     all_settings["CLUSTERING"] = DEFAULT_CLUSTERING
     all_settings["SERVICES"] = DEFAULT_SERVICES
+    all_settings["ROUTE_MINING"] = DEFAULT_ROUTE_MINING
     return all_settings
 
 
