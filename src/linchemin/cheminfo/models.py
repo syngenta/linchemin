@@ -77,6 +77,16 @@ class Disconnection:
             "hash_map": self.hash_map,
         }
 
+    def extract_info(self) -> dict:
+        """To extract a dictionary containing the ids of atoms and bonds involved in the disconnection"""
+        bonds: List[int] = []
+        for atoms_pair in self.new_bonds + self.modified_bonds:
+            bonds.append(self.rdmol.GetBondBetweenAtoms(*atoms_pair).GetIdx())
+        if bonds:
+            return {"bonds": bonds, "reacting_atoms": self.reacting_atoms}
+        else:
+            return {"reacting_atoms": self.reacting_atoms}
+
 
 @dataclass
 class Pattern:
@@ -213,15 +223,13 @@ class ChemicalEquation:
     def __hash__(self) -> int:
         return self.uid
 
-    def __eq__(self,
-               other):
+    def __eq__(self, other):
         return type(self) == type(other) and self.__hash__() == other.__hash__()
 
     def __str__(self) -> str:
         return f"{self.smiles}"
 
-    def build_reaction_smiles(self,
-                              use_reagents: bool) -> str:
+    def build_reaction_smiles(self, use_reagents: bool) -> str:
         """To build a reaction smiles from the smiles of the involved Molecule instances"""
         if use_reagents:
             return ">".join(
@@ -257,9 +265,9 @@ class ChemicalEquation:
             else None,
         }
 
-    def build_rdrxn(self,
-                    use_reagents: bool,
-                    use_atom_mapping=True) -> cif.rdChemReactions.ChemicalReaction:
+    def build_rdrxn(
+        self, use_reagents: bool, use_atom_mapping=True
+    ) -> cif.rdChemReactions.ChemicalReaction:
         """To build an rdkit ChemicalReaction object from the ChemicalEquation instance"""
         return cif.build_rdrxn(
             catalog=self.catalog,

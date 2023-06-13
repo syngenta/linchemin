@@ -1114,21 +1114,22 @@ def test_chemical_equation_attributes_are_available():
     # initialize the constructor with identity property 'r_r_p'
     chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
                                                                 chemical_equation_identity_name='r_r_p')
-    chemical_equation1 = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
-                                                                                  inp_fmt='smiles')
+    ce1 = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
+                                                                   inp_fmt='smiles')
 
-    assert chemical_equation1.mapping
-    assert chemical_equation1.disconnection
-    assert chemical_equation1.template
+    assert ce1.mapping
+    assert ce1.disconnection
+    assert ce1.template
     # initialize the constructor with identity property 'r_p'
     chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles',
                                                                 chemical_equation_identity_name='r_p')
-    chemical_equation2 = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
-                                                                                  inp_fmt='smiles')
+    ce2 = chemical_equation_constructor.build_from_reaction_string(reaction_string=smiles,
+                                                                   inp_fmt='smiles')
 
     # disconnection and template are independent of the chemical equation identity property
-    assert chemical_equation2.disconnection == chemical_equation1.disconnection
-    assert chemical_equation2.template == chemical_equation1.template
+    assert ce2.disconnection == ce1.disconnection
+    assert ce2.disconnection.extract_info() == ce1.disconnection.extract_info()
+    assert ce2.template == ce1.template
 
 
 # Ratam tests
