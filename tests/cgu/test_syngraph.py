@@ -253,7 +253,7 @@ def test_hashing(ibm2_path):
     # If the SynGraph instance changes, the hash key is also modified
     syngraph_mpr.add_node((ce, []))
     assert syngraph_mpr.uid != uid1
-    #prefixes of the uid indicate the type of SynGraph
+    # prefixes of the uid indicate the type of SynGraph
     assert syngraph_mpr.uid[:3] == 'MPR'
 
     syngraph_mpm = translator('ibm_retro', graph[0], 'syngraph', 'monopartite_molecules')
@@ -261,3 +261,18 @@ def test_hashing(ibm2_path):
 
     syngraph_mpm = translator('ibm_retro', graph[0], 'syngraph', 'bipartite')
     assert syngraph_mpm.uid[:2] == 'BP'
+
+
+def test_bipartite_iron(az_path):
+    graph_az = json.loads(open(az_path).read())
+    nx_bp = translator('az_retro', graph_az[0], 'networkx', 'bipartite')
+    syngraph_mpr = translator('networkx', nx_bp, 'syngraph', 'bipartite')
+    syngraph = translator('az_retro', graph_az[0], 'syngraph', 'bipartite')
+    assert syngraph.graph == syngraph_mpr.graph
+    assert syngraph.uid == syngraph_mpr.uid
+
+    nx_bp = translator('az_retro', graph_az[0], 'networkx', 'bipartite')
+    syngraph_mpr = translator('networkx', nx_bp, 'syngraph', 'monopartite_reactions')
+    syngraph = translator('az_retro', graph_az[0], 'syngraph', 'monopartite_reactions')
+    assert syngraph.graph == syngraph_mpr.graph
+    assert syngraph.uid == syngraph_mpr.uid

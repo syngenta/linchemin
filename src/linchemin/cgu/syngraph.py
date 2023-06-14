@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import List, Union
+from typing import List, Union, Tuple
 
 import linchemin.utilities as utilities
 from linchemin.cgu.iron import Iron
@@ -45,24 +45,48 @@ class SynGraph(ABC):
         self.source = str
         self.graph = defaultdict(set)
 
-        if initiator is not None and isinstance(initiator, Iron):
-            self.builder_from_iron(initiator)
+        if initiator is not None:
+            if isinstance(initiator, Iron):
+                self.initialize_with_iron(initiator)
+            elif isinstance(initiator, list):
+                all_smiles = [d["output_string"] for d in initiator]
+                chemical_equations = self.build_chemical_equations(all_smiles)
+                self.builder_from_reaction_list(chemical_equations)
 
-        if initiator is not None and isinstance(initiator, list):
-            chemical_equations = []
-            for d in initiator:
-                chemical_eq_constructor = ChemicalEquationConstructor(
-                    molecular_identity_property_name="smiles"
-                )
-                chemical_equations.append(
-                    chemical_eq_constructor.build_from_reaction_string(
-                        reaction_string=d["output_string"], inp_fmt="smiles"
-                    )
-                )
+    def initialize_with_iron(self, iron_graph: Iron) -> None:
+        """To initialize the SynGraph builder from an Iron instance"""
+        all_smiles = [
+            node.properties["node_smiles"] for node in iron_graph.nodes.values()
+        ]
+        if all(s.count(">") == 2 for s in all_smiles):
+            # all smiles are reaction smiles
+            chemical_equations = self.build_chemical_equations(all_smiles)
+            self.builder_from_reaction_list(chemical_equations)
+        elif all(s.count(">") != 2 for s in all_smiles):
+            # all smiles are molecule smiles
+            self.builder_from_iron(iron_graph)
+        else:
+            # bipartite: both molecules and reactions smiles are present
+            reaction_smiles = [s for s in all_smiles if s.count(">") == 2]
+            chemical_equations = self.build_chemical_equations(reaction_smiles)
             self.builder_from_reaction_list(chemical_equations)
 
+    @staticmethod
+    def build_chemical_equations(smiles_list: List[str]) -> List[ChemicalEquation]:
+        """To build a list of ChemicalEquation objects from a list of smiles"""
+        chemical_eq_constructor = ChemicalEquationConstructor(
+            molecular_identity_property_name="smiles"
+        )
+        return [
+            chemical_eq_constructor.build_from_reaction_string(
+                reaction_string=smiles, inp_fmt="smiles"
+            )
+            for smiles in smiles_list
+        ]
+
     @property
-    def uid(self):
+    def uid(self) -> str:
+        """To define the SynGraph unique identifier based on the underlying graph"""
         tups = []
         for parent, children in self.graph.items():
             if not children:
@@ -81,11 +105,15 @@ class SynGraph(ABC):
         return h
 
     @abstractmethod
-    def builder_from_iron(self, iron_graph):
+    def builder_from_iron(self, iron_graph: Iron) -> None:
+        """To build a SynGraph instance from an Iron object"""
         pass
 
     @abstractmethod
-    def builder_from_reaction_list(self, chemical_equations: list):
+    def builder_from_reaction_list(
+        self, chemical_equations: List[ChemicalEquation]
+    ) -> None:
+        """To build a SynGraph instance from a list of ChemicalEquation objects"""
         pass
 
     def get_roots(self) -> list:
@@ -126,7 +154,7 @@ class SynGraph(ABC):
                 text = text + "{}\n".format(r)
         return text
 
-    def add_node(self, nodes_tup: tuple):
+    def add_node(self, nodes_tup: tuple) -> None:
         """To add a 'parent' node and its 'children' nodes to a SynGraph instance.
 
         Format of the input tuple: (parent_node, [child1, child2, ...])"""
@@ -139,7 +167,7 @@ class SynGraph(ABC):
             for c in nodes_tup[1]:
                 self.graph[nodes_tup[0]].add(c)
 
-    def remove_isolate_nodes(self):
+    def remove_isolate_nodes(self) -> None:
         """To remove isolate nodes from the SynGraph instance"""
         isolated_nodes = []
         if len(self.graph) > 1:
@@ -151,11 +179,42 @@ class SynGraph(ABC):
         for i in isolated_nodes:
             self.graph.pop(i, None)
 
+    @staticmethod
+    def find_reactants_products(
+        iron_graph: Iron, node1: int, node2: int, connections: list
+    ) -> Tuple[List, List]:
+        all_reactants = [
+            iron_graph.nodes[tup[0]].properties["node_smiles"]
+            for tup in connections
+            if tup[1] == node2
+        ]
+        all_products = [
+            iron_graph.nodes[tup[1]].properties["node_smiles"]
+            for tup in connections
+            if tup[0] == node1
+        ]
+        return all_reactants, all_products
+
+    def add_molecular_roots(self) -> None:
+        """To correctly handle the molecule roots in the graph"""
+        roots: list = []
+        for products in self.graph.values():
+            roots.extend(
+                prod
+                for prod in products
+                if prod not in list(self.graph.keys()) and isinstance(prod, Molecule)
+            )
+
+        for root in roots:
+            self.add_node((root, []))
+
 
 class BipartiteSynGraph(SynGraph):
     """SynGraph subclass representing a Bipartite (Molecule and ChemicalEquation nodes) SynGraph"""
 
-    def builder_from_reaction_list(self, chemical_equations: List[ChemicalEquation]):
+    def builder_from_reaction_list(
+        self, chemical_equations: List[ChemicalEquation]
+    ) -> None:
         """To build a BipartiteSynGraph instance from a list of ChemicalEquation objects"""
         for ch_equation in chemical_equations:
             products = [
@@ -172,34 +231,19 @@ class BipartiteSynGraph(SynGraph):
 
             for reactant in reactants:
                 self.add_node((reactant, [ch_equation]))
+        self.add_molecular_roots()
 
-        roots: List[Molecule] = []
-        for products in self.graph.values():
-            roots.extend(
-                prod
-                for prod in products
-                if prod not in list(self.graph.keys()) and isinstance(prod, Molecule)
-            )
-
-        for root in roots:
-            self.add_node((root, []))
         self.remove_isolate_nodes()
         self.set_source(str(self.uid))
 
-    def builder_from_iron(self, iron_graph):
+    def builder_from_iron(self, iron_graph: Iron) -> None:
         """To build a BipartiteSynGraph instance from an Iron instance"""
         connections = [edge.direction.tup for id_e, edge in iron_graph.edges.items()]
         for node1, node2 in connections:
-            all_reactants = [
-                iron_graph.nodes[tup[0]].properties["node_smiles"]
-                for tup in connections
-                if tup[1] == node2
-            ]
-            all_products = [
-                iron_graph.nodes[tup[1]].properties["node_smiles"]
-                for tup in connections
-                if tup[0] == node1
-            ]
+            all_reactants, all_products = self.find_reactants_products(
+                iron_graph, node1, node2, connections
+            )
+
             check = [item for item in all_reactants if item in all_products]
             if not check:
                 chemical_equation = get_reaction_instance(all_reactants, all_products)
@@ -208,25 +252,14 @@ class BipartiteSynGraph(SynGraph):
                 product = iron_graph.nodes[node2].properties["node_smiles"]
 
                 self.add_nodes_sequence(reactant, product, chemical_equation)
-
-        roots = []
-        for products in self.graph.values():
-            roots.extend(
-                prod
-                for prod in products
-                if prod not in list(self.graph.keys()) and isinstance(prod, Molecule)
-            )
-
-        for root in roots:
-            self.add_node((root, []))
+        self.add_molecular_roots()
 
         self.set_source(iron_graph.source)
 
     def add_nodes_sequence(
         self, reactant: str, product: str, chemical_equation: ChemicalEquation
-    ):
-        """To initiate the Molecule instances for the reactant and product of reference
-        and initiate the addition of the nodes."""
+    ) -> None:
+        """To add Molecule instances of reactants and products of a ChemicalEquation as nodes."""
         # The Molecule instances for the reactant and product of reference are initiated
 
         molecule_constructor = MoleculeConstructor(
@@ -258,7 +291,9 @@ class BipartiteSynGraph(SynGraph):
 class MonopartiteReacSynGraph(SynGraph):
     """SynGraph subclass representing a Monopartite (ChemicalEquation nodes only) SynGraph"""
 
-    def builder_from_reaction_list(self, chemical_equations: list):
+    def builder_from_reaction_list(
+        self, chemical_equations: List[ChemicalEquation]
+    ) -> None:
         """To build a MonopartiteReacSynGraph from a list of ChemicalEquation objects"""
         for ch_equation in chemical_equations:
             next_ch_equations: List[ChemicalEquation] = []
@@ -274,20 +309,14 @@ class MonopartiteReacSynGraph(SynGraph):
         self.remove_isolate_nodes()
         self.set_source(str(self.uid))
 
-    def builder_from_iron(self, iron_graph):
+    def builder_from_iron(self, iron_graph: Iron) -> None:
         """To build a MonopartiteReacSynGraph from an Iron instance."""
         connections = [edge.direction.tup for id_e, edge in iron_graph.edges.items()]
         for node1, node2 in connections:
-            all_reactants = [
-                iron_graph.nodes[tup[0]].properties["node_smiles"]
-                for tup in connections
-                if tup[1] == node2
-            ]
-            all_products = [
-                iron_graph.nodes[tup[1]].properties["node_smiles"]
-                for tup in connections
-                if tup[0] == node1
-            ]
+            all_reactants, all_products = self.find_reactants_products(
+                iron_graph, node1, node2, connections
+            )
+
             check = [item for item in all_reactants if item in all_products]
             if not check:
                 chemical_equation1 = get_reaction_instance(all_reactants, all_products)
@@ -300,16 +329,9 @@ class MonopartiteReacSynGraph(SynGraph):
                 ]
                 if next_connections:
                     for node_a, node_b in next_connections:
-                        all_reactants2 = [
-                            iron_graph.nodes[tup[0]].properties["node_smiles"]
-                            for tup in connections
-                            if tup[1] == node_b
-                        ]
-                        all_products2 = [
-                            iron_graph.nodes[tup[1]].properties["node_smiles"]
-                            for tup in connections
-                            if tup[0] == node_a
-                        ]
+                        all_reactants2, all_products2 = self.find_reactants_products(
+                            iron_graph, node_a, node_b, connections
+                        )
 
                         check = [
                             item for item in all_reactants2 if item in all_products2
@@ -325,7 +347,7 @@ class MonopartiteReacSynGraph(SynGraph):
         self.set_source(iron_graph.source)
 
     def get_leaves(self) -> list:
-        """To get the list of Reaction leaves in a MonopartiteSynGraph."""
+        """To get the list of ChemicalEquation leaves in a MonopartiteSynGraph."""
         connections = []
         for connection_set in self.graph.values():
             connections.extend(iter(connection_set))
@@ -423,37 +445,20 @@ class MonopartiteMolSynGraph(SynGraph):
             ]
             for reactant in reactants:
                 self.add_node((reactant, products))
-
-        roots: List[Molecule] = []
-        for products in self.graph.values():
-            roots.extend(
-                prod
-                for prod in products
-                if prod not in list(self.graph.keys()) and isinstance(prod, Molecule)
-            )
-
-        for root in roots:
-            self.add_node((root, []))
+        self.add_molecular_roots()
 
         self.remove_isolate_nodes()
         self.set_source(str(self.uid))
 
-    def builder_from_iron(self, iron_graph):
+    def builder_from_iron(self, iron_graph: Iron) -> None:
         connections = [edge.direction.tup for id_e, edge in iron_graph.edges.items()]
         for node1, node2 in connections:
             reactant = iron_graph.nodes[node1].properties["node_smiles"]
             product = iron_graph.nodes[node2].properties["node_smiles"]
+            all_reactants, all_products = self.find_reactants_products(
+                iron_graph, node1, node2, connections
+            )
 
-            all_reactants = [
-                iron_graph.nodes[tup[0]].properties["node_smiles"]
-                for tup in connections
-                if tup[1] == node2
-            ]
-            all_products = [
-                iron_graph.nodes[tup[1]].properties["node_smiles"]
-                for tup in connections
-                if tup[0] == node1
-            ]
             check = [item for item in all_reactants if item in all_products]
             if not check:
                 molecule_constructor = MoleculeConstructor(
@@ -468,17 +473,7 @@ class MonopartiteMolSynGraph(SynGraph):
                 )
 
                 self.add_node((reactant_canonical, [product_canonical]))
-
-        roots = []
-        for products in self.graph.values():
-            roots.extend(
-                prod
-                for prod in products
-                if prod not in list(self.graph.keys()) and isinstance(prod, Molecule)
-            )
-
-        for root in roots:
-            self.add_node((root, []))
+        self.add_molecular_roots()
 
         self.set_source(iron_graph.source)
 
@@ -514,13 +509,12 @@ def get_reaction_instance(
     chemical_equation_constructor = ChemicalEquationConstructor(
         molecular_identity_property_name="smiles"
     )
-    chemical_equation = chemical_equation_constructor.build_from_reaction_string(
+    return chemical_equation_constructor.build_from_reaction_string(
         reaction_string=reaction_string, inp_fmt="smiles"
     )
 
-    return chemical_equation
 
-
+##### SynGraph operations #####
 def merge_syngraph(
     list_syngraph: List[
         Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]

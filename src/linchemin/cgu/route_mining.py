@@ -67,14 +67,15 @@ class TreeMiner:
             extracted_roots = list({mol for mol in self.tree.get_molecule_roots()})
         else:
             extracted_roots = list({mol for mol in self.tree.get_roots()})
-
+        mol_root = MoleculeConstructor().build_from_molecule_string(root, "smiles")
         if root is None:
             return extracted_roots[0]
-        elif root not in extracted_roots:
+
+        elif mol_root in extracted_roots:
+            return mol_root
+        else:
             logger.error("The selected root does not appear in the tree")
             raise KeyError
-        else:
-            return MoleculeConstructor().build_from_molecule_string(root, "smiles")
 
     @staticmethod
     def set_tree(
@@ -92,24 +93,10 @@ class TreeMiner:
         """To mine routes from a tree."""
         tree_nx = translator("syngraph", self.tree, "networkx", "bipartite")
         routes_nx = RouteFinder(tree_nx, self.root.smiles).find_routes()
-        return self.build_syngraph_routes(routes_nx)
-
-    @staticmethod
-    def build_syngraph_routes(
-        nx_routes: List[nx.DiGraph],
-    ) -> List[MonopartiteReacSynGraph]:
-        """To build a list of MonopartiteSynGraph routes from a list of networkx DiGraph objects."""
-        syngraph_routes = []
-        for nx_graph in nx_routes:
-            chemical_equations = [
-                data["properties"]["node_type"]
-                for data in nx_graph.nodes.values()
-                if isinstance(data["properties"]["node_type"], ChemicalEquation)
-            ]
-            syngraph = MonopartiteReacSynGraph()
-            syngraph.builder_from_reaction_list(chemical_equations)
-            syngraph_routes.append(syngraph)
-        return syngraph_routes
+        return [
+            translator("networkx", route_nx, "syngraph", "monopartite_reactions")
+            for route_nx in routes_nx
+        ]
 
 
 class RouteFinder:
@@ -277,7 +264,7 @@ def mine_routes(
     Returns:
     --------
     extracted routes : List[MonopartiteReacSynGraph]
-        A list of MonopartiteReacSynGraph objects corresponding to all the mined routes
+        A list of MonopartiteReacSynGraph objects corresponding to ALL the mined routes (including the input ones)
 
     Raises:
     -------
