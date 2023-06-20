@@ -1,6 +1,8 @@
+import copy
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import List, Union, Tuple
+
 
 import linchemin.utilities as utilities
 from linchemin.cgu.iron import Iron
@@ -15,6 +17,7 @@ Module containing the implementation of the SynGraph data model and its sub-type
 and monopartite molecules.
 
 """
+logger = utilities.console_logger(__name__)
 
 
 class SynGraph(ABC):
@@ -166,6 +169,13 @@ class SynGraph(ABC):
             # otherwise, the connections are added to the pre-existing node
             for c in nodes_tup[1]:
                 self.graph[nodes_tup[0]].add(c)
+
+    def remove_node(self, node_to_remove: Union[Molecule, ChemicalEquation]) -> None:
+        """To remove a node from a SynGraph instance"""
+        if node_to_remove not in self.graph:
+            logger.warning("The selected node is not present in the SynGraph instance.")
+        else:
+            self.graph.pop(node_to_remove)
 
     def remove_isolate_nodes(self) -> None:
         """To remove isolate nodes from the SynGraph instance"""
@@ -512,183 +522,6 @@ def get_reaction_instance(
     return chemical_equation_constructor.build_from_reaction_string(
         reaction_string=reaction_string, inp_fmt="smiles"
     )
-
-
-##### SynGraph operations #####
-def merge_syngraph(
-    list_syngraph: List[
-        Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-    ],
-) -> Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]:
-    """
-    To merge a list od SynGraph objects in a single graph instance.
-
-    Parameters:
-    -----------
-    list_syngraph: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]
-        The list of the input SynGraph objects to be merged
-
-    Returns:
-    ---------
-    merged: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-        The new SynGraph object resulting from the merging of the input graphs; the SynGraph type is the same as the
-        input graphs
-
-    Raises:
-    ---------
-    TypeError: if the input list contains non SynGraph objects
-
-    Example:
-    --------
-    >>> graph_ibm = json.loads(open('ibm_file.json').read())
-    >>> all_routes_ibm = [translator('ibm_retro', g, 'syngraph', out_data_model='bipartite') for g in graph_ibm]
-    >>> merged_graph = merge_syngraph(all_routes_ibm)
-    """
-    merged: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-    if all(isinstance(x, MonopartiteReacSynGraph) for x in list_syngraph):
-        merged = MonopartiteReacSynGraph()
-    elif all(isinstance(x, BipartiteSynGraph) for x in list_syngraph):
-        merged = BipartiteSynGraph()
-    elif all(isinstance(x, MonopartiteMolSynGraph) for x in list_syngraph):
-        merged = MonopartiteMolSynGraph()
-    else:
-        raise TypeError(
-            "Invalid type. Only SynGraph objects can be merged. All routes must "
-            "be in the same data model"
-        )
-    merged.source = "tree"
-    for syngraph in list_syngraph:
-        [merged.add_node(step) for step in syngraph]
-    return merged
-
-
-# Factory to extract reaction strings from a syngraph object
-class ReactionsExtractor(ABC):
-    """Abstract class for extracting a list of dictionary of reaction strings from a SynGraph object"""
-
-    @abstractmethod
-    def extract(
-        self,
-        syngraph: Union[
-            MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph
-        ],
-    ) -> list:
-        pass
-
-
-class ReactionsExtractorFromBipartite(ReactionsExtractor):
-    """ReactionsExtractor subclass to handle BipartiteSynGraph objects"""
-
-    def extract(self, syngraph: BipartiteSynGraph) -> list:
-        unique_reactions = set()
-        for parent, children in syngraph.graph.items():
-            if type(parent) == ChemicalEquation:
-                unique_reactions.add(parent)
-            for child in children:
-                if type(child) == ChemicalEquation:
-                    unique_reactions.add(child)
-        sorted_reactions = sorted([reaction.smiles for reaction in unique_reactions])
-        return [
-            {"query_id": n, "input_string": reaction}
-            for n, reaction in enumerate(sorted_reactions)
-        ]
-
-
-class ReactionsExtractorFromMonopartiteReaction(ReactionsExtractor):
-    """ReactionsExtractor subclass to handle MonopartiteReacSynGraph objects"""
-
-    def extract(self, syngraph: MonopartiteReacSynGraph) -> list:
-        unique_reactions = set()
-        for parent, children in syngraph.graph.items():
-            unique_reactions.add(parent)
-            for child in children:
-                unique_reactions.add(child)
-        sorted_reactions = sorted([reaction.smiles for reaction in unique_reactions])
-        return [
-            {"query_id": n, "input_string": reaction}
-            for n, reaction in enumerate(sorted_reactions)
-        ]
-
-
-class ReactionsExtractorFromMonopartiteMolecules(ReactionsExtractor):
-    """ReactionsExtractor subclass to handle MonopartiteMolSynGraph objects"""
-
-    # TODO: check behavior when the same reactant appears twice (should be solved once the stoichiometry attribute is developed)
-    def extract(self, syngraph: MonopartiteMolSynGraph) -> list:
-        unique_reactions = set()
-        for parent, children in syngraph.graph.items():
-            for child in children:
-                reactants = [
-                    r.smiles
-                    for r, products_set in syngraph.graph.items()
-                    if child in products_set
-                ]
-                reaction_string = ">".join(
-                    [".".join(reactants), ".".join([]), ".".join([child.smiles])]
-                )
-                chemical_equation_constructor = ChemicalEquationConstructor(
-                    molecular_identity_property_name="smiles"
-                )
-                chemical_equation = (
-                    chemical_equation_constructor.build_from_reaction_string(
-                        reaction_string=reaction_string, inp_fmt="smiles"
-                    )
-                )
-                unique_reactions.add(chemical_equation)
-        sorted_reactions = sorted([reaction.smiles for reaction in unique_reactions])
-        return [
-            {"query_id": n, "input_string": reaction}
-            for n, reaction in enumerate(sorted_reactions)
-        ]
-
-
-class ExtractorFactory:
-    syngraph_types = {
-        BipartiteSynGraph: ReactionsExtractorFromBipartite,
-        MonopartiteReacSynGraph: ReactionsExtractorFromMonopartiteReaction,
-        MonopartiteMolSynGraph: ReactionsExtractorFromMonopartiteMolecules,
-    }
-
-    def extract_reactions(self, syngraph):
-        if type(syngraph) not in self.syngraph_types:
-            raise TypeError(
-                "Invalid graph type. Available graph objects are:",
-                list(self.syngraph_types.keys()),
-            )
-
-        extractor = self.syngraph_types[type(syngraph)]
-        return extractor().extract(syngraph)
-
-
-def extract_reactions_from_syngraph(
-    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-) -> List[dict]:
-    """
-    To extract the smiles of the chemical reaction included in a SynGraph object in a format suitable for atom mapping
-
-    Parameters:
-    -----------
-    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-        The input graph for which the reaction smiles should be extracted
-
-    Returns:
-    ---------
-    reactions: List[dict]
-        The list of dictionary with the reaction smiles in the form [{'query_id': n, 'input_string': reaction}]
-
-    Raises:
-    -------
-    TypeError: if the input graph is not a SynGraph object
-
-    Example:
-    --------
-    >>> graph_az = json.loads(open('az_file.json').read())
-    >>> syngraph = translator('az_retro', graph_az[0], 'syngraph', 'monopartite_reactions')
-    >>> reactions = extract_reactions_from_syngraph(syngraph)
-    """
-    factory = ExtractorFactory()
-
-    return factory.extract_reactions(syngraph)
 
 
 if __name__ == "__main__":

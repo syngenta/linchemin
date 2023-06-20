@@ -5,9 +5,9 @@ from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
-    extract_reactions_from_syngraph,
     SynGraph,
 )
+from linchemin.cgu.syngraph_operations import extract_reactions_from_syngraph
 
 """
 Module containing all the functions to convert from and into different SynGraph data models:
