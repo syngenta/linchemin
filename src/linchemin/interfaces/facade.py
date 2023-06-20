@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import multiprocessing as mp
 from abc import ABC, abstractmethod
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Dict
 
 import pandas as pd
 from linchemin import settings
@@ -16,8 +16,11 @@ from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
     SynGraph,
-    extract_reactions_from_syngraph,
+)
+from linchemin.cgu.syngraph_operations import (
     merge_syngraph,
+    extract_reactions_from_syngraph,
+    remove_nodes_from_syngraph,
 )
 from linchemin.cgu.translate import (
     TranslationError,
@@ -96,30 +99,35 @@ class TranslateFacade(Facade):
         self,
         input_format: str,
         input_list: List,
-        out_format=settings.FACADE.data_format,
-        out_data_model=settings.FACADE.out_data_model,
-        parallelization=settings.FACADE.parallelization,
-        n_cpu=settings.FACADE.n_cpu,
+        out_format: str = settings.FACADE.data_format,
+        out_data_model: str = settings.FACADE.out_data_model,
+        parallelization: bool = settings.FACADE.parallelization,
+        n_cpu: int = settings.FACADE.n_cpu,
     ) -> tuple:
         """
         Takes a list of routes in the specified input format and converts it into the desired format (default: SynGraph).
         Returns the converted routes and some metadata.
 
-        :param:
-            input_list: a list of routes in the specified input format
+        Parameters:
+        ------------
+        input_format: str
+            The format of the input file
+        input_list: List
+            The list of routes in the specified input format
+        out_format: Optional[str]
+            The desired output format (format as for the translator factory) (default syngraph)
+        out_data_model: Optional[str]
+            The desired output data model (default bipartite)
+        parallelization: Optional[bool]
+            Whether parallelization should be used (default False)
+        n_cpu: Optional[int]
+            The number of cpus to be used in the parallel calculation (default 8)
 
-            input_format: a string indicating the format of the input file
-
-            out_format: a string indicating the desired output format (format as for the translator factory)
-
-            out_data_model: a string indicting the desired output data model
-
-            parallelization: a boolean indicating whether parallelization should be used
-
-            n_cpu: an integer specifying the number of cpus to be used in the parallel calculation
-
-        :return:
+        Returns:
+        ---------
+        tuple
             output: a list whose elements are the converted routes
+
             meta: a dictionary storing information about the original file and the CASP tool that produced the routes
         """
         exceptions: List = []
@@ -241,18 +249,28 @@ class RoutesDescriptorsFacade(Facade):
     info = "To compute metrics of a list of SynGraph objects"
 
     def perform_functionality(
-        self, routes: List, descriptors=settings.FACADE.descriptors
+        self,
+        routes: List[
+            Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
+        ],
+        descriptors: Union[List[str], None] = settings.FACADE.descriptors,
     ) -> tuple:
         """
         Computes the desired descriptors (default: all the available descriptors) for the routes in the provided list.
 
-        :param:
-            routes: a list of SynGraph instances
-            descriptors: a list of strings indicating the desired descriptors to be computed
-                    (default: None -> all the available descriptors)
+        Parameters:
+        ------------
+        routes: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]
+            The list of SynGraph instances
+        descriptors: Optional[Union[List, None]]
+            The list of strings indicating the desired descriptors to be computed
+            (default None -> all the available descriptors)
 
-        :return:
+        Returns:
+        --------
+        tuple
             output: a pandas dataframe
+
             meta: a dictionary storing information about the computed descriptors
         """
 
@@ -332,33 +350,43 @@ class GedFacade(Facade):
 
     def perform_functionality(
         self,
-        routes: list,
-        ged_method=DEFAULT_FACADE["distance_matrix"]["value"]["ged_method"],
-        ged_params=DEFAULT_FACADE["distance_matrix"]["value"]["ged_params"],
-        parallelization=DEFAULT_FACADE["distance_matrix"]["value"]["parallelization"],
-        n_cpu=DEFAULT_FACADE["distance_matrix"]["value"]["n_cpu"],
+        routes: List[
+            Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
+        ],
+        ged_method: str = DEFAULT_FACADE["distance_matrix"]["value"]["ged_method"],
+        ged_params: Union[dict, None] = DEFAULT_FACADE["distance_matrix"]["value"][
+            "ged_params"
+        ],
+        parallelization: bool = DEFAULT_FACADE["distance_matrix"]["value"][
+            "parallelization"
+        ],
+        n_cpu: int = DEFAULT_FACADE["distance_matrix"]["value"]["n_cpu"],
     ) -> tuple:
         """
         Computes the distance matrix for the routes in the provided list.
 
-            :param:
-                routes: a list of SynGraph instances; it is recommended to use the monopartite
-                        representation for performance reasons
+        Parameters:
+        ------------
+        routes: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]
+            The list of SynGraph instances for which should be computed; it is recommended to use the monopartite
+            representation for performance reasons
+        ged_method: Optional[str]
+            The GED algorithm to be used (default 'nx_optimized_ged')
+        ged_params: Optional[Union[dict, None]]
+            The optional parameters for chemical similarity and fingerprints
+            (default None ->the default parametrs are used)
+        parallelization: Optional[bool]
+            Whether parallelization should be used (default False)
+        n_cpu: Optional[int]
+            The number of cpus to be used in the parallel calculation (default 8)
 
-                ged_method: a string indicating which algorithm should be used to compute the ged
-                            (default: nx_optimized_ged)
+        Returns:
+        -----------
+        tuple
+            dist_matrix: a pandas DataFrame (n routes) x (n routes) with the ged values
 
-                ged_params: a dictionary indicating the optional parameters for chemical similarity and fingerprints
-
-                parallelization: a boolean indicating whether parallelization should be used
-
-                n_cpu: an integer specifying the number of cpus to be used in the parallel calculation
-
-            :return:
-                dist_matrix: a pandas DataFrame (n routes) x (n routes) with the ged values
-
-                meta: a dictionary storing information about the type of graph (mono or bipartite), the algorithm used
-                      for the ged calculations and the parameters for chemical similarity and fingerprints
+            meta: a dictionary storing information about the type of graph (mono or bipartite), the algorithm used
+                  for the ged calculations and the parameters for chemical similarity and fingerprints
         """
 
         exceptions: List = []
@@ -470,41 +498,57 @@ class ClusteringFacade:
 
     def perform_functionality(
         self,
-        routes: List,
-        clustering_method=DEFAULT_FACADE["clustering"]["value"]["clustering_method"],
-        ged_method=DEFAULT_FACADE["clustering"]["value"]["ged_method"],
-        ged_params=DEFAULT_FACADE["clustering"]["value"]["ged_params"],
-        save_dist_matrix=DEFAULT_FACADE["clustering"]["value"]["save_dist_matrix"],
-        compute_metrics=DEFAULT_FACADE["clustering"]["value"]["compute_metrics"],
-        parallelization=DEFAULT_FACADE["clustering"]["value"]["parallelization"],
-        n_cpu=DEFAULT_FACADE["clustering"]["value"]["n_cpu"],
+        routes: List[
+            Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
+        ],
+        clustering_method: Union[str, None] = DEFAULT_FACADE["clustering"]["value"][
+            "clustering_method"
+        ],
+        ged_method: str = DEFAULT_FACADE["clustering"]["value"]["ged_method"],
+        ged_params: Union[dict, None] = DEFAULT_FACADE["clustering"]["value"][
+            "ged_params"
+        ],
+        save_dist_matrix: bool = DEFAULT_FACADE["clustering"]["value"][
+            "save_dist_matrix"
+        ],
+        compute_metrics: bool = DEFAULT_FACADE["clustering"]["value"][
+            "compute_metrics"
+        ],
+        parallelization: bool = DEFAULT_FACADE["clustering"]["value"][
+            "parallelization"
+        ],
+        n_cpu: int = DEFAULT_FACADE["clustering"]["value"]["n_cpu"],
         **kwargs,
     ):
         """
         Performs clustering of the routes in the provided list.
 
-        :param:
-            routes: a list of SynGraph instances
+        Parameters:
+        -----------
+        routes: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]
+            The input list of SynGraph
+        clustering_method: Optional[Union[str, None]]
+            The clustering algorithm to be used. If None is given,
+            agglomerative_cluster is used when there are less than 15 routes, otherwise hdbscan is used (default None)
+        ged_method: Optional[str]
+            The GED algorithm to be used (default 'nx_optimized_ged')
+        ged_params: Union[dict, None]
+            The optional parameters for chemical similarity and fingerprints
+            (default None ->the default parametrs are used)
+        save_dist_matrix: Optional[bool]
+            Whether the distance matrix should be saved and returned as output
+        compute_metrics: Optional[bool]
+            Whether the average metrics for each cluster should be computed
+        arallelization: Optional[bool]
+            Whether parallelization should be used (default False)
+        n_cpu: Optional[int]
+            The number of cpus to be used in the parallel calculation (default 8)
+        kwargs: the type of linkage can be indicated when using the agglomerative_cluster; the minimum size of the
+                clusters can be indicated when using hdbscan
 
-            clustering_method: a string indicating which algorithm to use for clustering. If None is given,
-                            agglomerative_cluster is used when there are less than 15 routes, otherwise hdbscan is used
-
-            ged_method: a string indicating which algorithm to use for computing the ged (default: nx_optimized_ged)
-
-            ged_params: a dictionary indicating the optional parameters for chemical similarity and fingerprints
-
-            save_dist_matrix: a boolean indicating whether the distance matrix should be saved and returned as output
-
-            compute_metrics: a boolean indicating whether the average metrics for each cluster should be computed
-
-            parallelization: a boolean indicating whether parallelization should be used
-
-            n_cpu: an integer specifying the number of cpus to be used in the parallel calculation
-
-            kwargs: the type of linkage can be indicated when using the agglomerative_cluster; the minimum size of the
-                    clusters can be indicated when using hdbscan
-
-        :return:
+        Returns:
+        ----------
+        tuple
             results: a tuple with: clustering, score, (dist_matrix), corresponding to the output of the clustering,
                                  its silhouette score (and the distance matrix as a pandas dataframe if save_dist_matrix=True)
 
@@ -1014,7 +1058,7 @@ class RouteSanityCheckFacade(Facade):
         ],
     ) -> Tuple[List, dict]:
         """
-        Returns a list of checked routes in which possible issues are removed
+        Returns a list of routes in which possible issues are removed
 
         Parameters:
         ------------
@@ -1030,6 +1074,7 @@ class RouteSanityCheckFacade(Facade):
         ---------
         Tuple[List, dict]:
             output: The list of checked SynGraph objects
+
             meta: The dictionary storing information about the run
         """
         if checks is None:
@@ -1108,6 +1153,101 @@ class RouteSanityCheckFacade(Facade):
         return data
 
 
+class NodeRemovalFacade(Facade):
+    """Subclass of Facade for removing a node and its connections from a list of SynGraph."""
+
+    info = "To remove a node from a list of routes"
+
+    def perform_functionality(
+        self,
+        routes: List[
+            Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
+        ],
+        node_to_remove: str,
+    ) -> Tuple[List, dict]:
+        """
+        Returns a list of routes from which the selected node and its connections are removed
+
+        Parameters:
+        ------------
+        routes: List[Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]]
+            The list of SynGraph instances
+        node_to_remove: str
+            The smiles of the node to be removed
+
+        Returns:
+        ---------
+        Tuple[List, dict]:
+            output: The list of SynGraph objects without the selected node and its connections
+
+            meta: The dictionary storing information about the run
+        """
+        exceptions = []
+        valid_routes = [r for r in routes if r is not None]
+        unchanged_routes: List = []
+        modified_routes: List = []
+        invalid_routes = len(routes) - len(valid_routes)
+
+        for r in valid_routes:
+            try:
+                modified_route = remove_nodes_from_syngraph(r, node_to_remove)
+                if modified_route == r:
+                    unchanged_routes.append(r)
+                else:
+                    modified_routes.append(modified_route)
+
+            except Exception as ke:
+                exceptions.append(ke)
+
+        meta = {
+            "removed_node": node_to_remove,
+            "invalid_routes": invalid_routes,
+            "modified_routes": len(modified_routes),
+            "unchanged_routes": len(unchanged_routes),
+            "errors": exceptions,
+        }
+        out_routes = unchanged_routes + modified_routes
+        return out_routes, meta
+
+    def get_available_options(self):
+        """
+        Returns the available options for route sanity checks as a dictionary.
+        """
+        return {
+            "routes": {
+                "name_or_flags": ["-routes"],
+                "default": None,
+                "required": True,
+                "type": List[SynGraph],
+                "choices": None,
+                "help": "List of SynGraph objects from which the selected node should be removed",
+                "dest": "routes",
+            },
+            "node_to_remove": {
+                "name_or_flags": ["-node_to_remove"],
+                "default": None,
+                "required": True,
+                "type": str,
+                "choices": None,
+                "help": "Smiles of the node to be removed",
+                "dest": "node_to_remove",
+            },
+        }
+
+    def print_available_options(self):
+        """
+        Prints the available options for routes sanity checks.
+        """
+        print("Node removal options and default:")
+        data = self.get_available_options()
+        for d, info in data.items():
+            print("argument:", d)
+            print("     info: ", info["help"])
+            print("     default: ", info["default"])
+            print("     available options: ", info["choices"])
+        return data
+
+
 class FacadeFactory:
     functionalities = {
         "translate": {"value": TranslateFacade, "info": TranslateFacade.info},
@@ -1129,11 +1269,10 @@ class FacadeFactory:
             "value": RouteSanityCheckFacade,
             "info": RouteSanityCheckFacade.info,
         },
+        "node_removal": {"value": NodeRemovalFacade, "info": NodeRemovalFacade.info},
     }
 
-    def select_functionality(self, functionality: str,
-                             *args,
-                             **kwargs):
+    def select_functionality(self, functionality: str, *args, **kwargs):
         """Takes a string indicating a functionality and its arguments and performs the functionality"""
         if functionality not in self.functionalities:
             raise UnavailableFunctionality(

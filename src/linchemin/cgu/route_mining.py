@@ -4,10 +4,10 @@ from typing import List, Union, Tuple
 from linchemin.cgu.convert import converter
 from linchemin.cgu.syngraph import (
     MonopartiteReacSynGraph,
-    merge_syngraph,
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
 )
+from linchemin.cgu.syngraph_operations import merge_syngraph
 from linchemin.cgu.translate import translator, nx
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.route_descriptors import find_path

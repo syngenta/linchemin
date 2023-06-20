@@ -8,6 +8,7 @@ from linchemin.cgu.syngraph import (
     MonopartiteReacSynGraph,
     MonopartiteMolSynGraph,
 )
+from linchemin.cgu.syngraph_operations import find_path
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.node_descriptors import node_descriptor_calculator
 from linchemin.utilities import console_logger
@@ -33,7 +34,7 @@ class UnavailableDescriptor(DescriptorError):
 
 
 class WrongGraphType(DescriptorError):
-    """Raised if the input gaph object is not of the required type."""
+    """Raised if the input graph object is not of the required type."""
 
     pass
 
@@ -475,44 +476,44 @@ def get_available_descriptors():
     }
 
 
-def find_path(
-    graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
-    leaf: Union[Molecule, ChemicalEquation],
-    root: Union[Molecule, ChemicalEquation],
-    path: Union[list, None] = None,
-) -> list:
-    """
-    To find a path between two nodes in a SynGraph.
-
-    Parameters:
-    ------------
-    graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph]
-        The graph of interest
-    leaf:  Union[Molecule, ChemicalEquation]
-        The node at which the path should end
-    root: Union[Molecule, ChemicalEquation]
-        The node at which the path should start
-    path: Optional[Union[list, None]]
-        The list of Molecule/ChemicalEquation instances already discovered along the path (default None)
-
-    Returns:
-    --------
-    path: list
-        The path as list of Molecule and/or ChemicalEquation
-
-    Example:
-    ---------
-    >>> path = find_path(syngraph, leaf_mol, root_mol)
-    """
-    if path is None:
-        path = []
-    path += [leaf]
-    if leaf == root:
-        return path
-    for node in graph.graph[leaf]:
-        if node not in path:
-            if newpath := find_path(graph, node, root, path):
-                return newpath
+# def find_path(
+#     graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
+#     leaf: Union[Molecule, ChemicalEquation],
+#     root: Union[Molecule, ChemicalEquation],
+#     path: Union[list, None] = None,
+# ) -> list:
+#     """
+#     To find a path between two nodes in a SynGraph.
+#
+#     Parameters:
+#     ------------
+#     graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph]
+#         The graph of interest
+#     leaf:  Union[Molecule, ChemicalEquation]
+#         The node at which the path should end
+#     root: Union[Molecule, ChemicalEquation]
+#         The node at which the path should start
+#     path: Optional[Union[list, None]]
+#         The list of Molecule/ChemicalEquation instances already discovered along the path (default None)
+#
+#     Returns:
+#     --------
+#     path: list
+#         The path as list of Molecule and/or ChemicalEquation
+#
+#     Example:
+#     ---------
+#     >>> path = find_path(syngraph, leaf_mol, root_mol)
+#     """
+#     if path is None:
+#         path = []
+#     path += [leaf]
+#     if leaf == root:
+#         return path
+#     for node in graph.graph[leaf]:
+#         if node not in path:
+#             if newpath := find_path(graph, node, root, path):
+#                 return newpath
 
 
 def is_subset(
