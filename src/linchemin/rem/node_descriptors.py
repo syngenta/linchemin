@@ -17,6 +17,12 @@ class NoMapping(Exception):
     pass
 
 
+class BadMapping(Exception):
+    """Raised if the atom mapping has some issues"""
+
+    pass
+
+
 class ChemicalEquationDescriptor(metaclass=abc.ABCMeta):
     """Definition of the abstract class for NodeScore."""
 
@@ -66,7 +72,7 @@ class CEHypsicity(ChemicalEquationDescriptor):
 
     @staticmethod
     def compute_oxidation_state_change(
-            atom_transformations: list, desired_product: Molecule, reactants: list
+        atom_transformations: list, desired_product: Molecule, reactants: list
     ) -> float:
         """Computes the change in oxidation state for each mapped atom in the ChemicalEquation"""
         delta = 0.0
@@ -94,8 +100,8 @@ class CEHypsicity(ChemicalEquationDescriptor):
                 None,
             )
             if p_atom.GetSymbol() != r_atom.GetSymbol():
-                print("problem with mapping")
-                raise Exception
+                logger.error("problem with mapping")
+                raise BadMapping
             # ox_nrs.append((prod_ox, react_ox))
             delta += p_atom.GetIntProp("_OxidationNumber") - r_atom.GetIntProp(
                 "_OxidationNumber"
@@ -119,22 +125,34 @@ class CEAtomEfficiency(ChemicalEquationDescriptor):
         # compute the number of mapped atoms in the desired product
         desired_product = next(
             (
-                prod.rdmol_mapped
+                prod
                 for h, prod in reaction.catalog.items()
                 if h in reaction.role_map["products"]
             ),
             None,
         )
         n_atoms_prod = len(
-            [a for a in desired_product.GetAtoms() if a.GetAtomMapNum() not in [0, -1]]
+            [
+                a
+                for a in desired_product.rdmol_mapped.GetAtoms()
+                if a.GetAtomMapNum() not in [0, -1]
+            ]
         )
         # compute the number of atoms in all the reactants
         reactants = [
-            reac.rdmol
+            reac
             for h, reac in reaction.catalog.items()
             if h in reaction.role_map["reactants"]
         ]
-        n_atoms_reactants = sum(r.GetNumAtoms() for r in reactants)
+        # n_atoms_reactants = sum(r.GetNumAtoms() for r.rdmol_mapped in reactants)
+        n_atoms_reactants = 0
+        for reactant in reactants:
+            stoich = next(
+                n
+                for h, n in reaction.stoichiometry_coefficients["reactants"].items()
+                if h == reactant.uid
+            )
+            n_atoms_reactants += reactant.rdmol_mapped.GetNumAtoms() * stoich
         return n_atoms_prod / n_atoms_reactants
 
 
@@ -203,7 +221,7 @@ def node_descriptor_calculator(reaction: ChemicalEquation, score: str) -> float:
     Returns:
     --------
     descriptor: float
-    The descriptor value
+        The descriptor value
 
 
     Raises:

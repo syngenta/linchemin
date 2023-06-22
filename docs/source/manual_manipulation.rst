@@ -7,20 +7,20 @@ So, you predicted a nice set of routes for a target, but checking them, you noti
 a particular reaction or a sequence of reactions that you think might be very useful
 is not included in any of them.
 
-No worries, you can provide the already existing routes and a list of reactions that
-lead to a molecule appearing in any of the routes, and will be able to retrieve
-the new routes (not included in the input list) that the addition of your reactions generates.
-All you need is the :func:`~linchemin.cgu.route_mining.route_miner` function!
+No worries, you can provide the already existing routes, the smiles of the target molecule and
+a list of reactions that you want to add, and will be able to retrieve all
+the routes from the obtained tree.
+All you need is the :func:`~linchemin.cgu.route_mining.mine_routes` function!
 
 .. code-block:: python
 
-    from linchemin.cgu.route_mining import route_miner
+    from linchemin.cgu.route_mining import mine_routes
 
-    new_routes = route_miner(original_routes,           # initial list of routes
-                             ['CCO.CCC(O)=O>>CCOC(=O)CC'])  # list of reaction smiles to be added
+    input_list = [route1, route2]                       # the initial set of routes
+    root = 'CCC(=O)Nc1ccc(cc1)C(=O)N[C@@H](CO)C(=O)O'   # the target molecule for which routes should be retrieved
+    new_reaction_list = ['CC=O.O=O>>CC(=O)O']           # the reaction(s) to be added
+    routes = mine_routes(input_list, root, new_reaction_list)   # all the mined routes
 
-The input routes should be :class:`~linchemin.cgu.syngraph.MonopartiteReacSynGraph` or
-:class:`~linchemin.cgu.syngraph.BipartiteSynGraph` objects and the output, brand-new routes
+The input routes should be instances of any :class:`~linchemin.cgu.syngraph.SynGraph` subclasses
+and the output routes
 will be :class:`~linchemin.cgu.syngraph.MonopartiteReacSynGraph` objects.
-
-Another possibility is to use the :func:`~linchemin.cgu.route_mining.find_new_routes` function.

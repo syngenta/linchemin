@@ -9,13 +9,27 @@ from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
 )
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 from linchemin.utilities import console_logger
+from linchemin.cheminfo.functions import Descriptors
 
 """
 Module containing all classes and functions to compute route's step descriptors 
 """
 
 logger = console_logger(__name__)
+
+
+class NodeNotPresent(KeyError):
+    """Raised when the selected node is not present in the input route"""
+
+    pass
+
+
+class WrongSmilesType(TypeError):
+    """Raised when a smiles od^f the wrong typeis given"""
+
+    pass
 
 
 @dataclass
@@ -125,14 +139,19 @@ class StepDescriptorsFactory:
 
 @StepDescriptorsFactory.register_step_descriptor("step_effectiveness")
 class StepEffectiveness(StepDescriptor):
-    """Subclass to compute the atom effectiveness of the step"""
+    """Subclass to compute the atom effectiveness of the step. Currently computed as the ratio between the number
+    of atoms in the step reactants that contribute to the final target and thetotal number of atoms in the step reactants
+    """
 
     def compute_step_descriptor(
         self, unique_reactions: set, all_transformations: list, target, step
     ) -> DescriptorCalculationOutput:
         out = DescriptorCalculationOutput()
-        n_atoms_prod = target.rdmol.GetNumAtoms()
+        # n_atoms_prod = target.rdmol.GetNumAtoms()
+        # print("atoms in target = ", n_atoms_prod)
+        # print("target", target.smiles)
         all_atomic_paths = self.extract_all_atomic_paths(target, all_transformations)
+
         contributing_atoms = sum(
             1
             for ap in all_atomic_paths
@@ -142,7 +161,20 @@ class StepEffectiveness(StepDescriptor):
                 )
             )
         )
-        out.descriptor_value = contributing_atoms / n_atoms_prod
+        reactants = [
+            reac for h, reac in step.catalog.items() if h in step.role_map["reactants"]
+        ]
+        # n_atoms_reactants = sum(r.GetNumAtoms() for r.rdmol_mapped in reactants)
+        n_atoms_reactants = 0
+        for reactant in reactants:
+            stoich = next(
+                n
+                for h, n in step.stoichiometry_coefficients["reactants"].items()
+                if h == reactant.uid
+            )
+            n_atoms_reactants += reactant.rdmol_mapped.GetNumAtoms() * stoich
+        # out.descriptor_value = contributing_atoms / n_atoms_prod
+        out.descriptor_value = contributing_atoms / n_atoms_reactants
 
         out.additional_info["contributing_atoms"] = contributing_atoms
         return out
@@ -184,46 +216,47 @@ class StepHypsicity(StepDescriptor):
     def hypsicity_calculation(target_transformation, step_transformation, target, step):
         """It computes the difference between the oxidation number of an atom in the target and the same atom in the
         considered step"""
-        leaf = [
+        leaf = next(
             m
             for uid, m in step.catalog.items()
             if uid == step_transformation.reactant_uid
-        ][0]
+        )
         # the oxidation
         cif.compute_oxidation_numbers(leaf.rdmol_mapped)
-        target_atom_ox = [
+        target_atom_ox = next(
             atom.GetIntProp("_OxidationNumber")
             for atom in target.rdmol_mapped.GetAtoms()
             if atom.GetIdx() == target_transformation.prod_atom_id
-        ][0]
-        leaf_atom_ox = [
+        )
+        leaf_atom_ox = next(
             atom.GetIntProp("_OxidationNumber")
             for atom in leaf.rdmol_mapped.GetAtoms()
             if atom.GetIdx() == step_transformation.react_atom_id
-        ][0]
-        delta = abs(target_atom_ox - leaf_atom_ox)
-        ox_nrs = (target_atom_ox, leaf_atom_ox)
+        )
+        # delta = abs(target_atom_ox - leaf_atom_ox)
+        delta = leaf_atom_ox - target_atom_ox
+        ox_nrs = (leaf_atom_ox, target_atom_ox)
         return delta, ox_nrs
 
 
 def step_descriptor_calculator(
-    name: str,
+    descriptor_name: str,
     route: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph],
-    step,
+    step: str,
 ) -> DescriptorCalculationOutput:
     """
     To compute a step descriptor.
 
     Parameters:
     ------------
-    name: str
+    descriptor_name: str
         The name of the descriptor to be computed
     route: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
         The SynGraph corresponding to the route of interest
-    step: ChemicalEquation
-        The reaction step for which the descriptor should be computed
+    step: str
+        The smiles of the reaction step for which the descriptor should be computed
 
-    Retirns:
+    Returns:
     ---------
     out: DescriptorCalculationOutput
         The output of the calculation
@@ -244,14 +277,26 @@ def step_descriptor_calculator(
             f"{type(route)} cannot be processed."
         )
         raise TypeError
-    step_descriptor = StepDescriptorsFactory.get_step_descriptor_instance(name)
+
+    ce = build_step_ce(step)
+    if ce not in route.graph:
+        logger.error("The selected step is not present in the input route")
+        raise NodeNotPresent
+
+    step_descriptor = StepDescriptorsFactory.get_step_descriptor_instance(
+        descriptor_name
+    )
     unique_reactions = extract_unique_ce(route)
     all_transformations = [
         at for ce in unique_reactions for at in ce.mapping.atom_transformations
     ]
-    target = route.get_molecule_roots()[0]
+    d_roots = {
+        mol: Descriptors.ExactMolWt(mol.rdmol) for mol in route.get_molecule_roots()
+    }
+    target = max(d_roots, key=d_roots.get)
+    # target = route.get_molecule_roots()[0]
     return step_descriptor.compute_step_descriptor(
-        unique_reactions, all_transformations, target, step
+        unique_reactions, all_transformations, target, ce
     )
 
 
@@ -261,12 +306,21 @@ def get_available_step_descriptors():
 
 
 def extract_unique_ce(route):
-    unique_ce = set()
-    for parent, children in route.graph.items():
-        unique_ce.add(parent)
-        for child in children:
-            unique_ce.add(child)
-    return unique_ce
+    """To extract all unique ChemicalEquations in the input route"""
+    return set(parent for parent in route.graph)
+
+
+def build_step_ce(step_smiles: str):
+    """To build the ChemicalEquation corresponding to the input step smiles"""
+    if step_smiles.count(">") != 2:
+        logger.error(
+            "The provided smiles does not represent a reaction. Please provide a valid reaction smiles"
+        )
+        raise WrongSmilesType
+
+    return ChemicalEquationConstructor().build_from_reaction_string(
+        step_smiles, "smiles"
+    )
 
 
 def find_atom_path(
