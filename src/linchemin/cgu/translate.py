@@ -1127,8 +1127,7 @@ def translator(
     ------------
     input_format: str
         The format of the input graph object
-    original_graph: Union[MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph, nx.classes.digraph.DiGraph,
-                          pydot.Dot, list, dict, Iron]
+    original_graph: Union[MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph, nx.classes.digraph.DiGraph, pydot.Dot, list, dict, Iron]
         The input graph
     output_format: str
         The desired output format
@@ -1137,8 +1136,7 @@ def translator(
 
     Returns:
     ----------
-    out_graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph, nx.DiGraph, pydot.Dot,
-                     Iron, None]
+    out_graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph, nx.DiGraph, pydot.Dot, Iron, None]
         The output graph
 
     Raises:
@@ -1393,6 +1391,7 @@ def populate_iron(parent: int, mol: str, iron: Iron) -> Tuple[Iron, int]:
     ----------
     Tuple[Iron, int]:
         The Iron object with the new node
+
         The integer representing the id of the new node
     """
     # Count the number of nodes already present in the Iron structure and use it as id for the node

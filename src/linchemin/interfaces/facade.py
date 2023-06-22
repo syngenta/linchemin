@@ -283,7 +283,7 @@ class RoutesDescriptorsFacade(Facade):
         exceptions = []
         checked_routes = [r for r in routes if r is not None]
         invalid_routes = len(routes) - len(checked_routes)
-        output["route_id"] = [route.source for route in checked_routes]
+        output["route_id"] = [route.uid for route in checked_routes]
 
         for m in descriptors:
             try:

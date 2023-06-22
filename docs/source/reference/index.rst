@@ -49,8 +49,19 @@ Syngraph
     BipartiteSynGraph
     MonopartiteReacSynGraph
     MonopartiteMolSynGraph
-    extract_reactions_from_syngraph
 
+
+Syngraph Operations
+^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: linchemin.cgu.syngraph_operations
+.. autosummary::
+    :toctree: generated
+
+
+    merge_syngraph
+    remove_nodes_from_syngraph
+    extract_reactions_from_syngraph
 
 Convert
 ^^^^^^^^^
@@ -70,8 +81,7 @@ Route Mining
 .. autosummary::
     :toctree: generated
 
-    route_miner
-    find_new_routes
+    mine_routes
 
 Interfaces
 ----------

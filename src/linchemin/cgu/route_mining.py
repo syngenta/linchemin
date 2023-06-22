@@ -186,7 +186,7 @@ class RouteFinder:
             if self.is_loop(u, seen):
                 self.routes.append(route_graph)
             elif i < len(p_neighbors) - 1:
-                new_route, new_seen = self.crete_new_route(route_graph, seen)
+                new_route, new_seen = self.create_new_route(route_graph, seen)
                 new_route.add_edge(u, v, **edge_data)
                 self.traverse_route(new_route, u, new_seen)
             else:
@@ -194,7 +194,7 @@ class RouteFinder:
                 self.traverse_route(route_graph, u, seen)
 
     @staticmethod
-    def crete_new_route(route_graph: nx.DiGraph, seen: set) -> Tuple[nx.DiGraph, set]:
+    def create_new_route(route_graph: nx.DiGraph, seen: set) -> Tuple[nx.DiGraph, set]:
         """To create a new route and the corresponding set of visited nodes."""
         return copy.deepcopy(route_graph), copy.deepcopy(seen)
 
