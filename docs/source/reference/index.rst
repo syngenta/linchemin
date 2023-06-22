@@ -46,6 +46,7 @@ Syngraph
 
     SynGraph
     SynGraph.add_node
+    SynGraph.remove_node
     BipartiteSynGraph
     MonopartiteReacSynGraph
     MonopartiteMolSynGraph
