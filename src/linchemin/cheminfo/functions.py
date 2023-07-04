@@ -284,8 +284,7 @@ def is_mapped_molecule(rdmol):
 ####################################################################################################
 # RDRXN
 def rdrxn_from_string(
-        input_string: str,
-        inp_fmt: str
+    input_string: str, inp_fmt: str
 ) -> rdChemReactions.ChemicalReaction:
     """To build a rdkit rdrxn object from a reaction string"""
     format_function_map = {
@@ -299,9 +298,9 @@ def rdrxn_from_string(
 
 
 def rdrxn_to_string(
-        rdrxn: rdChemReactions.ChemicalReaction,
-        out_fmt: str,
-        use_atom_mapping: bool = False,
+    rdrxn: rdChemReactions.ChemicalReaction,
+    out_fmt: str,
+    use_atom_mapping: bool = False,
 ) -> str:
     """To build a reaction smiles from a rdkit rdrxn object"""
     if not use_atom_mapping:
@@ -321,7 +320,7 @@ def rdrxn_to_string(
 
 
 def rdrxn_to_rxn_mol_catalog(
-        rdrxn: rdChemReactions.ChemicalReaction,
+    rdrxn: rdChemReactions.ChemicalReaction,
 ) -> Dict[str, List[Mol]]:
     """To build from a rdkit rdrxn a dictionary in the form {'role': [Mol]}"""
     return {
@@ -332,7 +331,7 @@ def rdrxn_to_rxn_mol_catalog(
 
 
 def rdrxn_from_rxn_mol_catalog(
-        rxn_mol_catalog: Dict[str, List[Mol]]
+    rxn_mol_catalog: Dict[str, List[Mol]]
 ) -> rdChemReactions.ChemicalReaction:
     """To build a dictionary in the form {'role': [Mol]} a rdkit rdrxn"""
     reaction_smiles_empty = ">>"
@@ -348,8 +347,7 @@ def rdrxn_from_rxn_mol_catalog(
 
 
 def rdrxn_to_molecule_catalog(
-        rdrxn: rdChemReactions.ChemicalReaction,
-        constructor
+    rdrxn: rdChemReactions.ChemicalReaction, constructor
 ) -> dict:
     """To build from a rdkit rdrxn a dictionary in the form {'role': [Molecule]}"""
     reaction_rdmols = rdrxn_to_rxn_mol_catalog(rdrxn=rdrxn)
@@ -391,8 +389,7 @@ def select_desired_product(mol_catalog: dict):
 
 
 def rdrxn_role_reassignment(
-        rdrxn: rdChemReactions.ChemicalReaction,
-        desired_product_idx: int = 0
+    rdrxn: rdChemReactions.ChemicalReaction, desired_product_idx: int = 0
 ) -> rdChemReactions.ChemicalReaction:
     """function to reassign the reactant/reagent role in a ChemicalReaction by identifying
     1) reactant molecules that should be reagent
@@ -457,7 +454,7 @@ def rdrxn_role_reassignment(
     )
 
     for input_item in molecule_catalog.get("reactants") + molecule_catalog.get(
-            "reagents"
+        "reagents"
     ):
         keys_input = set(input_item.get("matam").values())
         x = keys_input.intersection(keys_output) - {0} - {-1}
@@ -469,9 +466,7 @@ def rdrxn_role_reassignment(
     return rdrxn_from_rxn_mol_catalog(rxn_mol_catalog=rxn_mol_catalog)
 
 
-def role_reassignment(reaction_mols: dict,
-                      ratam,
-                      desired_product) -> Union[dict, None]:
+def role_reassignment(reaction_mols: dict, ratam, desired_product) -> Union[dict, None]:
     """
     To reassign the roles of reactants and reagents based on the mapping on the desired product.
 
@@ -517,8 +512,7 @@ def role_reassignment(reaction_mols: dict,
 
 
 def generate_full_map_info_new(
-        full_map_info: dict,
-        desired_product_map_nums: list
+    full_map_info: dict, desired_product_map_nums: list
 ) -> dict:
     """To build a full_map_info dictionary with detailed information about reactants and reagents"""
     # initialization of the new "full_map_info" dictionary
@@ -551,8 +545,7 @@ def clean_full_map_info(full_map_info_new: dict) -> dict:
     return full_map_info_new
 
 
-def mapping_diagnosis(chemical_equation,
-                      desired_product) -> list:
+def mapping_diagnosis(chemical_equation, desired_product) -> list:
     """
     To check possible issues in the atom mapping: (i) if there are unmapped atoms in the desired product (issues
     in computing route metrics); (ii) if there are unmapped atoms in the reactants (possible hint for leaving groups)
@@ -601,8 +594,7 @@ def mapping_diagnosis(chemical_equation,
 
 
 def get_hydrogenation_info(
-        disconnection_rdmol: Mol,
-        hydrogenated_atoms: List[dict]
+    disconnection_rdmol: Mol, hydrogenated_atoms: List[dict]
 ) -> Tuple[list, Mol]:
     """
     It adds new bonds between reacting atoms and hydrogen atoms, if any.
@@ -641,7 +633,7 @@ def get_hydrogenation_info(
 
 
 def rdchiral_extract_template(
-        reaction_string: str, inp_fmt: str, reaction_id: Union[int, None] = None
+    reaction_string: str, inp_fmt: str, reaction_id: Union[int, None] = None
 ):
     if inp_fmt != "smiles":
         raise NotImplementedError
@@ -655,9 +647,7 @@ def rdchiral_extract_template(
     return template_extractor.extract_from_reaction(reaction=rdchiral_input)
 
 
-def inject_atom_mapping(mol,
-                        full_map_info: dict,
-                        role: str) -> list:
+def inject_atom_mapping(mol, full_map_info: dict, role: str) -> list:
     """
     To inject the atom mapping information in an unmapped Mol instance
 
@@ -703,13 +693,13 @@ def add_product_to_rdrxn(rdmol: Mol, rdrxn: rdChemReactions.ChemicalReaction):
 
 
 def build_rdrxn(
-        catalog: dict,
-        role_map: dict,
-        stoichiometry_coefficients: dict,
-        use_reagents: bool,
-        use_smiles: bool,
-        use_atom_mapping: bool,
-        mapping=None,
+    catalog: dict,
+    role_map: dict,
+    stoichiometry_coefficients: dict,
+    use_reagents: bool,
+    use_smiles: bool,
+    use_atom_mapping: bool,
+    mapping=None,
 ) -> rdChemReactions.ChemicalReaction:
     """
     To build a rdkit Reaction object using the attributes of a ChemicalEquation
@@ -775,7 +765,7 @@ def populate_rdrxn_with_mapping(molecule, rdrxn, mapping, role, rdkit_function):
 
 
 def populate_rdrxn_with_stoichiometry(
-        molecule, rdrxn, role, stoichiometry_coefficients, rdkit_function
+    molecule, rdrxn, role, stoichiometry_coefficients, rdkit_function
 ):
     """To add molecules to a rdkit ChemReaction object with a specific role"""
     for _ in range(stoichiometry_coefficients.get(role).get(molecule.uid)):
@@ -783,7 +773,7 @@ def populate_rdrxn_with_stoichiometry(
 
 
 def canonicalize_rdrxn(
-        rdrxn: rdChemReactions.ChemicalReaction,
+    rdrxn: rdChemReactions.ChemicalReaction,
 ) -> rdChemReactions.ChemicalReaction:
     # canonicalize a reaction passing through a smiles
     # canonicalize the order of atoms in each molecule
@@ -795,7 +785,7 @@ def canonicalize_rdrxn(
 
 
 def activate_rdrxn(
-        rdrxn: rdChemReactions.ChemicalReaction,
+    rdrxn: rdChemReactions.ChemicalReaction,
 ) -> Tuple[rdChemReactions.ChemicalReaction, dict]:
     # TODO: the whole error handling logic can be better
     # http://www.rdkit.org/Python_Docs/rdkit.Chem.SimpleEnum.Enumerator-module.html#PreprocessReaction

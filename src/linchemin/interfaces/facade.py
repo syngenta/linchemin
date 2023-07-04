@@ -723,7 +723,7 @@ class SubsetsFacade(Facade):
         subsets = []
         for route1 in routes:
             subsets.extend(
-                [route1.uid[0], route2.uid[0]]
+                [route1.uid, route2.uid]
                 for route2 in routes
                 if is_subset(route1, route2)
             )

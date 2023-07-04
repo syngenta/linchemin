@@ -19,13 +19,13 @@ DEFAULT_GED = {
     "reaction_fp_params": {
         "value": None,
         "info": "The default parameters provided by RDKit are used for the specified reaction "
-                "fingerprints",
+        "fingerprints",
         "general_info": "Chemical reaction fingerprints parameters",
     },
     "reaction_similarity_name": {
         "value": "tanimoto",
         "info": "The Tanimoto similarity as defined in RDKit is used for computing the "
-                "reaction similarity",
+        "reaction similarity",
         "general_info": "Chemical similarity method for reactions",
     },
     "molecular_fp": {
@@ -36,15 +36,15 @@ DEFAULT_GED = {
     "molecular_fp_params": {
         "value": None,
         "info": "The default parameters provided by RDKit are used for the specified molecular "
-                "fingerprints",
+        "fingerprints",
         "general_info": "Molecular fingerprints parameters",
     },
     "molecular_fp_count_vect": {
         "value": False,
         "info": "False. If set to True, GetCountFingerprint is used for the molecular "
-                "fingerprints",
+        "fingerprints",
         "general_info": "If set to True, GetCountFingerprint is used for the molecular "
-                        "fingerprints",
+        "fingerprints",
     },
     "molecular_similarity_name": {
         "value": "tanimoto",
@@ -92,23 +92,21 @@ DEFAULT_FACADE = {
             "n_cpu": 8,
         },
         "info": "AgglomerativeClustering is used when there are less than 15 routes, hdbscan otherwise."
-                "The standard NetworkX algorithm and default parameters are used for the distance matrix"
-                "calculation",
+        "The standard NetworkX algorithm and default parameters are used for the distance matrix"
+        "calculation",
     },
     "merging": {
         "value": {"out_data_model": "bipartite"},
         "info": 'A new, "merged", bipartite SynGraph',
     },
     "atom_mapping": {
-        "value": {"mapper": "rxnmapper",
-                  "out_data_model": "bipartite"},
+        "value": {"mapper": "rxnmapper", "out_data_model": "bipartite"},
         "info": "The rxnmapper tool is used; a list of bipartite SynGraph is generated",
     },
     "route_sanity_checks": {
-        "value": {"checks": None,
-                  "out_data_model": "bipartite"},
+        "value": {"checks": None, "out_data_model": "bipartite"},
         "info": "All the available sanity checks are performed",
-    }
+    },
 }
 
 DEFAULT_CONSTRUCTORS = {
@@ -131,25 +129,21 @@ DEFAULT_CHEMICAL_SIMILARITY = {
     "struct_fp_bitRatioAgents": 0.2,
 }
 
-DEFAULT_CLUSTERING = {
-    "min_cluster_size": 3,
-    "linkage": "single"
-}
+DEFAULT_CLUSTERING = {"min_cluster_size": 3, "linkage": "single"}
 
 DEFAULT_SERVICES = {
-    "namerxn":
-        {"url": "http://127.0.0.1",
-         "port": "8002/"},
-    "rxnmapper": {
-        "url": "http://127.0.0.1",
-        "port": "8003/"}
+    "namerxn": {"url": "http://127.0.0.1", "port": "8002/"},
+    "rxnmapper": {"url": "http://127.0.0.1", "port": "8003/"},
 }
 
 DEFAULT_ROUTE_MINING = {
     "root": None,
     "new_reaction_list": None,
-    "product_edge_label": "PRODUCT",
-    "reactant_edge_label": "REACTANT"
+    "product_edge_label": "P",
+    "reactant_edge_label": "R",
+    "reagent_edge_label": "REAGENT",
+    "molecule_node_label": "M",
+    "chemicalequation_node_label": "CE",
 }
 
 
@@ -164,7 +158,7 @@ def get_settings():
     }
 
     for functionality, d in DEFAULT_FACADE.items():
-        all_settings["FACADE"].update(d['value'])
+        all_settings["FACADE"].update(d["value"])
     all_settings["CHEMICAL_SIMILARITY"] = DEFAULT_CHEMICAL_SIMILARITY
     all_settings["CLUSTERING"] = DEFAULT_CLUSTERING
     all_settings["SERVICES"] = DEFAULT_SERVICES
