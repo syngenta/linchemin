@@ -243,7 +243,7 @@ class BipartiteSynGraph(SynGraph):
                 self.add_node((reactant, [ch_equation]))
         self.add_molecular_roots()
 
-        self.remove_isolate_nodes()
+        # self.remove_isolate_nodes()
         self.set_source(str(self.uid))
 
     def builder_from_iron(self, iron_graph: Iron) -> None:
@@ -316,7 +316,7 @@ class MonopartiteReacSynGraph(SynGraph):
 
             self.add_node((ch_equation, next_ch_equations))
 
-        self.remove_isolate_nodes()
+        # self.remove_isolate_nodes()
         self.set_source(str(self.uid))
 
     def builder_from_iron(self, iron_graph: Iron) -> None:
@@ -457,7 +457,7 @@ class MonopartiteMolSynGraph(SynGraph):
                 self.add_node((reactant, products))
         self.add_molecular_roots()
 
-        self.remove_isolate_nodes()
+        # self.remove_isolate_nodes()
         self.set_source(str(self.uid))
 
     def builder_from_iron(self, iron_graph: Iron) -> None:

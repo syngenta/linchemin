@@ -17,6 +17,7 @@ from linchemin.cgu.syngraph import (
 )
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.utilities import console_logger
+from linchemin import settings
 
 """
 Module containing functions and classes to transform a graph from an input format to a different output format.
@@ -556,7 +557,7 @@ class TranslatorNetworkx(AbsTranslator):
                     node.properties["node_smiles"]: {
                         "properties": node.properties,
                         "source": route_iron.source,
-                        "label": "M",
+                        "label": settings.ROUTE_MINING.molecule_node_label,
                         "uid": node_instance.uid,
                     }
                 }
@@ -565,7 +566,7 @@ class TranslatorNetworkx(AbsTranslator):
                     node.properties["node_smiles"]: {
                         "properties": node.properties,
                         "source": route_iron.source,
-                        "label": "CE",
+                        "label": settings.ROUTE_MINING.chemicalequation_node_label,
                         "uid": node_instance.uid,
                     }
                 }
@@ -588,9 +589,9 @@ class TranslatorNetworkx(AbsTranslator):
     def set_nx_edges_labels(node_instance: ChemicalEquation, nx_graph: nx.DiGraph):
         """To assign labels to the networkx edges based on chemical roles"""
         role_label_map = {
-            "reactants": "REACTANT",
-            "reagents": "REAGENT",
-            "products": "PRODUCT",
+            "reactants": settings.ROUTE_MINING.reactant_edge_label,
+            "reagents": settings.ROUTE_MINING.reagent_edge_label,
+            "products": settings.ROUTE_MINING.product_edge_label,
         }
         for role, label in role_label_map.items():
             for h in node_instance.role_map[role]:
