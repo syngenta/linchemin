@@ -1,7 +1,7 @@
 import copy
 import re
 from functools import partial
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Tuple, Union, Iterable
 
 import rdkit
 from rdchiral import template_extractor
@@ -98,6 +98,40 @@ def get_canonical_order(rdmol: Mol) -> tuple:
     canon_idx_old_idx = [(j, i) for i, j in enumerate(Chem.CanonicalRankAtoms(rdmol))]
     old_idcs_sorted_by_canon_idcs = tuple(zip(*sorted(canon_idx_old_idx)))
     return old_idcs_sorted_by_canon_idcs[1]
+
+
+def map_atoms_to_canon_mol(
+    mol_mapped: Mol, atom_indices: Iterable[int]
+) -> Tuple[int, ...]:
+    """
+    To get a map between the atoms' indices in a mapped rdkit Mol and those in the canonical smiles.
+
+    Parameters
+    ------------
+    mol_mapped:Mol
+        The mapped rdkit Mol object
+    atom_indices: Iterable[int]
+        The iterable with the atoms' indices for which the corresponding canonical indices are needed
+
+    Returns
+    --------
+    Tuple[int, ...]
+        The tuple containing the canonical indices for the input atoms
+
+    """
+    mol = copy.deepcopy(mol_mapped)
+    # remove atom mapping
+    for atom in mol.GetAtoms():
+        atom.SetAtomMapNum(0)
+    # save as canonical smiles to compute _smilesAtomOutputOrder
+    _ = Chem.MolToSmiles(mol)
+    # _smilesAtomOutputOrder store mapping between atom-mapped and canonical molecules
+    # e.g. mapper = [0, 6, 3, 7, 2, 8, 1, 5, 4]
+    # atom with idx=7 in atom-mapped molecule will have idx=3 in canonical one
+    # atom with idx=2 in atom-mapped molecule will have idx=4 in canonical one
+    # https://github.com/rdkit/rdkit/discussions/5091
+    mapper = list(map(int, mol.GetProp("_smilesAtomOutputOrder")[1:-2].split(",")))
+    return tuple(mapper.index(atom_idx) for atom_idx in atom_indices)
 
 
 def canonicalize_rdmol(rdmol: Mol) -> Mol:
