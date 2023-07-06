@@ -19,6 +19,12 @@ import linchemin.utilities as utilities
 logger = utilities.console_logger(__name__)
 
 
+class SmilesTypeError(TypeError):
+    """Error raised if the provided smiles string is of the wrong type"""
+
+    pass
+
+
 def merge_syngraph(
     list_syngraph: List[
         Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
@@ -66,6 +72,52 @@ def merge_syngraph(
     return merged
 
 
+def add_reaction_to_syngraph(
+    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph],
+    reaction_to_add: str,
+) -> Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph]:
+    """
+    To add a chemical reaction to a SynGraph object
+
+    Parameters:
+    -------------
+    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
+        The SynGraph object to be modified
+
+    reaction_to_add: str
+        The smiles of the reaction to be added to the graph
+
+    Returns:
+    ----------
+    new_graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
+        The SynGraph object with the addition of the new node and of the same type as the input graph
+
+    Raises:
+    -------
+    TypeError: if the input graph is not in SynGraph format
+
+    SmilesTypeError: if the provided smiles is not a valid reaction smiles
+    """
+    if not isinstance(
+        syngraph, (BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph)
+    ):
+        logger.error("Only Syngraph objects are supported")
+        raise TypeError
+
+    if reaction_to_add.count(">") != 2:
+        logger.error("Please insert a valid reaction smiles")
+        raise SmilesTypeError
+    reaction_graph = BipartiteSynGraph(
+        [{"query_id": 0, "output_string": reaction_to_add}]
+    )
+    reactions = build_list_of_reactions(syngraph)
+    bp_graph = BipartiteSynGraph(reactions)
+
+    new_graph = merge_syngraph([bp_graph, reaction_graph])
+    all_reactions = build_list_of_reactions(new_graph)
+    return type(syngraph)(all_reactions)
+
+
 def remove_nodes_from_syngraph(
     syngraph: Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph],
     node_to_remove: str,
@@ -83,13 +135,13 @@ def remove_nodes_from_syngraph(
     Returns:
     ---------
     new_graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-        A new SynGraph object from which the selected nodes and all its "parent" nodes are removed
+        A new SynGraph object from which the selected node and all its "parent" nodes are removed
 
     Raises:
     ---------
-    TypeError: if the input list contains non SynGraph objects
+    TypeError: if the input objectis not a SynGraph
 
-    KeyError: if the node to be romved is not present in the input SynGraph
+    KeyError: if the node to be removed is not present in the input SynGraph
 
     Example
     -------
@@ -290,6 +342,15 @@ def find_path(
         if node not in path:
             if newpath := find_path(graph, node, root, path):
                 return newpath
+
+
+def build_list_of_reactions(syngraph):
+    """To extract a list of reaction smiles from a syngraph and return it suitable to be used as input for syngraph building"""
+    reactions = extract_reactions_from_syngraph(syngraph)
+    return [
+        {"query_id": d["query_id"], "output_string": d["input_string"]}
+        for d in reactions
+    ]
 
 
 if __name__ == "__main__":

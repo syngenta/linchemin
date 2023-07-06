@@ -3,6 +3,8 @@ from linchemin.cgu.syngraph_operations import (
     extract_reactions_from_syngraph,
     find_path,
     remove_nodes_from_syngraph,
+    add_reaction_to_syngraph,
+    SmilesTypeError,
 )
 import json
 import pytest
@@ -12,8 +14,35 @@ from linchemin.cgu.syngraph import (
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
 )
-
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 import unittest
+
+test_route = [
+    {
+        "output_string": "BrB(Br)Br.COc1cc(OC)c2c(=O)cc(-c3ccccc3Cl)oc2c1I.ClCCl>>O=c1cc(-c2ccccc2Cl)oc2c(I)c(O)cc(O)c12",
+        "query_id": 0,
+    },
+    {
+        "output_string": "C1CCOC1.CN1CC=C(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1.CO>>CN1CCC(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1",
+        "query_id": 1,
+    },
+    {
+        "output_string": "C1COCCO1.CC(C)(C)OC(=O)N1CC=C(B2OC(C)(C)C(C)(C)O2)C(O)C1.Cl[Pd]Cl.O.O=c1cc(-c2ccccc2Cl)oc2c(I)c(O)cc(O)c12.[CH]1[CH][CH]C(P(c2ccccc2)c2ccccc2)[CH]1.[CH]1[CH][CH]C(P(c2ccccc2)c2ccccc2)[CH]1.[Cs+].[F-].[Fe]>>CC(C)(C)OC(=O)N1CC=C(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1",
+        "query_id": 2,
+    },
+    {
+        "output_string": "C=O.CC(=O)O.CO.O=c1cc(-c2ccccc2Cl)oc2c(C3=CCNCC3O)c(O)cc(O)c12.[BH3-]C#N.[Na+]>>CN1CC=C(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1",
+        "query_id": 3,
+    },
+    {
+        "output_string": "CC#N.CC(C)(C)OC(=O)N1CC=C(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1.C[Si](C)(C)Cl.[I-].[Na+]>>O=c1cc(-c2ccccc2Cl)oc2c(C3=CCNCC3O)c(O)cc(O)c12",
+        "query_id": 4,
+    },
+    {
+        "output_string": "CC(=O)[O-].CC(C)(C)OC(=O)N1CC=C(OS(=O)(=O)C(F)(F)F)C(O)C1.CC1(C)OB(B2OC(C)(C)C(C)(C)O2)OC1(C)C.COCCOC.ClCCl.Cl[Pd]Cl.[CH]1[CH][CH]C(P(c2ccccc2)c2ccccc2)[CH]1.[CH]1[CH][CH]C(P(c2ccccc2)c2ccccc2)[CH]1.[Fe].[K+]>>CC(C)(C)OC(=O)N1CC=C(B2OC(C)(C)C(C)(C)O2)C(O)C1",
+        "query_id": 5,
+    },
+]
 
 
 def test_syngraph_merging(ibm1_path, az_path):
@@ -134,33 +163,7 @@ def test_find_path(ibm1_path):
 
 
 def test_remove_nodes_from_syngraph():
-    route = [
-        {
-            "output_string": "BrB(Br)Br.COc1cc(OC)c2c(=O)cc(-c3ccccc3Cl)oc2c1I.ClCCl>>O=c1cc(-c2ccccc2Cl)oc2c(I)c(O)cc(O)c12",
-            "query_id": 0,
-        },
-        {
-            "output_string": "C1CCOC1.CN1CC=C(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1.CO>>CN1CCC(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1",
-            "query_id": 1,
-        },
-        {
-            "output_string": "C1COCCO1.CC(C)(C)OC(=O)N1CC=C(B2OC(C)(C)C(C)(C)O2)C(O)C1.Cl[Pd]Cl.O.O=c1cc(-c2ccccc2Cl)oc2c(I)c(O)cc(O)c12.[CH]1[CH][CH]C(P(c2ccccc2)c2ccccc2)[CH]1.[CH]1[CH][CH]C(P(c2ccccc2)c2ccccc2)[CH]1.[Cs+].[F-].[Fe]>>CC(C)(C)OC(=O)N1CC=C(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1",
-            "query_id": 2,
-        },
-        {
-            "output_string": "C=O.CC(=O)O.CO.O=c1cc(-c2ccccc2Cl)oc2c(C3=CCNCC3O)c(O)cc(O)c12.[BH3-]C#N.[Na+]>>CN1CC=C(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1",
-            "query_id": 3,
-        },
-        {
-            "output_string": "CC#N.CC(C)(C)OC(=O)N1CC=C(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1.C[Si](C)(C)Cl.[I-].[Na+]>>O=c1cc(-c2ccccc2Cl)oc2c(C3=CCNCC3O)c(O)cc(O)c12",
-            "query_id": 4,
-        },
-        {
-            "output_string": "CC(=O)[O-].CC(C)(C)OC(=O)N1CC=C(OS(=O)(=O)C(F)(F)F)C(O)C1.CC1(C)OB(B2OC(C)(C)C(C)(C)O2)OC1(C)C.COCCOC.ClCCl.Cl[Pd]Cl.[CH]1[CH][CH]C(P(c2ccccc2)c2ccccc2)[CH]1.[CH]1[CH][CH]C(P(c2ccccc2)c2ccccc2)[CH]1.[Fe].[K+]>>CC(C)(C)OC(=O)N1CC=C(B2OC(C)(C)C(C)(C)O2)C(O)C1",
-            "query_id": 5,
-        },
-    ]
-    syngraph = MonopartiteReacSynGraph(route)
+    syngraph = MonopartiteReacSynGraph(test_route)
     node_to_remove = "CC#N.CC(C)(C)OC(=O)N1CC=C(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1.C[Si](C)(C)Cl.[I-].[Na+]>>O=c1cc(-c2ccccc2Cl)oc2c(C3=CCNCC3O)c(O)cc(O)c12"
 
     new_syngraph = remove_nodes_from_syngraph(syngraph, node_to_remove)
@@ -170,10 +173,10 @@ def test_remove_nodes_from_syngraph():
 
     # an error is raised if the input graph is in th wrong format
     with pytest.raises(TypeError) as te:
-        remove_nodes_from_syngraph(route, node_to_remove)
+        remove_nodes_from_syngraph(test_route, node_to_remove)
     assert "TypeError" in str(te.type)
 
-    syngraph_bp = BipartiteSynGraph(route)
+    syngraph_bp = BipartiteSynGraph(test_route)
     # if the selected node is not present in the input graph, the latter is returned unchanged
     with unittest.TestCase().assertLogs(
         "linchemin.cgu.syngraph_operations", level="WARNING"
@@ -190,3 +193,22 @@ def test_remove_nodes_from_syngraph():
     node_to_remove = "O=c1cc(-c2ccccc2Cl)oc2c(I)c(O)cc(O)c12"
     new_bp = remove_nodes_from_syngraph(syngraph_bp, node_to_remove)
     assert len(new_bp.graph) == 31
+
+
+def test_add_reaction_to_syngraph():
+    syngraph = BipartiteSynGraph(test_route)
+    reaction_smiles = (
+        "COc1cc(OC)c2c(occc2=O)c1I.Clc1ccccc1>>COc1cc(OC)c2c(oc(cc2=O)-c2ccccc2Cl)c1I"
+    )
+    new_graph = add_reaction_to_syngraph(syngraph, reaction_smiles)
+    assert isinstance(new_graph, type(syngraph))
+    ce = ChemicalEquationConstructor().build_from_reaction_string(
+        reaction_smiles, "smiles"
+    )
+    assert ce in new_graph.graph
+    with pytest.raises(TypeError) as te:
+        add_reaction_to_syngraph(test_route, reaction_smiles)
+    assert "TypeError" in str(te.type)
+    with pytest.raises(TypeError) as te:
+        add_reaction_to_syngraph(syngraph, "COc1cc(OC)c2c(occc2=O)c1I")
+    assert "SmilesTypeError" in str(te.type)
