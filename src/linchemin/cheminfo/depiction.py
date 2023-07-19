@@ -4780,7 +4780,6 @@ def build_bond_color_map(
 
     """
     highlight_bond_colors: dict = {}
-
     for atoms_pair in new_bonds:
         bond_id = rdmol.GetBondBetweenAtoms(*atoms_pair).GetIdx()
         highlight_bond_colors[bond_id] = new_bonds_color

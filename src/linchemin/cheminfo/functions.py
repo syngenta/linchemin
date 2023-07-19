@@ -653,12 +653,18 @@ def get_hydrogenation_info(
             disconnection_rdmol = Chem.AddHs(
                 disconnection_rdmol, onlyOnAtoms=[p_atom_idx]
             )
-            h_idxs = list(
-                range(
-                    disconnection_rdmol.GetNumAtoms() - delta,
-                    disconnection_rdmol.GetNumAtoms(),
-                )
-            )
+            h_idxs = [
+                a.GetIdx()
+                for a in disconnection_rdmol.GetAtoms()
+                if a.GetSymbol() == "H"
+                and disconnection_rdmol.GetBondBetweenAtoms(a.GetIdx(), p_atom_idx)
+            ]
+            # h_idxs = list(
+            #     range(
+            #         disconnection_rdmol.GetNumAtoms() - delta,
+            #         disconnection_rdmol.GetNumAtoms(),
+            #     )
+            # )
             for i in h_idxs:
                 # new bond with hydrogen atom
                 pbond = disconnection_rdmol.GetBondBetweenAtoms(i, p_atom_idx)

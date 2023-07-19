@@ -121,7 +121,7 @@ class SynGraph(ABC):
 
     def get_roots(self) -> list:
         """To retrieve the list of 'root' nodes of a SynGraph instance"""
-        return [tup[0] for tup in self if tup[1] == set()]
+        return [parent for parent, children in self.graph.items() if children == set()]
 
     @abstractmethod
     def get_leaves(self) -> list:
@@ -242,8 +242,9 @@ class BipartiteSynGraph(SynGraph):
             for reactant in reactants:
                 self.add_node((reactant, [ch_equation]))
         self.add_molecular_roots()
+        # this is to avoid disconnected nodes due to reactions producing reagents of other reactions
+        self.remove_isolate_nodes()
 
-        # self.remove_isolate_nodes()
         self.set_source(str(self.uid))
 
     def builder_from_iron(self, iron_graph: Iron) -> None:
@@ -315,8 +316,9 @@ class MonopartiteReacSynGraph(SynGraph):
                 )
 
             self.add_node((ch_equation, next_ch_equations))
+        # this is to avoid disconnected nodes due to reactions producing reagents of other reactions
+        self.remove_isolate_nodes()
 
-        # self.remove_isolate_nodes()
         self.set_source(str(self.uid))
 
     def builder_from_iron(self, iron_graph: Iron) -> None:
@@ -456,8 +458,9 @@ class MonopartiteMolSynGraph(SynGraph):
             for reactant in reactants:
                 self.add_node((reactant, products))
         self.add_molecular_roots()
+        # this is to avoid disconnected nodes due to reactions producing reagents of other reactions
+        self.remove_isolate_nodes()
 
-        # self.remove_isolate_nodes()
         self.set_source(str(self.uid))
 
     def builder_from_iron(self, iron_graph: Iron) -> None:

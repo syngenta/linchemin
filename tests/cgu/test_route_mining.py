@@ -3,7 +3,7 @@ import unittest
 
 import pytest
 
-from linchemin.cgu.route_mining import old_route_miner, RouteFinder, mine_routes
+from linchemin.cgu.route_mining import RouteFinder, mine_routes
 from linchemin.cgu.syngraph import (
     MonopartiteReacSynGraph,
     BipartiteSynGraph,
@@ -13,41 +13,41 @@ from linchemin.cgu.translate import nx
 from linchemin.cgu.translate import translator
 
 
-def test_route_extractor():
-    nodes = [{"query_id": 0, "output_string": "CCN.CCOC(=O)CC>>CCNC(=O)CC"}]
-    original_routes = [MonopartiteReacSynGraph(nodes)]
+# def test_route_extractor():
+#     nodes = [{"query_id": 0, "output_string": "CCN.CCOC(=O)CC>>CCNC(=O)CC"}]
+#     original_routes = [MonopartiteReacSynGraph(nodes)]
+#
+#     new_routes = old_route_miner(original_routes, ["CCO.CCC(O)=O>>CCOC(=O)CC"])
+#     assert len(new_routes) == 1
+#     assert len(new_routes[0].get_molecule_roots())
+#     assert original_routes[0] not in new_routes
+#     assert len(new_routes[0].graph) > len(original_routes[0].graph)
+#
+#     new_routes2 = old_route_miner(new_routes, ["CCO.CCC(Cl)=O>>CCOC(=O)CC"])
+#     assert len(new_routes2) == 1
+#     assert all(r not in new_routes2 for r in new_routes)
+#
+#     # If a new nodes are not connected to any of the pre-existing routes, a warning is raised and None is returned
+#     with unittest.TestCase().assertLogs("linchemin.cgu.route_mining", level="WARNING"):
+#         new_routes3 = old_route_miner(
+#             new_routes2, ["CCO.OC(=O)C1=NC=CC(Cl)=C1>>CCOC(=O)C1=NC=CC(Cl)=C1"]
+#         )
+#     assert new_routes3 is None
+#
+#     with pytest.raises(TypeError) as te:
+#         original_routes = [MonopartiteMolSynGraph(nodes)]
+#         old_route_miner(original_routes, ["CCO.CCC(O)=O>>CCOC(=O)CC"])
+#     assert "TypeError" in str(te.type)
 
-    new_routes = old_route_miner(original_routes, ["CCO.CCC(O)=O>>CCOC(=O)CC"])
-    assert len(new_routes) == 1
-    assert len(new_routes[0].get_molecule_roots())
-    assert original_routes[0] not in new_routes
-    assert len(new_routes[0].graph) > len(original_routes[0].graph)
 
-    new_routes2 = old_route_miner(new_routes, ["CCO.CCC(Cl)=O>>CCOC(=O)CC"])
-    assert len(new_routes2) == 1
-    assert all(r not in new_routes2 for r in new_routes)
-
-    # If a new nodes are not connected to any of the pre-existing routes, a warning is raised and None is returned
-    with unittest.TestCase().assertLogs("linchemin.cgu.route_mining", level="WARNING"):
-        new_routes3 = old_route_miner(
-            new_routes2, ["CCO.OC(=O)C1=NC=CC(Cl)=C1>>CCOC(=O)C1=NC=CC(Cl)=C1"]
-        )
-    assert new_routes3 is None
-
-    with pytest.raises(TypeError) as te:
-        original_routes = [MonopartiteMolSynGraph(nodes)]
-        old_route_miner(original_routes, ["CCO.CCC(O)=O>>CCOC(=O)CC"])
-    assert "TypeError" in str(te.type)
-
-
-def test_route_extractor_bipartite():
-    nodes = [{"query_id": 0, "output_string": "CCN.CCOC(=O)CC>>CCNC(=O)CC"}]
-    original_routes = [BipartiteSynGraph(nodes)]
-
-    new_routes = old_route_miner(original_routes, ["CCO.CCC(O)=O>>CCOC(=O)CC"])
-    assert len(new_routes) == 1
-    assert len(new_routes[0].get_molecule_roots())
-    assert original_routes[0] not in new_routes
+# def test_route_extractor_bipartite():
+#     nodes = [{"query_id": 0, "output_string": "CCN.CCOC(=O)CC>>CCNC(=O)CC"}]
+#     original_routes = [BipartiteSynGraph(nodes)]
+#
+#     new_routes = old_route_miner(original_routes, ["CCO.CCC(O)=O>>CCOC(=O)CC"])
+#     assert len(new_routes) == 1
+#     assert len(new_routes[0].get_molecule_roots())
+#     assert original_routes[0] not in new_routes
 
 
 def build_graph_from_tree_data(tree_data):
@@ -108,6 +108,7 @@ def test_mine_routes(az_path):
     new_reactions = [
         "COC(=O)C1CCS(=O)(=O)CC1>>OC(=O)C1CCS(=O)(=O)CC1",
         "NC1=CC=C(C=C1)C1=NOC=N1.COC(=O)CBr>>BrCC(=O)NC1=CC=C(C=C1)C1=NOC=N1",
+        "OC(=O)CBr.CCl>>COC(=O)CBr",
     ]
 
     mined_routes = mine_routes(syngraphs, root, new_reactions)
