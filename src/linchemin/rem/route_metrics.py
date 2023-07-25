@@ -150,8 +150,7 @@ class ReactantAvailability(RouteMetric):
             return route
         return converter(route, "bipartite")
 
-    @staticmethod
-    def fix_external_info_format(external_info: dict) -> dict:
+    def fix_external_info_format(self, external_info: dict) -> dict:
         new_data = {}
         for smiles, provider in external_info.items():
             if provider == "syngenta":
@@ -272,7 +271,7 @@ class LongestLinearSequenceWeigthedDistanceStrategy(DistanceStrategy):
         d = len(
             [n for n in find_path(route, node, root) if isinstance(n, ChemicalEquation)]
         )
-        return -1.0 / lls * d + 1
+        return (1.0 - lls / (lls - 1)) * d + (lls / (lls - 1))
 
 
 # Context class
@@ -281,10 +280,6 @@ class DistanceContext:
         "simple": SimpleDistanceStrategy(),
         "longest_sequence": LongestLinearSequenceWeigthedDistanceStrategy(),
     }
-
-    def __init__(self):
-        self.strategy = None
-        self.distance = None
 
     def set_strategy(self, strategy):
         if strategy not in self._distance_strategies:
@@ -321,8 +316,8 @@ def distance_function_calculator(
 
     Returns:
     ---------
-    distance value: Union[float, int]
-        The value of the selected distance function
+    distance value: int
+        The distance of the node from the root as the number of ChemicalEquation nodes in the path between the nodes
 
     """
     context = DistanceContext()
