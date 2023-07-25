@@ -25,15 +25,15 @@ def test_unavailable_metrics(ibm1_path):
     assert "UnavailableDescriptor" in str(ke.type)
 
 
-def test_longest_sequence(az_path):
+def test_longest_sequence(mit_path):
     """To test that the LongestSequence object is returned as expected."""
-    graph = json.loads(open(az_path).read())
-    syngraph = translator("az_retro", graph[3], "syngraph", out_data_model="bipartite")
+    graph = json.loads(open(mit_path).read())
+    syngraph = translator("mit_retro", graph[1], "syngraph", out_data_model="bipartite")
     longest_seq = descriptor_calculator(syngraph, "longest_seq")
-    assert longest_seq == 3
+    assert longest_seq == 4
 
     mp_syngraph = translator(
-        "az_retro", graph[3], "syngraph", out_data_model="monopartite_reactions"
+        "mit_retro", graph[1], "syngraph", out_data_model="monopartite_reactions"
     )
     longest_seq_mp = descriptor_calculator(mp_syngraph, "longest_seq")
     assert longest_seq_mp == longest_seq
