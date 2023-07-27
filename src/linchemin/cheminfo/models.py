@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Union
-
+from typing import Union, List
+from enum import Enum
 import linchemin.cheminfo.functions as cif
 
 """
@@ -76,6 +76,19 @@ class Disconnection:
             "uid": self.uid,
             "hash_map": self.hash_map,
         }
+
+    def extract_info(self) -> dict:
+        """To extract a dictionary containing the ids of atoms and bonds involved in the disconnection"""
+        if bonds := [
+            self.rdmol.GetBondBetweenAtoms(*atoms_pair).GetIdx()
+            for atoms_pair in self.new_bonds + self.modified_bonds
+        ]:
+            return {
+                "disconnection_bonds": bonds,
+                "disconnection_atoms": self.reacting_atoms,
+            }
+        else:
+            return {"disconnection_atoms": self.reacting_atoms}
 
 
 @dataclass
@@ -213,15 +226,13 @@ class ChemicalEquation:
     def __hash__(self) -> int:
         return self.uid
 
-    def __eq__(self,
-               other):
+    def __eq__(self, other):
         return type(self) == type(other) and self.__hash__() == other.__hash__()
 
     def __str__(self) -> str:
         return f"{self.smiles}"
 
-    def build_reaction_smiles(self,
-                              use_reagents: bool) -> str:
+    def build_reaction_smiles(self, use_reagents: bool) -> str:
         """To build a reaction smiles from the smiles of the involved Molecule instances"""
         if use_reagents:
             return ">".join(
@@ -257,9 +268,9 @@ class ChemicalEquation:
             else None,
         }
 
-    def build_rdrxn(self,
-                    use_reagents: bool,
-                    use_atom_mapping=True) -> cif.rdChemReactions.ChemicalReaction:
+    def build_rdrxn(
+        self, use_reagents: bool, use_atom_mapping=True
+    ) -> cif.rdChemReactions.ChemicalReaction:
         """To build an rdkit ChemicalReaction object from the ChemicalEquation instance"""
         return cif.build_rdrxn(
             catalog=self.catalog,
@@ -269,3 +280,57 @@ class ChemicalEquation:
             use_smiles=False,
             use_atom_mapping=use_atom_mapping,
         )
+
+
+class Role(Enum):
+    """Class for 2-levels based classification of molecules' roles in chemical reactions"""
+
+    @classmethod
+    def list(cls):
+        """To return the list of possible values of the Role class"""
+        return list(map(lambda c: c.value, cls))
+
+    @classmethod
+    def from_string(cls, role):
+        """To build a Role instance from a string"""
+        return cls(role)
+
+    @classmethod
+    def get_class_name(cls):
+        return cls.__name__.lower()
+
+    def get_full_name(self):
+        return f"{self.get_class_name()}.{self.name}".lower()
+
+    def __str__(self):
+        return f"{self.get_class_name()}.{self.name}"
+
+
+class Product(Role):
+    """Class with possible classifications of Products in a reaction"""
+
+    MAIN = "main_product"
+    BYPRODUCT = "by_product"
+    SIDEPRODUCT = "side_product"
+    UNKNOWN = "unknown"
+
+
+class Reagent(Role):
+    """Class with possible classifications of Reagents in a reaction"""
+
+    SOLVENT = "solvent"
+    CATALYST = "catalyst"
+    AGENT = "agent"
+    ADDITIVE = "additive"
+    REACTANT_QUENCH = "reactant_quench"
+    REAGENT_QUENCH = "reagent_quench"
+    UNKNOWN = "unknown"
+
+
+class Reactant(Role):
+    """Class with possible classifications of Reactants in a reaction"""
+
+    BP1 = "bp1"
+    BP2 = "bp2"
+    BP3 = "bp3"
+    UNKNOWN = "unknown"

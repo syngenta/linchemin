@@ -367,7 +367,7 @@ def has_mapped_products(rdrxn: rdChemReactions.ChemicalReaction) -> bool:
     return any(is_mapped_molecule(mol) for mol in list(rdrxn.GetProducts()))
 
 
-def select_desired_product(mol_catalog: dict):
+def select_desired_product(mol_catalog: list):
     """
     To select the 'desired product' among the products of a reaction.
 
@@ -381,10 +381,7 @@ def select_desired_product(mol_catalog: dict):
     desired product: Molecule
         the Molecule instance corresponding to the desired product
     """
-    d = {
-        p: sum(atom.GetMass() for atom in p.rdmol.GetAtoms())
-        for p in mol_catalog.get("products")
-    }
+    d = {p: sum(atom.GetMass() for atom in p.rdmol.GetAtoms()) for p in mol_catalog}
     return max(d, key=d.get)
 
 

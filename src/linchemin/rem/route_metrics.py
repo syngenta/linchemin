@@ -271,7 +271,7 @@ class LongestLinearSequenceWeigthedDistanceStrategy(DistanceStrategy):
         d = len(
             [n for n in find_path(route, node, root) if isinstance(n, ChemicalEquation)]
         )
-        return (1.0 - lls / (lls - 1)) * d + (lls / (lls - 1))
+        return 1.0 / (1 - lls) * d - lls / (1.0 - lls)
 
 
 # Context class

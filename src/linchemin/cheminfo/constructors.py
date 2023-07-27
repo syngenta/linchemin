@@ -16,6 +16,10 @@ from linchemin.cheminfo.models import (
     Pattern,
     Ratam,
     Template,
+    Reactant,
+    Reagent,
+    Product,
+    Role,
 )
 
 """
@@ -229,7 +233,7 @@ class RatamConstructor:
     def reactants_reagents_map_info(
         molecules_catalog: dict, full_map_info: dict, desired_product_map_nums: set
     ) -> dict:
-        """To collect identify reactants and reagents based on the mapping and collect their mapping information"""
+        """To correctly identify reactants and reagents based on the mapping and collect their mapping information"""
         for mol in molecules_catalog["reactants"] + molecules_catalog["reagents"]:
             if mol.uid not in full_map_info["reactants"]:
                 full_map_info["reactants"][mol.uid] = []
@@ -512,7 +516,7 @@ class RXNReactiveCenter:
         seen = set()
         bonds = []
         hydrogenated_atoms = []
-        # for each AtomTransformation of involving the reacting atoms..
+        # for each AtomTransformation involving reacting atoms..
         for at in ats_desired_product:
             # ...the involved atom of the desired product and of the reactant are identified
             reactant = next(
@@ -864,6 +868,108 @@ class ChemicalEquationConstructor:
             desired_product = cif.rdmol_from_string(desired_product, inp_fmt=inp_fmt)
         return self.build_from_rdrxn(rdrxn=rdrxn, desired_product=desired_product)
 
+    def build_from_db(self, mol_list: List[dict]) -> ChemicalEquation:
+        """To build a ChemicalEquation instance from information extracted from a database.
+        The input list of dictionaries is expected to have the following format:
+        [{'smiles': mol_smiles, 'role': role, 'stoichiometry': n}]"""
+        mol_constructor = MoleculeConstructor(
+            molecular_identity_property_name=self.molecular_identity_property_name
+        )
+        stoichiometry_coefficients = {}
+        catalog = {}
+        desired_product = None
+        for mol in mol_list:
+            original_stoich = mol["stoichiometry"]
+            original_role = mol["role"]
+            # dividing possible substances in single molecules
+            molecules = mol["smiles"].split(".")
+            for m in molecules:
+                # building the molecule instance
+                molecule = mol_constructor.build_from_molecule_string(m, "smiles")
+                # adding molecule to catalog dictionary
+                catalog[molecule.uid] = molecule
+                # defining molecule role
+                role = self.get_role(original_role)
+                if role.get_full_name() == "product.main":
+                    desired_product = molecule
+                # adding stoichiometry info to the stoichiometry dictionary
+                stoichiometry_coefficients = self.update_stoichiometry(
+                    stoichiometry_coefficients, role, molecule.uid, original_stoich
+                )
+
+        role_map = self.get_role_map(stoichiometry_coefficients)
+        if desired_product is None:
+            desired_product = self.get_desired_product(catalog, role_map)
+        basic_attributes = {
+            "mapping": None,
+            "role_map": role_map,
+            "stoichiometry_coefficients": stoichiometry_coefficients,
+            "catalog": catalog,
+        }
+        return self.initialize_builder(basic_attributes, desired_product)
+
+    def initialize_builder(self, basic_attributes, desired_product) -> ChemicalEquation:
+        """To initialize the appropriate ChemicalEquation builder"""
+        builder = Builder()
+        builder.set_builder("unmapped")
+        return builder.get_chemical_equation(
+            self.chemical_equation_identity_name,
+            desired_product,
+            basic_attributes=basic_attributes,
+        )
+
+    @staticmethod
+    def get_role(input_role: str) -> Union[Product, Reactant, Reagent]:
+        """To get the Role instance to the input role string"""
+        for cls in Role.__subclasses__():
+            if input_role == cls.get_class_name():
+                return cls.from_string("unknown")
+            elif input_role in cls.list():
+                return cls.from_string(input_role)
+
+    @staticmethod
+    def get_stoichiometry_coeff(stoichiometry_coeff: float) -> int:
+        """To ensure that a stoichiometry coefficient is an integer"""
+        if isinstance(stoichiometry_coeff, int):
+            return stoichiometry_coeff
+        elif int(stoichiometry_coeff // 1) > 0:
+            return int(stoichiometry_coeff // 1)
+        elif int(stoichiometry_coeff) == 0:
+            return 1
+
+    def update_stoichiometry(
+        self,
+        stoichiometry_coefficients: dict,
+        role: Union[Reactant, Reagent, Product],
+        mol_uid: int,
+        original_stoich: int,
+    ) -> dict:
+        """To update the stoichiometry coefficients dictionary with a new entry"""
+        roles = {Reactant: "reactants", Reagent: "reagents", Product: "products"}
+        stoich_coeff = self.get_stoichiometry_coeff(original_stoich)
+        general_role = roles[type(role)]
+        sc_dict = stoichiometry_coefficients.get(general_role, {})
+        sc_dict.update({mol_uid: stoich_coeff})
+        stoichiometry_coefficients[general_role] = sc_dict
+        return stoichiometry_coefficients
+
+    @staticmethod
+    def get_role_map(stoichiometry_coefficients: dict) -> dict:
+        """To build the role_map dictionary"""
+        role_map = {
+            role: sorted(list(info.keys()))
+            for role, info in stoichiometry_coefficients.items()
+        }
+        if "reagents" not in role_map:
+            role_map["reagents"] = []
+        return role_map
+
+    @staticmethod
+    def get_desired_product(catalog: dict, role_map: dict) -> Molecule:
+        """To assign a default desired product if it has not been found"""
+        products = [prod for h, prod in catalog.items() if h in role_map["products"]]
+        return cif.select_desired_product(products)
+
 
 def create_chemical_equation(
     rdrxn: cif.rdChemReactions.ChemicalReaction,
@@ -898,11 +1004,11 @@ def create_chemical_equation(
             logger.error("The selected product does not appear in the reaction. ")
             raise ValueError
     else:
-        desired_product_mol = cif.select_desired_product(reaction_mols)
+        desired_product_mol = cif.select_desired_product(reaction_mols["products"])
     builder = Builder()
     builder.set_builder(builder_type)
     return builder.get_chemical_equation(
-        reaction_mols, chemical_equation_identity_name, desired_product_mol
+        chemical_equation_identity_name, desired_product_mol, reaction_mols
     )
 
 
@@ -1086,14 +1192,16 @@ class Builder:
 
     def get_chemical_equation(
         self,
-        reaction_mols: dict,
         chemical_equation_identity_name: str,
         desired_product: Molecule,
+        reaction_mols: Union[dict, None] = None,
+        basic_attributes: Union[dict, None] = None,
     ) -> ChemicalEquation:
         ce = ChemicalEquation()
-        basic_attributes, desired_product = self.__builder.get_basic_attributes(
-            reaction_mols, desired_product
-        )
+        if basic_attributes is None:
+            basic_attributes, desired_product = self.__builder.get_basic_attributes(
+                reaction_mols, desired_product
+            )
         ce.catalog = basic_attributes["catalog"]
         ce.mapping = basic_attributes["mapping"]
         ce.role_map = basic_attributes["role_map"]
