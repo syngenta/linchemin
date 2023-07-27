@@ -16,7 +16,7 @@ from rdkit.Chem import (
 )
 from rdkit.Chem.rdchem import Atom, Mol
 from rdkit.Chem.rdMolHash import HashFunction, MolHash
-import linchemin.cheminfo.models as models
+
 import linchemin.utilities as utilities
 
 # RDLogger.DisableLog('rdApp.*')
@@ -401,7 +401,7 @@ def has_mapped_products(rdrxn: rdChemReactions.ChemicalReaction) -> bool:
     return any(is_mapped_molecule(mol) for mol in list(rdrxn.GetProducts()))
 
 
-def select_desired_product(mol_catalog: list) -> models.Molecule:
+def select_desired_product(mol_catalog: list):
     """
     To select the 'desired product' among the products of a reaction.
 
@@ -497,9 +497,7 @@ def rdrxn_role_reassignment(
     return rdrxn_from_rxn_mol_catalog(rxn_mol_catalog=rxn_mol_catalog)
 
 
-def role_reassignment(
-    reaction_mols: dict, ratam: models.Ratam, desired_product: models.Molecule
-) -> Union[dict, None]:
+def role_reassignment(reaction_mols: dict, ratam, desired_product) -> Union[dict, None]:
     """
     To reassign the roles of reactants and reagents based on the mapping on the desired product.
 
@@ -578,14 +576,10 @@ def clean_full_map_info(full_map_info_new: dict) -> dict:
     return full_map_info_new
 
 
-def mapping_diagnosis(
-    chemical_equation: models.ChemicalEquation, desired_product: models.Molecule
-) -> Union[list, None]:
+def mapping_diagnosis(chemical_equation, desired_product) -> list:
     """
-    To validate the chemical equation with atom mapping.
-    To check possible issues in the atom mapping:
-    (i) if there are unmapped atoms in the desired product (issues in computing route metrics, missing reactants);
-    (ii) if there are unmapped atoms in the reactants (possible hint for leaving groups)
+    To check possible issues in the atom mapping: (i) if there are unmapped atoms in the desired product (issues
+    in computing route metrics); (ii) if there are unmapped atoms in the reactants (possible hint for leaving groups)
 
     Parameters:
     ------------
@@ -596,45 +590,11 @@ def mapping_diagnosis(
 
     Returns:
     ---------
-    unmapped_fragments: Union[list, None]
+    unmapped_fragments: list
         The list of smiles referring to the unmapped atoms of each reactant
     """
-    check_product_mapping(
-        desired_product, chemical_equation.mapping.atom_transformations
-    )
-    reactants = [
-        mol
-        for uid, mol in chemical_equation.catalog.items()
-        if uid in chemical_equation.role_map["reactants"]
-    ]
-    if unmapped_fragments := check_reactants_mapping(reactants):
-        return unmapped_fragments
 
-
-def check_reactants_mapping(reactants: list) -> list:
-    """To check if there are unmapped atoms in the reactants"""
-    unmapped_fragments = []
-    for m in [mol.rdmol_mapped for mol in reactants]:
-        if unmapped_atoms := [a for a in m.GetAtoms() if a.GetAtomMapNum() in [0, -1]]:
-            atoms_indices = [a.GetIdx() for a in unmapped_atoms]
-            fragment = Chem.rdmolfiles.MolFragmentToSmiles(
-                m,
-                atomsToUse=atoms_indices,
-                atomSymbols=[a.GetSymbol() for a in m.GetAtoms()],
-            )
-
-            unmapped_fragments.append(fragment)
-    return unmapped_fragments
-
-
-def check_product_mapping(
-    desired_product: models.Molecule, atom_transformations: list
-) -> None:
-    """To check if there are unmapped atoms in the desired product"""
-    at_desired_product = [
-        at for at in atom_transformations if at.product_uid == desired_product.uid
-    ]
-    if len(at_desired_product) != desired_product.rdmol.GetNumAtoms() or [
+    if [
         a
         for a in desired_product.rdmol_mapped.GetAtoms()
         if a.GetAtomMapNum() in [0, -1]
@@ -642,6 +602,26 @@ def check_product_mapping(
         logger.warning(
             "Some atoms in the desired product remain unmapped: possible important reactants are missing"
         )
+
+    unamapped_fragments = []
+    for uid in chemical_equation.role_map["reactants"]:
+        mols = [
+            m.rdmol_mapped for u, m in chemical_equation.catalog.items() if u == uid
+        ]
+
+        for m in mols:
+            if unmapped_atoms := [
+                a for a in m.GetAtoms() if a.GetAtomMapNum() in [0, -1]
+            ]:
+                atoms_indices = [a.GetIdx() for a in unmapped_atoms]
+                fragment = Chem.rdmolfiles.MolFragmentToSmiles(
+                    m,
+                    atomsToUse=atoms_indices,
+                    atomSymbols=[a.GetSymbol() for a in m.GetAtoms()],
+                )
+
+                unamapped_fragments.append(fragment)
+    return unamapped_fragments
 
 
 def get_hydrogenation_info(
@@ -665,7 +645,7 @@ def get_hydrogenation_info(
     """
     bonds = []
     for hydrogen_info in hydrogenated_atoms:
-        if hydrogen_info[1] > 0:
+        if delta := hydrogen_info[1] > 0:
             p_atom_idx = hydrogen_info[0]
             disconnection_rdmol = Chem.AddHs(
                 disconnection_rdmol, onlyOnAtoms=[p_atom_idx]
@@ -676,8 +656,16 @@ def get_hydrogenation_info(
                 if a.GetSymbol() == "H"
                 and disconnection_rdmol.GetBondBetweenAtoms(a.GetIdx(), p_atom_idx)
             ]
-
-            bonds.extend(sorted((i, p_atom_idx)) for i in h_idxs)
+            # h_idxs = list(
+            #     range(
+            #         disconnection_rdmol.GetNumAtoms() - delta,
+            #         disconnection_rdmol.GetNumAtoms(),
+            #     )
+            # )
+            for i in h_idxs:
+                # new bond with hydrogen atom
+                pbond = disconnection_rdmol.GetBondBetweenAtoms(i, p_atom_idx)
+                bonds.append(sorted((i, p_atom_idx)))
     return bonds, disconnection_rdmol
 
 

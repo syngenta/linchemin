@@ -186,10 +186,6 @@ class Ratam:
     """ (list) The list of AtomTransformations namedtuples corresponding to the transformations of mapped atoms.
         AtomTransformation = namedtuple('AtomTransformation', ['product_uid', 'reactant_uid', 'prod_atom_id', 
         'react_atom_id', 'map_num']) """
-    reactants_unmapped_atoms_info: dict = field(default_factory=dict)
-    """ (dict) The dictionary containing the fraction of unmapped atoms in the reactants"""
-    desired_product_unmapped_atoms_info: dict = field(default_factory=dict)
-    """ (dict) The dictionary containing the fraction of unmapped atoms in the desired product and their indices"""
 
     def diagnosis(self):
         """To perform a diagnostic process on the atom mapping"""
@@ -203,7 +199,7 @@ class ChemicalEquation:
     """
 
     catalog: dict = field(default_factory=dict)
-    """(dict) The catalog of the Molecule instances involved in the chemical reaction."""
+    """(dict) The catalog of the Molecule instances invlived in the chemical reaction."""
     role_map: dict = field(default_factory=dict)
     """ (dict) The dictionary mapping the uid of the involved Molecules to their roles (reactants, reagents and 
     products)."""
@@ -313,7 +309,7 @@ class Role(Enum):
 class Product(Role):
     """Class with possible classifications of Products in a reaction"""
 
-    DESIRED = "desired_product"
+    MAIN = "main_product"
     BYPRODUCT = "by_product"
     SIDEPRODUCT = "side_product"
     UNKNOWN = "unknown"

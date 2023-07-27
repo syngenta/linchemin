@@ -804,11 +804,11 @@ def test_mapping_diagnosis():
         )
         for n, s in smiles.items()
     }
-    desired_prod1 = next(
+    desired_prod1 = [
         mol
         for uid, mol in chemical_equations.get(1).catalog.items()
         if uid == chemical_equations.get(1).role_map["products"][0]
-    )
+    ][0]
     # a warning is raised if there are unmapped atoms in the desired product
     with unittest.TestCase().assertLogs(
         "linchemin.cheminfo.functions", level="WARNING"
@@ -818,11 +818,11 @@ def test_mapping_diagnosis():
     unittest.TestCase().assertIn("unmapped", w.records[0].getMessage())
 
     # unmapped atoms in a single reactant are all bounded together: they might indicate a leaving group
-    desired_prod2 = next(
+    desired_prod2 = [
         mol
         for uid, mol in chemical_equations.get(2).catalog.items()
         if uid == chemical_equations.get(2).role_map["products"][0]
-    )
+    ][0]
     fragments2 = mapping_diagnosis(chemical_equations.get(2), desired_prod2)
     # print(chemical_equations.get(2))
     # print(fragments2)
@@ -830,11 +830,11 @@ def test_mapping_diagnosis():
     assert "." not in fragments2[0]
 
     # unmapped atoms in a single reactant are only partially bounded together: there might be more than one leaving group
-    desired_prod3 = next(
+    desired_prod3 = [
         mol
         for uid, mol in chemical_equations.get(3).catalog.items()
         if uid == chemical_equations.get(3).role_map["products"][0]
-    )
+    ][0]
     fragments3 = mapping_diagnosis(chemical_equations.get(3), desired_prod3)
     assert len(fragments3) == 1
     assert "." in fragments3[0]
