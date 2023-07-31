@@ -633,7 +633,7 @@ class TranslatorNetworkx(AbsTranslator):
             iron.add_node(str(id_n), iron_node)
         for id_e, (edge, data) in enumerate(route.edges.items()):
             iron_edge = self.nx_edge_to_iron_edge(edge, id_e, iron)
-            iron.add_edge(id_e, iron_edge)
+            iron.add_edge(str(id_e), iron_edge)
 
         return iron
 
@@ -705,7 +705,7 @@ class TranslatorDot(AbsTranslator):
             iron.add_node(str(id_n), iron_node)
         for id_e, edge in enumerate(route.get_edges()):
             iron_edge = self.pydot_edges_to_iron_edge(edge, id_e, iron)
-            iron.add_edge(id_e, iron_edge)
+            iron.add_edge(str(id_e), iron_edge)
         return iron
 
     @staticmethod
@@ -1016,7 +1016,7 @@ class InputToIron(Handler):
 
     def translate(
         self, input_format: str, graph, output_format: str, out_data_model: str
-    ) -> Iron:
+    ) -> Union[None, Iron]:
         factory = TranslatorFactory()
         # If the input graph is a syngraph
         if "syngraph" in input_format:
@@ -1042,7 +1042,9 @@ class IronToSynGraph(Handler):
 
     def translate(
         self, input_format: str, graph: Iron, output_format: str, out_data_model: str
-    ) -> Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph]:
+    ) -> Union[
+        BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph, None
+    ]:
         factory = TranslatorFactory()
         graph = factory.select_translation_from_iron("syngraph", graph, out_data_model)
         if output_format == "syngraph" or graph is None:

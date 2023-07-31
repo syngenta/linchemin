@@ -441,12 +441,14 @@ def test_translate_into_NOC_document(ibm1_path):
 
 def test_out_format():
     out = get_output_formats()
-    assert type(out) == dict and "pydot_visualization" in out and "iron" in out
+    assert isinstance(out, dict) and "pydot_visualization" in out and "iron" in out
+    assert "mit_retro" not in out
 
 
 def test_in_format():
     in_f = get_input_formats()
-    assert type(in_f) == dict and "ibm_retro" in in_f and "syngraph" in in_f
+    assert isinstance(in_f, dict) and "ibm_retro" in in_f and "syngraph" in in_f
+    assert "noc" not in in_f
 
 
 def test_mit_to_iron(mit_path):

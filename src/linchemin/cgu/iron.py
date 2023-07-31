@@ -109,11 +109,11 @@ class Iron:
     def __str__(self):
         return f"Nodes: {self.nodes} \nEdges: {self.edges}"
 
-    def add_node(self, k: int, node: Node):
+    def add_node(self, k: str, node: Node):
         """To add a node to an Iron instance."""
         self.nodes[k] = node
 
-    def add_edge(self, k: int, edge: Edge):
+    def add_edge(self, k: str, edge: Edge):
         """To add an edge to an Iron instance."""
         self.edges[k] = edge
 
