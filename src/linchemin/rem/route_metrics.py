@@ -150,7 +150,8 @@ class ReactantAvailability(RouteMetric):
             return route
         return converter(route, "bipartite")
 
-    def fix_external_info_format(self, external_info: dict) -> dict:
+    @staticmethod
+    def fix_external_info_format(external_info: dict) -> dict:
         new_data = {}
         for smiles, provider in external_info.items():
             if provider == "syngenta":
@@ -316,8 +317,8 @@ def distance_function_calculator(
 
     Returns:
     ---------
-    distance value: int
-        The distance of the node from the root as the number of ChemicalEquation nodes in the path between the nodes
+    distance value: Union[float, int]
+        The value of the selected distance function
 
     """
     context = DistanceContext()

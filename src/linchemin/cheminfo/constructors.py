@@ -192,6 +192,7 @@ class RatamConstructor:
     ) -> Ratam:
         """To initialize an instance of the Ratam class"""
         ratam = Ratam()
+
         ratam.full_map_info = self.get_full_map_info(
             molecules_catalog, desired_products
         )
@@ -209,7 +210,7 @@ class RatamConstructor:
         dp_map_nums = {
             a.GetAtomMapNum() for a in desired_product.rdmol_mapped.GetAtoms()
         }
-        full_map_info = self.reactants_reagents_map_info(
+        full_map_info = self.precursors_map_info(
             molecules_catalog, full_map_info, dp_map_nums
         )
 
@@ -229,31 +230,57 @@ class RatamConstructor:
                 full_map_info["products"][mol.uid].append(mapping)
         return full_map_info
 
-    @staticmethod
-    def reactants_reagents_map_info(
-        molecules_catalog: dict, full_map_info: dict, desired_product_map_nums: set
+    def precursors_map_info(
+        self,
+        molecules_catalog: dict,
+        full_map_info: dict,
+        desired_product_map_nums: set,
     ) -> dict:
-        """To correctly identify reactants and reagents based on the mapping and collect their mapping information"""
+        """To collect the mapping info for product Molecules"""
         for mol in molecules_catalog["reactants"] + molecules_catalog["reagents"]:
             if mol.uid not in full_map_info["reactants"]:
                 full_map_info["reactants"][mol.uid] = []
             if mol.uid not in full_map_info["reagents"]:
                 full_map_info["reagents"][mol.uid] = []
             map_nums = {a.GetAtomMapNum() for a in mol.rdmol_mapped.GetAtoms()}
-            if [
+            full_map_info = self.update_full_info(
+                full_map_info, mol, desired_product_map_nums, map_nums
+            )
+
+        return full_map_info
+
+    @staticmethod
+    def update_full_info(
+        full_map_info: dict,
+        precursor: Molecule,
+        desired_product_map_nums: set,
+        precursor_map_nums: set,
+    ):
+        """To update the full_map_info dictionary with a new entry of either a reactant or a reagent"""
+        shared_map = next(
+            (
                 n
-                for n in map_nums
+                for n in precursor_map_nums
                 if n in desired_product_map_nums and n not in [0, -1]
-            ]:
-                # it's a reactant!
-                full_map_info["reactants"][mol.uid].append(
-                    {a.GetIdx(): a.GetAtomMapNum() for a in mol.rdmol_mapped.GetAtoms()}
-                )
-            else:
-                # it's a reagent!
-                full_map_info["reagents"][mol.uid].append(
-                    {a.GetIdx(): a.GetAtomMapNum() for a in mol.rdmol_mapped.GetAtoms()}
-                )
+            ),
+            None,
+        )
+        if shared_map is not None:
+            # it's a reactant!
+            full_map_info["reactants"][precursor.uid].append(
+                {
+                    a.GetIdx(): a.GetAtomMapNum()
+                    for a in precursor.rdmol_mapped.GetAtoms()
+                }
+            )
+        else:
+            # it's a reagent!
+            full_map_info["reagents"][precursor.uid].append(
+                {
+                    a.GetIdx(): a.GetAtomMapNum()
+                    for a in precursor.rdmol_mapped.GetAtoms()
+                }
+            )
         return full_map_info
 
     @staticmethod
