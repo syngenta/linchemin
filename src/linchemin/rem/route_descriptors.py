@@ -51,7 +51,7 @@ class MismatchingGraphType(DescriptorError):
     pass
 
 
-class DescriptorCalculator(metaclass=abc.ABCMeta):
+class RouteDescriptor(metaclass=abc.ABCMeta):
     """Abstract class for DescriptorCalculator."""
 
     @abc.abstractmethod
@@ -77,7 +77,7 @@ class DescriptorCalculator(metaclass=abc.ABCMeta):
         pass
 
 
-class NrBranches(DescriptorCalculator):
+class NrBranches(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the number of "AND" branches in a SynRoute."""
 
     info = "Computes the number of branches in the input SynGraph"
@@ -118,7 +118,7 @@ class NrBranches(DescriptorCalculator):
         return len(branching_nodes)
 
 
-class Branchedness(DescriptorCalculator):
+class Branchedness(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the "branchedness" of a SynGraph"""
 
     info = (
@@ -168,7 +168,7 @@ class Branchedness(DescriptorCalculator):
         return branchedness
 
 
-class LongestSequence(DescriptorCalculator):
+class LongestSequence(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the longest linear sequence in a SynGraph."""
 
     info = "Computes the longest linear sequence in the input SynGraph"
@@ -202,7 +202,7 @@ class LongestSequence(DescriptorCalculator):
         return len(longest_sequence)
 
 
-class NrReactionSteps(DescriptorCalculator):
+class NrReactionSteps(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the number of ReactionStep nodes in a SynGraph."""
 
     info = "Computes the number of chemical reactions in the input SynGraph"
@@ -227,7 +227,7 @@ class NrReactionSteps(DescriptorCalculator):
         return len(mp_graph.graph)
 
 
-class PathFinder(DescriptorCalculator):
+class PathFinder(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the list of paths (ReactionStep nodes only) in a SynGraph."""
 
     info = "Computes all the paths between the SynRoots and the SynLeaves in the input SynGraph"
@@ -264,7 +264,7 @@ class PathFinder(DescriptorCalculator):
         return all_paths
 
 
-class Convergence(DescriptorCalculator):
+class Convergence(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the convergence of a SynGraph."""
 
     info = (
@@ -287,7 +287,7 @@ class Convergence(DescriptorCalculator):
         return longest_lin_seq / n_steps
 
 
-class AvgBranchingFactor(DescriptorCalculator):
+class AvgBranchingFactor(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the average branching factor of a SynGraph."""
 
     info = "Computes the average branching factor of the input SynGraph"
@@ -319,7 +319,7 @@ class AvgBranchingFactor(DescriptorCalculator):
         return float(nr_non_root_nodes / nr_non_leaf_nodes)
 
 
-class CDScore(DescriptorCalculator):
+class CDScore(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the Convergent Disconnection Score of a SynGraph.
     https://pubs.acs.org/doi/10.1021/acs.jcim.1c01074
     """
@@ -359,7 +359,7 @@ class CDScore(DescriptorCalculator):
         return route_score / len(unique_reactions)
 
 
-class AtomEfficiency(DescriptorCalculator):
+class AtomEfficiency(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the atom efficiency of a SynGraph."""
 
     info = (
