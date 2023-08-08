@@ -23,7 +23,6 @@
       ~SynGraph.get_leaves
       ~SynGraph.get_roots
       ~SynGraph.initialize_with_iron
-      ~SynGraph.remove_isolate_nodes
       ~SynGraph.remove_node
       ~SynGraph.set_source
    

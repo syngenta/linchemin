@@ -14,6 +14,7 @@
    .. autosummary::
    
       ~ClusterFactory.__init__
+      ~ClusterFactory.get_distance_matrix
       ~ClusterFactory.select_clustering_algorithms
    
    
