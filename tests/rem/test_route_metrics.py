@@ -118,7 +118,7 @@ def test_yield_score():
         "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1>>O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1": 0.25,
     }
     yield_score_mg = route_metric_calculator("yield", syngraph, external_data)
-    assert yield_score_mg == 0.69
+    assert yield_score_mg == 0.71
     # medium-bad case: reactions close to the root have lower yield than those close to the leaves
     external_data = {
         "CC(=O)O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 0.25,
@@ -127,5 +127,5 @@ def test_yield_score():
         "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1>>O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1": 0.95,
     }
     yield_score_mb = route_metric_calculator("yield", syngraph, external_data)
-    assert yield_score_mb == 0.46
+    assert yield_score_mb == 0.44
     assert yield_score_mg > yield_score_mb

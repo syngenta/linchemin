@@ -31,6 +31,9 @@ class Direction:
         self.string = dir_string
         self.tup = (dir_string.split(">")[0], dir_string.split(">")[1])
 
+    def __eq__(self, other):
+        return type(other) == Direction and self.string == other.string
+
 
 @dataclass(frozen=True, order=True)
 class Node:

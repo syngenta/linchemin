@@ -272,7 +272,7 @@ class LongestLinearSequenceWeigthedDistanceStrategy(DistanceStrategy):
         d = len(
             [n for n in find_path(route, node, root) if isinstance(n, ChemicalEquation)]
         )
-        return 1.0 / (1 - lls) * d - lls / (1.0 - lls)
+        return -1.0 / lls * d + 1
 
 
 # Context class
@@ -281,6 +281,10 @@ class DistanceContext:
         "simple": SimpleDistanceStrategy(),
         "longest_sequence": LongestLinearSequenceWeigthedDistanceStrategy(),
     }
+
+    def __init__(self):
+        self.strategy = None
+        self.distance = None
 
     def set_strategy(self, strategy):
         if strategy not in self._distance_strategies:

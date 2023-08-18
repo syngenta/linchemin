@@ -121,7 +121,6 @@ def test_monopartite_syngraph(ibm1_path):
     mp_syngraph = translator(
         "ibm_retro", graph_ibm[5], "syngraph", out_data_model="monopartite_molecules"
     )
-
     molecule_constructor = MoleculeConstructor(
         molecular_identity_property_name="smiles"
     )

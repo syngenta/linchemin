@@ -195,8 +195,7 @@ class LongestSequence(RouteDescriptor):
         leaves = mp_graph.get_leaves()
         longest_sequence: list = []
         for leaf in leaves:
-            path = find_path(mp_graph, leaf, root[0])
-            reaction_path = list(path)
+            reaction_path = find_path(mp_graph, leaf, root[0])
             if len(reaction_path) > len(longest_sequence):
                 longest_sequence = reaction_path
         return len(longest_sequence)

@@ -1034,9 +1034,12 @@ def create_chemical_equation(
         desired_product_mol = cif.select_desired_product(reaction_mols["products"])
     builder = Builder()
     builder.set_builder(builder_type)
-    return builder.get_chemical_equation(
+    chemical_equation = builder.get_chemical_equation(
         chemical_equation_identity_name, desired_product_mol, reaction_mols
     )
+    if builder_type == "mapped":
+        cif.mapping_diagnosis(chemical_equation, desired_product_mol)
+    return chemical_equation
 
 
 class ChemicalEquationGenerator(ABC):

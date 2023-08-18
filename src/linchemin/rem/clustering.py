@@ -142,11 +142,11 @@ class ClusterFactory:
 
     available_clustering_algorithms = {
         "hdbscan": {
-            "value": HdbscanClusterCalculator(),
+            "value": HdbscanClusterCalculator,
             "info": "HDBscan algorithm. Not working with less than 15 routes",
         },
         "agglomerative_cluster": {
-            "value": AgglomerativeClusterCalculator(),
+            "value": AgglomerativeClusterCalculator,
             "info": "Agglomerative Clustering algorithm. The number of clusters is optimized "
             "computing the silhouette score",
         },
@@ -172,7 +172,7 @@ class ClusterFactory:
 
         cluster_method = self.available_clustering_algorithms[clustering_method][
             "value"
-        ]
+        ]()
         dist_matrix = self.get_distance_matrix(
             syngraphs, ged_method, ged_params, parallelization, n_cpu
         )
