@@ -1219,7 +1219,7 @@ def get_available_formats() -> dict:
     Example:
     >>> av_formats = get_available_formats()
     """
-    all_formats = list(DataModelFactory.__subclasses__())[0].list_formats()
+    all_formats = DataModelFactory.list_formats()
     d = {f: additional_info["info"] for f, additional_info in all_formats.items()}
     d.update({"iron": "Iron object", "syngraph": "Syngraph object"})
     return d
