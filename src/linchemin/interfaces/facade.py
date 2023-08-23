@@ -1089,7 +1089,7 @@ class RouteSanityCheckFacade(Facade):
             checked_route = r
             for check in checks:
                 try:
-                    checked_route = route_checker(checked_route, check)
+                    checked_route = route_checker(checked_route, check, fix_issue=True)
                 except Exception as ke:
                     exceptions.append(ke)
             checked_routes.append(checked_route)
