@@ -309,7 +309,7 @@ class Role(Enum):
 class Product(Role):
     """Class with possible classifications of Products in a reaction"""
 
-    MAIN = "main_product"
+    DESIRED = "desired_product"
     BYPRODUCT = "by_product"
     SIDEPRODUCT = "side_product"
     UNKNOWN = "unknown"

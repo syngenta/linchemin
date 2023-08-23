@@ -174,18 +174,20 @@ def remove_reaction_from_syngraph(
 
 
 def handle_dangling_nodes(
-    graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph],
+    new_graph: Union[
+        MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph
+    ],
     node: ChemicalEquation,
 ) -> Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]:
     """To remove the possible dangling nodes due to the removal of the selected node"""
     nodes_to_remove = set()
-    for leaf in graph.get_leaves():
-        if path := find_path(graph, leaf, node):
+    for leaf in new_graph.get_leaves():
+        if path := find_path(new_graph, leaf, node):
             [nodes_to_remove.add(n) for n in path]
 
     for n in nodes_to_remove:
-        graph.remove_node(n.uid)
-    return graph
+        new_graph.remove_node(n.uid)
+    return new_graph
 
 
 # Factory to extract reaction strings from a syngraph object
