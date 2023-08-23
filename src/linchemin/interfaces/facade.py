@@ -1173,7 +1173,7 @@ class NodeRemovalFacade(Facade):
         routes: List[Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]]
             The list of SynGraph instances
         node_to_remove: str
-            The smiles of the node to be removed
+            The smiles of the reaction to be removed
 
         Returns:
         ---------

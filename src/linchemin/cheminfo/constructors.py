@@ -917,7 +917,7 @@ class ChemicalEquationConstructor:
                 catalog[molecule.uid] = molecule
                 # defining molecule role
                 role = self.get_role(original_role)
-                if role.get_full_name() == "product.main":
+                if role.get_full_name() == "product.desired":
                     desired_product = molecule
                 # adding stoichiometry info to the stoichiometry dictionary
                 stoichiometry_coefficients = self.update_stoichiometry(

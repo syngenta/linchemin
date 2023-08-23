@@ -106,10 +106,10 @@ class NrBranches(RouteDescriptor):
             raise WrongGraphType
 
         branching_nodes = set()
-        for reac, connections in mp_graph.graph.items():
+        for reac, connections in mp_graph:
             for c in connections:
                 source_reactions = [
-                    r for r, products_set in mp_graph.graph.items() if c in products_set
+                    r for r, products_set in mp_graph if c in products_set
                 ]
                 if len(source_reactions) > 1:
                     for reaction in source_reactions:
@@ -146,10 +146,10 @@ class Branchedness(RouteDescriptor):
             raise WrongGraphType
 
         branching_nodes = set()
-        for reac, connections in mp_graph.graph.items():
+        for reac, connections in mp_graph:
             for c in connections:
                 source_reactions = [
-                    r for r, products_set in mp_graph.graph.items() if c in products_set
+                    r for r, products_set in mp_graph if c in products_set
                 ]
                 if len(source_reactions) > 1:
                     for reaction in source_reactions:
@@ -344,11 +344,7 @@ class CDScore(RouteDescriptor):
             raise WrongGraphType
 
         # Collect all unique reaction invovled in the route
-        unique_reactions = set()
-        for parent, children in mp_graph.graph.items():
-            unique_reactions.add(parent)
-            for child in children:
-                unique_reactions.add(child)
+        unique_reactions = mp_graph.get_unique_nodes()
 
         route_score = 0
         for reaction in unique_reactions:
@@ -577,7 +573,7 @@ def get_nodes_consensus(syngraphs: list) -> dict:
     """
     node_consensus = defaultdict(set)
     for graph in syngraphs:
-        for reac, connections in graph.graph.items():
+        for reac, connections in graph:
             node_consensus[reac].add(graph.source)
             for c in connections:
                 node_consensus[c].add(graph.source)

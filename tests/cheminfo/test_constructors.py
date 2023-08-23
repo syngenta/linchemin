@@ -1298,7 +1298,7 @@ def test_chemical_equation_from_db():
     db_list = [
         {
             "smiles": "CC(=O)Oc1cc(Cl)ccc1Oc2ccc(Cl)cc2Cl",
-            "role": "main_product",
+            "role": "desired_product",
             "stoichiometry": 1,
         },
         {"smiles": "OOC(=O)c1cccc(Cl)c1", "role": "reactant", "stoichiometry": 1},
@@ -1338,7 +1338,7 @@ def test_chemical_equation_from_db():
         },
         {
             "smiles": "OC(=O)COc1cc(Cl)c(Cl)cc1Cl",
-            "role": "main_product",
+            "role": "desired_product",
             "stoichiometry": 1,
         },
         {
