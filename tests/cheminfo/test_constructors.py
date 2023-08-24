@@ -1352,13 +1352,15 @@ def test_chemical_equation_from_db():
             "stoichiometry": 2,
         },
         {
-            "smiles": "Cl",
+            "smiles": "[Cl-].[Na+]",
             "role": "reagent_quench",
             "stoichiometry": 1,
         },
     ]
     ce = chemical_equation_constructor.build_from_db(db_list2)
     assert ce.role_map["reagents"] != []
+    na_uid = next(uid for uid, mol in ce.catalog.items() if mol.smiles == "[Na+]")
+    assert ce.stoichiometry_coefficients['reagents'][na_uid] == 3
     # print(cif.rdrxn_to_string(ce.rdrxn, "smiles"))
     # ce_from_string = chemical_equation_constructor.build_from_reaction_string(
     #     "O=C(O)CCl.Oc1cc(Cl)c(Cl)cc1Cl>([Na+].[OH-]).([Na+].[OH-]).Cl>([Cl-].[Na+]).([Cl-].[Na+]).O.O.O=C(O)COc1cc(Cl)c(Cl)cc1Cl",

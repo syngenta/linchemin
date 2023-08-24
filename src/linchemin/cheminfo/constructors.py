@@ -976,7 +976,10 @@ class ChemicalEquationConstructor:
         stoich_coeff = self.get_stoichiometry_coeff(original_stoich)
         general_role = roles[type(role)]
         sc_dict = stoichiometry_coefficients.get(general_role, {})
-        sc_dict.update({mol_uid: stoich_coeff})
+        if mol_uid in sc_dict:
+            sc_dict[mol_uid] += stoich_coeff
+        else:
+            sc_dict.update({mol_uid: stoich_coeff})
         stoichiometry_coefficients[general_role] = sc_dict
         return stoichiometry_coefficients
 
