@@ -187,14 +187,19 @@ AtomTransformation = namedtuple(
 class RatamConstructor:
     """Class implementing the constructor of the Ratam class"""
 
-    def create_ratam(
-        self, molecules_catalog: dict, desired_products: Molecule
-    ) -> Ratam:
+    def create_ratam(self, molecules_catalog: dict, desired_product: Molecule) -> Ratam:
         """To initialize an instance of the Ratam class"""
         ratam = Ratam()
 
-        ratam.full_map_info = self.get_full_map_info(
-            molecules_catalog, desired_products
+        ratam.full_map_info = self.get_full_map_info(molecules_catalog, desired_product)
+        ratam.desired_product_unmapped_atoms_info = (
+            self.get_unmapped_atoms_in_desired_product(
+                ratam.full_map_info["products"][desired_product.uid]
+            )
+        )
+
+        ratam.reactants_unmapped_atoms_info = self.get_unmapped_atoms_in_reactants(
+            ratam.full_map_info["reactants"]
         )
         ratam.atom_transformations = self.get_atom_transformations(ratam.full_map_info)
         return ratam
@@ -217,6 +222,42 @@ class RatamConstructor:
         full_map_info = cif.clean_full_map_info(full_map_info)
         self.mapping_sanity_check(full_map_info)
         return full_map_info
+
+    def get_unmapped_atoms_in_reactants(self, reactants_map_info: dict) -> dict:
+        """To get the information about unmapped atoms in the reactants"""
+        info = {"unmapped_atoms": {}}
+        reactants_tot_atoms = 0.0
+        reactants_tot_unmapped = 0.0
+        for r_uid, map_list in reactants_map_info.items():
+            for mapping in map_list:
+                reactants_tot_atoms += len(mapping.keys())
+                if unmapped_atoms := self.find_unmapped_atoms(mapping):
+                    reactants_tot_unmapped += len(unmapped_atoms)
+                    if r_uid not in info["unmapped_atoms"].keys():
+                        info["unmapped_atoms"][r_uid] = [unmapped_atoms]
+                    else:
+                        info["unmapped_atoms"][r_uid].append(unmapped_atoms)
+        info["fraction"] = round(reactants_tot_unmapped / reactants_tot_atoms, 2)
+        return info
+
+    @staticmethod
+    def find_unmapped_atoms(mapping: dict) -> set:
+        return set(a_id for a_id, map_num in mapping.items() if map_num in [0, -1])
+
+    def get_unmapped_atoms_in_desired_product(
+        self, desired_product_map_info: List[dict]
+    ) -> dict:
+        """To get the information about unmapped atoms in the desired product"""
+        info = {"unmapped_atoms": []}
+        tot_atoms = 0.0
+        tot_unmapped_atoms = 0.0
+        for mapping in desired_product_map_info:
+            tot_atoms += len(mapping.keys())
+            if unmapped_atoms := self.find_unmapped_atoms(mapping):
+                tot_unmapped_atoms += len(unmapped_atoms)
+                info["unmapped_atoms"].append(unmapped_atoms)
+        info["fraction"] = round(tot_unmapped_atoms / tot_atoms, 2)
+        return info
 
     @staticmethod
     def products_map_info(molecules_catalog: dict, full_map_info: dict) -> dict:
@@ -1040,8 +1081,7 @@ def create_chemical_equation(
     chemical_equation = builder.get_chemical_equation(
         chemical_equation_identity_name, desired_product_mol, reaction_mols
     )
-    if builder_type == "mapped":
-        cif.mapping_diagnosis(chemical_equation, desired_product_mol)
+
     return chemical_equation
 
 

@@ -830,11 +830,11 @@ def test_mapping_diagnosis():
     assert "." not in fragments2[0]
 
     # unmapped atoms in a single reactant are only partially bounded together: there might be more than one leaving group
-    desired_prod3 = [
+    desired_prod3 = next(
         mol
         for uid, mol in chemical_equations.get(3).catalog.items()
         if uid == chemical_equations.get(3).role_map["products"][0]
-    ][0]
+    )
     fragments3 = mapping_diagnosis(chemical_equations.get(3), desired_prod3)
     assert len(fragments3) == 1
     assert "." in fragments3[0]
