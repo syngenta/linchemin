@@ -1266,7 +1266,7 @@ def test_chemical_equation_attributes_are_not_available():
 
 
 def test_chemical_equation_attributes_are_available():
-    smiles = "O[C:2](=[O:1])[c:3]1[cH:12][cH:7][cH:6][cH:5][cH:4]1.CN>ClCCl.ClC(=O)C(Cl)=O>C[NH:13][C:2](=[O:1])[c:3]1[cH:12][cH:7][cH:6][cH:5][cH:4]1"
+    smiles = "O[C:2](=[O:1])[c:3]1[cH:12][cH:7][cH:6][cH:5][cH:4]1.CN>ClCCl.ClC(=O)C(Cl)=O>C[NH][C:2](=[O:1])[c:3]1[cH:12][cH:7][cH:6][cH:5][cH:4]1"
     # initialize the constructor with identity property 'r_r_p'
     chemical_equation_constructor = ChemicalEquationConstructor(
         molecular_identity_property_name="smiles",
@@ -1291,6 +1291,10 @@ def test_chemical_equation_attributes_are_available():
     assert ce2.disconnection == ce1.disconnection
     assert ce2.disconnection.extract_info() == ce1.disconnection.extract_info()
     assert ce2.template == ce1.template
+    assert ce2.mapping.reactants_unmapped_atoms_info["fraction"] == 0.11
+    assert ce2.mapping.reactants_unmapped_atoms_info['unmapped_atoms'] != {}
+    assert ce2.mapping.desired_product_unmapped_atoms_info["fraction"] == 0.2
+    assert ce2.mapping.desired_product_unmapped_atoms_info["unmapped_atoms"] == [{0, 7}]
 
 
 def test_chemical_equation_from_db():
@@ -1360,7 +1364,7 @@ def test_chemical_equation_from_db():
     ce = chemical_equation_constructor.build_from_db(db_list2)
     assert ce.role_map["reagents"] != []
     na_uid = next(uid for uid, mol in ce.catalog.items() if mol.smiles == "[Na+]")
-    assert ce.stoichiometry_coefficients['reagents'][na_uid] == 3
+    assert ce.stoichiometry_coefficients["reagents"][na_uid] == 3
     # print(cif.rdrxn_to_string(ce.rdrxn, "smiles"))
     # ce_from_string = chemical_equation_constructor.build_from_reaction_string(
     #     "O=C(O)CCl.Oc1cc(Cl)c(Cl)cc1Cl>([Na+].[OH-]).([Na+].[OH-]).Cl>([Cl-].[Na+]).([Cl-].[Na+]).O.O.O=C(O)COc1cc(Cl)c(Cl)cc1Cl",

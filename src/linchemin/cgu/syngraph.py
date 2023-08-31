@@ -130,11 +130,7 @@ class SynGraph(ABC):
 
     def get_unique_nodes(self) -> set:
         """To get the set of unique nodes included in a SynGraph instance"""
-        unique_nodes = set()
-        for parent, children in self:
-            unique_nodes.add(parent)
-            unique_nodes.update(children)
-        return unique_nodes
+        return set(parent for parent in self.graph)
 
     def set_source(self, source):
         """To set the source attribute of a SynGraph instance"""
