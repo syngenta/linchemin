@@ -91,7 +91,7 @@ class SynGraph(ABC):
     def uid(self) -> str:
         """To define the SynGraph unique identifier based on the underlying graph"""
         tups = []
-        for parent, children in self.graph.items():
+        for parent, children in self:
             if not children:
                 # To take into account isolated nodes
                 tups.append((parent.uid, "x", 0))
@@ -121,12 +121,16 @@ class SynGraph(ABC):
 
     def get_roots(self) -> list:
         """To retrieve the list of 'root' nodes of a SynGraph instance"""
-        return [parent for parent, children in self.graph.items() if children == set()]
+        return [parent for parent, children in self if children == set()]
 
     @abstractmethod
     def get_leaves(self) -> list:
         """To retrieve the list of 'leaf' nodes of a SynGraph instance"""
         pass
+
+    def get_unique_nodes(self) -> set:
+        """To get the set of unique nodes included in a SynGraph instance"""
+        return set(parent for parent in self.graph)
 
     def set_source(self, source):
         """To set the source attribute of a SynGraph instance"""
@@ -150,7 +154,7 @@ class SynGraph(ABC):
 
     def __str__(self):
         text = ""
-        for r, connections in self.graph.items():
+        for r, connections in self:
             if connections:
                 text = text + "{} -> {} \n".format(r, *connections)
             else:
@@ -170,12 +174,18 @@ class SynGraph(ABC):
             for c in nodes_tup[1]:
                 self.graph[nodes_tup[0]].add(c)
 
-    def remove_node(self, node_to_remove: Union[Molecule, ChemicalEquation]) -> None:
-        """To remove a node from a SynGraph instance"""
-        if node_to_remove not in self.graph:
-            logger.warning("The selected node is not present in the SynGraph instance.")
-        else:
+    def remove_node(self, node_to_remove_id: int) -> None:
+        """To remove a node by its uid from a SynGraph instance"""
+        if node_to_remove := next(
+            (node for node in self.get_unique_nodes() if node.uid == node_to_remove_id),
+            None,
+        ):
             self.graph.pop(node_to_remove)
+            for parent, children in self:
+                if node_to_remove in children:
+                    children.remove(node_to_remove)
+        else:
+            logger.warning("The selected node is not present in the SynGraph instance.")
 
     @staticmethod
     def find_reactants_products(
@@ -290,40 +300,32 @@ class BipartiteSynGraph(SynGraph):
         """To remove ChemicalEquation nodes and their reactants/products if they form isolated sequences.
         This happens when a ChemicalEquation produces the reagents of another"""
         mol_roots = self.get_roots()
-        all_ces = self.extract_reaction_nodes()
+        all_ces = [
+            node
+            for node in self.get_unique_nodes()
+            if isinstance(node, ChemicalEquation)
+        ]
         reaction_roots = []
         for m in mol_roots:
             reaction_roots.extend(
-                [parent for parent, children in self.graph.items() if m in children]
+                [parent for parent, children in self if m in children]
             )
 
         for m in mol_roots:
-            # identifiying the molecule root that is reagent of another reaction
+            # identifying the molecule root that is reagent of another reaction
             if [ce for ce in all_ces if m.uid in ce.role_map["reagents"]]:
                 # identifying the chemical equation that has the reagent as product and removing it
                 ce_to_remove = next(
                     r for r in reaction_roots if m.uid in r.role_map["products"]
                 )
-                self.remove_node(m)
-                self.remove_node(ce_to_remove)
+                self.remove_node(m.uid)
+                self.remove_node(ce_to_remove.uid)
                 nodes_to_remove = [
                     mol
                     for h, mol in ce_to_remove.catalog.items()
                     if h in ce_to_remove.role_map["reactants"]
                 ]
-                [self.remove_node(n) for n in nodes_to_remove]
-
-    def extract_reaction_nodes(self) -> set:
-        """To extract the set of all unique ChemicalEquation nodes in the SynGraph instance"""
-        all_ces = set()
-        for parent, children in self.graph.items():
-            if isinstance(parent, ChemicalEquation):
-                all_ces.add(parent)
-
-            for child in children:
-                if isinstance(child, ChemicalEquation):
-                    all_ces.add(child)
-        return all_ces
+                [self.remove_node(n.uid) for n in nodes_to_remove]
 
 
 class MonopartiteReacSynGraph(SynGraph):
@@ -407,7 +409,7 @@ class MonopartiteReacSynGraph(SynGraph):
         """To get the list of Molecule leaves in a MonopartiteReacSynGraph."""
         all_reactants = set()
         all_products = set()
-        for parent, children in self.graph.items():
+        for parent, children in self:
             all_reactants.update(
                 {
                     mol
@@ -444,13 +446,11 @@ class MonopartiteReacSynGraph(SynGraph):
         """To remove isolate nodes from the SynGraph instance"""
         isolated_nodes = []
         if len(self.graph) > 1:
-            for parent, children in self.graph.items():
-                if children == set() and not [
-                    p for p, c in self.graph.items() if parent in c
-                ]:
+            for parent, children in self:
+                if children == set() and not [p for p, c in self if parent in c]:
                     isolated_nodes.append(parent)
         for i in isolated_nodes:
-            self.remove_node(i)
+            self.remove_node(i.uid)
 
 
 class MonopartiteMolSynGraph(SynGraph):

@@ -297,13 +297,13 @@ def test_node_removal():
     )
     # if the selected node is not present, a warning is raised and the syngraph instance remains unchanged
     with unittest.TestCase().assertLogs("linchemin.cgu.syngraph", level="WARNING"):
-        syngraph.remove_node(ce_not_present)
+        syngraph.remove_node(ce_not_present.uid)
     assert len(syngraph.graph) == 2
     # if the selected node is present,it is removed from the syngraph dictionary
     ce = chemical_equation_constructor.build_from_reaction_string(
         d[0]["output_string"], "smiles"
     )
-    syngraph.remove_node(ce)
+    syngraph.remove_node(ce.uid)
     assert len(syngraph.graph) == 1
 
 

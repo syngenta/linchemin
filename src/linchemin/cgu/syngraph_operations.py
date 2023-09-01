@@ -10,7 +10,6 @@ from linchemin.cgu.syngraph import (
 from linchemin.cheminfo.models import Molecule, ChemicalEquation
 from linchemin.cheminfo.constructors import (
     ChemicalEquationConstructor,
-    MoleculeConstructor,
 )
 import linchemin.utilities as utilities
 
@@ -107,30 +106,30 @@ def add_reaction_to_syngraph(
     if reaction_to_add.count(">") != 2:
         logger.error("Please insert a valid reaction smiles")
         raise SmilesTypeError
-    reaction_graph = BipartiteSynGraph(
-        [{"query_id": 0, "output_string": reaction_to_add}]
-    )
-    reactions = build_list_of_reactions(syngraph)
-    bp_graph = BipartiteSynGraph(reactions)
 
-    new_graph = merge_syngraph([bp_graph, reaction_graph])
-    all_reactions = build_list_of_reactions(new_graph)
+    all_reactions = [
+        {"query_id": 0, "output_string": reaction_to_add}
+    ] + build_list_of_reactions(syngraph)
     return type(syngraph)(all_reactions)
 
 
-def remove_nodes_from_syngraph(
+def remove_reaction_from_syngraph(
     syngraph: Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph],
-    node_to_remove: str,
+    reaction_to_remove: str,
+    remove_dandling_nodes: bool = True,
 ) -> Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph]:
     """
-    To remove a node and the paths form it to any leaf from a SynGraph object
+    To remove a reaction (and optionally the possible dangling nodes) from a SynGraph object based on the reaction smiles
 
     Parameters:
     -----------
     syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
         The SynGraph object from which the nodes should be removed
-    node_to_remove: str
-        The smiles of the molecule/reaction to be removed
+    reaction_to_remove: str
+        The smiles of the reaction to be removed
+    remove_dandling_nodes: bool
+        Wether the possible dandling nodes should be removed
+
 
     Returns:
     ---------
@@ -139,40 +138,54 @@ def remove_nodes_from_syngraph(
 
     Raises:
     ---------
-    TypeError: if the input objectis not a SynGraph
+    TypeError: if the input object is not a SynGraph
 
-    KeyError: if the node to be removed is not present in the input SynGraph
+    SmilesTypeError: if the provided smiles is not a valid reaction smiles
+
+    KeyError: if the reaction to be removed is not present in the input SynGraph
 
     Example
     -------
-    >>> new_graph = remove_nodes_from_syngraph(syngraph, 'CCC(=O)Nc1ccc(cc1)C(=O)N[C@@H](CO)C(=O)O')
+    >>> new_graph = remove_reaction_from_syngraph(syngraph, 'CCN.O>>CCO')
     """
     if not isinstance(
         syngraph, (BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph)
     ):
         logger.error("Only Syngraph objects are supported")
         raise TypeError
-    if node_to_remove.count(">") == 2:
+    if reaction_to_remove.count(">") == 2:
         node = ChemicalEquationConstructor().build_from_reaction_string(
-            node_to_remove, "smiles"
+            reaction_to_remove, "smiles"
         )
     else:
-        node = MoleculeConstructor().build_from_molecule_string(
-            node_to_remove, "smiles"
-        )
+        logger.error("Please insert a valid reaction smiles")
+        raise SmilesTypeError
     if syngraph.graph.get(node, None) is None:
         logger.warning(
             "The selected node is not present in the input graph. The input graph is returned unchanged"
         )
         return syngraph
-    nodes_to_remove = set()
-    for leaf in syngraph.get_leaves():
-        if path := find_path(syngraph, leaf, node):
-            [nodes_to_remove.add(n) for n in path]
     new_graph = copy.deepcopy(syngraph)
+    if remove_dandling_nodes:
+        return handle_dangling_nodes(new_graph, node)
+    else:
+        new_graph.remove_node(node.uid)
+        return new_graph
+
+
+def handle_dangling_nodes(
+    graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph],
+    node: ChemicalEquation,
+) -> Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]:
+    """To remove the possible dangling nodes due to the removal of the selected node"""
+    nodes_to_remove = set()
+    for leaf in graph.get_leaves():
+        if path := find_path(graph, leaf, node):
+            [nodes_to_remove.add(n) for n in path]
+
     for n in nodes_to_remove:
-        new_graph.remove_node(n)
-    return new_graph
+        graph.remove_node(n.uid)
+    return graph
 
 
 # Factory to extract reaction strings from a syngraph object
@@ -193,17 +206,14 @@ class ReactionsExtractorFromBipartite(ReactionsExtractor):
     """ReactionsExtractor subclass to handle BipartiteSynGraph objects"""
 
     def extract(self, syngraph: BipartiteSynGraph) -> list:
-        unique_reactions = set()
-        for parent, children in syngraph.graph.items():
-            if type(parent) == ChemicalEquation:
-                unique_reactions.add(parent)
-            for child in children:
-                if type(child) == ChemicalEquation:
-                    unique_reactions.add(child)
-        sorted_reactions = sorted([reaction.smiles for reaction in unique_reactions])
+        unique_reactions = [
+            node
+            for node in syngraph.get_unique_nodes()
+            if isinstance(node, ChemicalEquation)
+        ]
         return [
-            {"query_id": n, "input_string": reaction}
-            for n, reaction in enumerate(sorted_reactions)
+            {"query_id": n, "input_string": reaction.smiles}
+            for n, reaction in enumerate(unique_reactions)
         ]
 
 
@@ -211,15 +221,10 @@ class ReactionsExtractorFromMonopartiteReaction(ReactionsExtractor):
     """ReactionsExtractor subclass to handle MonopartiteReacSynGraph objects"""
 
     def extract(self, syngraph: MonopartiteReacSynGraph) -> list:
-        unique_reactions = set()
-        for parent, children in syngraph.graph.items():
-            unique_reactions.add(parent)
-            for child in children:
-                unique_reactions.add(child)
-        sorted_reactions = sorted([reaction.smiles for reaction in unique_reactions])
+        unique_reactions = syngraph.get_unique_nodes()
         return [
-            {"query_id": n, "input_string": reaction}
-            for n, reaction in enumerate(sorted_reactions)
+            {"query_id": n, "input_string": reaction.smiles}
+            for n, reaction in enumerate(unique_reactions)
         ]
 
 
@@ -228,31 +233,33 @@ class ReactionsExtractorFromMonopartiteMolecules(ReactionsExtractor):
 
     # TODO: check behavior when the same reactant appears twice (should be solved once the stoichiometry attribute is developed)
     def extract(self, syngraph: MonopartiteMolSynGraph) -> list:
+        unique_reactions = self.identify_reactions(syngraph)
+        return [
+            {"query_id": n, "input_string": reaction.smiles}
+            for n, reaction in enumerate(unique_reactions)
+        ]
+
+    def identify_reactions(self, syngraph: MonopartiteMolSynGraph) -> set:
         unique_reactions = set()
-        for parent, children in syngraph.graph.items():
+        chemical_equation_constructor = ChemicalEquationConstructor(
+            molecular_identity_property_name="smiles"
+        )
+        for parent, children in syngraph:
             for child in children:
                 reactants = [
-                    r.smiles
-                    for r, products_set in syngraph.graph.items()
-                    if child in products_set
+                    r.smiles for r, products_set in syngraph if child in products_set
                 ]
                 reaction_string = ">".join(
                     [".".join(reactants), ".".join([]), ".".join([child.smiles])]
                 )
-                chemical_equation_constructor = ChemicalEquationConstructor(
-                    molecular_identity_property_name="smiles"
-                )
+
                 chemical_equation = (
                     chemical_equation_constructor.build_from_reaction_string(
                         reaction_string=reaction_string, inp_fmt="smiles"
                     )
                 )
                 unique_reactions.add(chemical_equation)
-        sorted_reactions = sorted([reaction.smiles for reaction in unique_reactions])
-        return [
-            {"query_id": n, "input_string": reaction}
-            for n, reaction in enumerate(sorted_reactions)
-        ]
+        return unique_reactions
 
 
 class ExtractorFactory:
@@ -305,7 +312,7 @@ def extract_reactions_from_syngraph(
 
 
 def find_path(
-    graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
+    route: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
     leaf: Union[Molecule, ChemicalEquation],
     root: Union[Molecule, ChemicalEquation],
     path: Union[list, None] = None,
@@ -335,17 +342,20 @@ def find_path(
     """
     if path is None:
         path = []
+        if leaf == root:
+            return path
     path += [leaf]
     if leaf == root:
         return path
-    for node in graph.graph[leaf]:
+    for node in route.graph[leaf]:
         if node not in path:
-            if newpath := find_path(graph, node, root, path):
+            if newpath := find_path(route, node, root, path):
                 return newpath
 
 
 def build_list_of_reactions(syngraph):
-    """To extract a list of reaction smiles from a syngraph and return it suitable to be used as input for syngraph building"""
+    """To extract a list of reaction smiles from a syngraph and return it suitable to be used as input for syngraph
+    building"""
     reactions = extract_reactions_from_syngraph(syngraph)
     return [
         {"query_id": d["query_id"], "output_string": d["input_string"]}

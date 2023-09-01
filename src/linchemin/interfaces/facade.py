@@ -20,7 +20,7 @@ from linchemin.cgu.syngraph import (
 from linchemin.cgu.syngraph_operations import (
     merge_syngraph,
     extract_reactions_from_syngraph,
-    remove_nodes_from_syngraph,
+    remove_reaction_from_syngraph,
 )
 from linchemin.cgu.translate import (
     TranslationError,
@@ -1190,7 +1190,7 @@ class NodeRemovalFacade(Facade):
 
         for r in valid_routes:
             try:
-                modified_route = remove_nodes_from_syngraph(r, node_to_remove)
+                modified_route = remove_reaction_from_syngraph(r, node_to_remove)
                 if modified_route == r:
                     unchanged_routes.append(r)
                 else:

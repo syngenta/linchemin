@@ -2,7 +2,7 @@ from linchemin.cgu.syngraph_operations import (
     merge_syngraph,
     extract_reactions_from_syngraph,
     find_path,
-    remove_nodes_from_syngraph,
+    remove_reaction_from_syngraph,
     add_reaction_to_syngraph,
     SmilesTypeError,
 )
@@ -126,9 +126,8 @@ def test_extract_reactions(az_path):
     reactions = extract_reactions_from_syngraph(syngraph)
     assert len(reactions) == 2
     assert (
-        reactions[1]["input_string"]
-        == "Cc1cccc(C)c1NCC(=O)O.Nc1ccc(-c2ncon2)cc1>>Cc1cccc(C)c1NCC(=O)Nc1ccc("
-        "-c2ncon2)cc1"
+        "Cc1cccc(C)c1NCC(=O)O.Nc1ccc(-c2ncon2)cc1>>Cc1cccc(C)c1NCC(=O)Nc1ccc("
+        "-c2ncon2)cc1" in [reaction["input_string"] for reaction in reactions]
     )
 
     syngraph = translator(
@@ -165,15 +164,27 @@ def test_find_path(ibm1_path):
 def test_remove_nodes_from_syngraph():
     syngraph = MonopartiteReacSynGraph(test_route)
     node_to_remove = "CC#N.CC(C)(C)OC(=O)N1CC=C(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1.C[Si](C)(C)Cl.[I-].[Na+]>>O=c1cc(-c2ccccc2Cl)oc2c(C3=CCNCC3O)c(O)cc(O)c12"
-
-    new_syngraph = remove_nodes_from_syngraph(syngraph, node_to_remove)
+    # with removal of dangling nodes
+    new_syngraph = remove_reaction_from_syngraph(
+        syngraph, node_to_remove, remove_dandling_nodes=True
+    )
     assert len(new_syngraph.graph) == 2
     assert len(new_syngraph.graph) != len(syngraph.graph)
+    assert len(new_syngraph.get_roots()) == 1
     assert isinstance(new_syngraph, MonopartiteReacSynGraph)
-
+    # keeping the dandling nodes
+    new_syngraph = remove_reaction_from_syngraph(
+        syngraph, node_to_remove, remove_dandling_nodes=False
+    )
+    assert len(new_syngraph.graph) == 5 and len(new_syngraph.graph) < len(
+        syngraph.graph
+    )
+    print(syngraph.get_roots())
+    print(new_syngraph.get_roots())
+    assert len(new_syngraph.get_roots()) > 1
     # an error is raised if the input graph is in th wrong format
     with pytest.raises(TypeError) as te:
-        remove_nodes_from_syngraph(test_route, node_to_remove)
+        remove_reaction_from_syngraph(test_route, node_to_remove)
     assert "TypeError" in str(te.type)
 
     syngraph_bp = BipartiteSynGraph(test_route)
@@ -181,18 +192,20 @@ def test_remove_nodes_from_syngraph():
     with unittest.TestCase().assertLogs(
         "linchemin.cgu.syngraph_operations", level="WARNING"
     ) as cm:
-        node_to_remove = "CCN"
-        new_graph = remove_nodes_from_syngraph(syngraph_bp, node_to_remove)
+        wrong_node_to_remove = "CCN.O>>CCO"
+        new_graph = remove_reaction_from_syngraph(syngraph_bp, wrong_node_to_remove)
     assert new_graph == syngraph_bp
     unittest.TestCase().assertEqual(len(cm.records), 1)
     unittest.TestCase().assertIn(
         "The selected node is not present in the input graph",
         cm.records[0].getMessage(),
     )
-
-    node_to_remove = "O=c1cc(-c2ccccc2Cl)oc2c(I)c(O)cc(O)c12"
-    new_bp = remove_nodes_from_syngraph(syngraph_bp, node_to_remove)
-    assert len(new_bp.graph) == 31
+    new_bp = remove_reaction_from_syngraph(syngraph_bp, node_to_remove)
+    assert len(new_bp.graph) != len(syngraph_bp.graph)
+    assert len(new_bp.graph) == 10
+    with pytest.raises(TypeError) as te:
+        remove_reaction_from_syngraph(syngraph_bp, "COc1cc(OC)c2c(occc2=O)c1I")
+    assert "SmilesTypeError" in str(te.type)
 
 
 def test_add_reaction_to_syngraph():
