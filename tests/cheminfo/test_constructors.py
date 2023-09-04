@@ -1292,9 +1292,14 @@ def test_chemical_equation_attributes_are_available():
     assert ce2.disconnection.extract_info() == ce1.disconnection.extract_info()
     assert ce2.template == ce1.template
     assert ce2.mapping.reactants_unmapped_atoms_info["fraction"] == 0.11
-    assert ce2.mapping.reactants_unmapped_atoms_info['unmapped_atoms'] != {}
+    assert ce2.mapping.reactants_unmapped_atoms_info["unmapped_atoms"] != {}
     assert ce2.mapping.desired_product_unmapped_atoms_info["fraction"] == 0.2
-    assert ce2.mapping.desired_product_unmapped_atoms_info["unmapped_atoms"] == [{0, 7}]
+    assert next(
+        v
+        for v in ce2.mapping.desired_product_unmapped_atoms_info[
+            "unmapped_atoms"
+        ].values()
+    ) == [{0, 7}]
 
 
 def test_chemical_equation_from_db():
@@ -1425,6 +1430,26 @@ def test_ratam_and_role_reassignment():
                 "products": ["CNC(C)=O", "O"],
             },
         },
+        # A reactant is missing and all atoms in the desired product have a map number ("complete" option in namerxn)
+        {
+            "name": "rnx_6",
+            "smiles": "[CH3:1][C:2]([OH:3])=[O:4]>>[CH3:6][NH:5][C:2]([CH3:1])=[O:4]",
+            "expected": {
+                "reactants": ["CC(=O)O"],
+                "reagents": [],
+                "products": ["CNC(C)=O"],
+            },
+        },
+        # A reactant is missing and not all atoms in the desired product have a map number ("matched" option in namerxn)
+        {
+            "name": "rnx_7",
+            "smiles": "[CH3:1][C:2]([OH:3])=[O:4]>>[CH3][NH][C:2]([CH3:1])=[O:4]",
+            "expected": {
+                "reactants": ["CC(=O)O"],
+                "reagents": [],
+                "products": ["CNC(C)=O"],
+            },
+        },
     ]
     mol_constructor = MoleculeConstructor(molecular_identity_property_name="smiles")
     for item in test_set:
@@ -1445,27 +1470,33 @@ def test_ratam_and_role_reassignment():
                     reaction_mols, reaction_mols["products"][0]
                 )
             assert "BadMapping" in str(ke.type)
+
         else:
             ratam_constructor = RatamConstructor()
-            cem = ratam_constructor.create_ratam(
+            ratam = ratam_constructor.create_ratam(
                 reaction_mols, reaction_mols["products"][0]
             )
-            assert cem
-            assert cem.atom_transformations
-            map_numbers = set()
-            for d in cem.full_map_info.values():
-                for k, v in d.items():
-                    map_numbers.update(
-                        m for d in v for m in d.values() if m not in [0, -1]
-                    )
-            # check if an AtomTransformation exists for each map number
-            assert len(map_numbers) == len(cem.atom_transformations)
+            assert ratam
+            assert ratam.atom_transformations
 
-            for role, map_info in cem.full_map_info.items():
+            for role, map_info in ratam.full_map_info.items():
                 smiles_list = [
                     m.smiles for uid, m in catalog.items() if uid in map_info
                 ]
                 assert item["expected"][role] == smiles_list
+            if item["name"] in ["rnx_6", "rnx_7"]:
+                assert ratam.desired_product_unmapped_atoms_info["fraction"] == 0.4
+                assert next(
+                    v
+                    for v in ratam.desired_product_unmapped_atoms_info[
+                        "unmapped_atoms"
+                    ].values()
+                ) == [
+                    {
+                        0,
+                        3,
+                    }
+                ]
 
 
 # Pattern tests

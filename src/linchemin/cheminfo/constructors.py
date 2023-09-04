@@ -192,16 +192,25 @@ class RatamConstructor:
         ratam = Ratam()
 
         ratam.full_map_info = self.get_full_map_info(molecules_catalog, desired_product)
+
+        ratam.atom_transformations = self.get_atom_transformations(ratam.full_map_info)
+        dp_atom_transformations = set(
+            at
+            for at in ratam.atom_transformations
+            if at.product_uid == desired_product.uid
+        )
         ratam.desired_product_unmapped_atoms_info = (
             self.get_unmapped_atoms_in_desired_product(
-                ratam.full_map_info["products"][desired_product.uid]
+                ratam.full_map_info["products"][desired_product.uid],
+                dp_atom_transformations,
+                desired_product.uid,
             )
         )
 
         ratam.reactants_unmapped_atoms_info = self.get_unmapped_atoms_in_reactants(
-            ratam.full_map_info["reactants"]
+            ratam.full_map_info["reactants"], ratam.atom_transformations
         )
-        ratam.atom_transformations = self.get_atom_transformations(ratam.full_map_info)
+
         return ratam
 
     def get_full_map_info(
@@ -223,41 +232,72 @@ class RatamConstructor:
         self.mapping_sanity_check(full_map_info)
         return full_map_info
 
-    def get_unmapped_atoms_in_reactants(self, reactants_map_info: dict) -> dict:
+    def get_unmapped_atoms_in_reactants(
+        self, reactants_map_info: dict, atom_transformations: Set[AtomTransformation]
+    ) -> dict:
         """To get the information about unmapped atoms in the reactants"""
         info = {"unmapped_atoms": {}}
         reactants_tot_atoms = 0.0
         reactants_tot_unmapped = 0.0
         for r_uid, map_list in reactants_map_info.items():
+            r_transformed_atoms = set(
+                at.map_num for at in atom_transformations if at.reactant_uid == r_uid
+            )
             for mapping in map_list:
-                reactants_tot_atoms += len(mapping.keys())
-                if unmapped_atoms := self.find_unmapped_atoms(mapping):
-                    reactants_tot_unmapped += len(unmapped_atoms)
-                    if r_uid not in info["unmapped_atoms"].keys():
-                        info["unmapped_atoms"][r_uid] = [unmapped_atoms]
-                    else:
-                        info["unmapped_atoms"][r_uid].append(unmapped_atoms)
+                n_atoms, n_unmapped_atoms, info = self.analyze_map_dict(
+                    mapping, r_transformed_atoms, info, r_uid
+                )
+                reactants_tot_atoms += n_atoms
+                reactants_tot_unmapped += n_unmapped_atoms
+
         info["fraction"] = round(reactants_tot_unmapped / reactants_tot_atoms, 2)
         return info
 
-    @staticmethod
-    def find_unmapped_atoms(mapping: dict) -> set:
-        return set(a_id for a_id, map_num in mapping.items() if map_num in [0, -1])
-
     def get_unmapped_atoms_in_desired_product(
-        self, desired_product_map_info: List[dict]
+        self,
+        desired_product_map_info: List[dict],
+        dp_atom_transformations: Set[AtomTransformation],
+        dp_uid: int,
     ) -> dict:
         """To get the information about unmapped atoms in the desired product"""
-        info = {"unmapped_atoms": []}
+        info = {"unmapped_atoms": {}}
         tot_atoms = 0.0
         tot_unmapped_atoms = 0.0
+        transformed_atoms_map = set(at.map_num for at in dp_atom_transformations)
         for mapping in desired_product_map_info:
-            tot_atoms += len(mapping.keys())
-            if unmapped_atoms := self.find_unmapped_atoms(mapping):
-                tot_unmapped_atoms += len(unmapped_atoms)
-                info["unmapped_atoms"].append(unmapped_atoms)
+            n_atoms, n_unmapped_atoms, info = self.analyze_map_dict(
+                mapping, transformed_atoms_map, info, dp_uid
+            )
+            tot_atoms += n_atoms
+            tot_unmapped_atoms += n_unmapped_atoms
+
         info["fraction"] = round(tot_unmapped_atoms / tot_atoms, 2)
         return info
+
+    def analyze_map_dict(
+        self, mapping, transformed_atoms_map, info, uid
+    ) -> Tuple[int, int, dict]:
+        """To check if there are unmapped atoms based on a mapping dictionary"""
+        if unmapped_atoms := self.find_unmapped_atoms(mapping, transformed_atoms_map):
+            if uid not in info["unmapped_atoms"].keys():
+                info["unmapped_atoms"][uid] = [unmapped_atoms]
+            else:
+                info["unmapped_atoms"][uid].append(unmapped_atoms)
+            return (
+                len(mapping.keys()),
+                len(unmapped_atoms),
+                info,
+            )
+        else:
+            return len(mapping.keys()), 0, info
+
+    @staticmethod
+    def find_unmapped_atoms(mapping: dict, transformed_atoms_id: set) -> set:
+        return set(
+            a_id
+            for a_id, map_num in mapping.items()
+            if map_num not in transformed_atoms_id
+        )
 
     @staticmethod
     def products_map_info(molecules_catalog: dict, full_map_info: dict) -> dict:

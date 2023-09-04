@@ -182,8 +182,8 @@ class Ratam:
 
     full_map_info: dict = field(default_factory=dict)
     """ (dict) The dictionary mapping Molecule uids to a list of dictionaries mapping atom ids with map number"""
-    atom_transformations: list = field(default_factory=list)
-    """ (list) The list of AtomTransformations namedtuples corresponding to the transformations of mapped atoms.
+    atom_transformations: set = field(default_factory=set)
+    """ (set) The set of AtomTransformations namedtuples corresponding to the transformations of mapped atoms.
         AtomTransformation = namedtuple('AtomTransformation', ['product_uid', 'reactant_uid', 'prod_atom_id', 
         'react_atom_id', 'map_num']) """
     reactants_unmapped_atoms_info: dict = field(default_factory=dict)
