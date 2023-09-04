@@ -6,6 +6,7 @@ from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
 )
+from dataclasses import dataclass, field
 from linchemin.rem.route_descriptors import descriptor_calculator
 from typing import Union, Type
 from linchemin.cgu.syngraph_operations import find_path
@@ -16,6 +17,16 @@ from linchemin.cheminfo.models import ChemicalEquation, Molecule
 logger = console_logger(__name__)
 
 
+@dataclass
+class MetricOutput:
+    """Dataclass to store the output and metadata of a route metric calculation"""
+
+    metric_value: float = field(default=0.0)
+    """ The value of the route metrics"""
+    raw_data: dict = field(default_factory=dict)
+    """ Raw data of the route metric calculation (metric non-normalized value, normalization term"""
+
+
 class RouteMetric(ABC):
     @abstractmethod
     def compute_metric(
@@ -24,7 +35,7 @@ class RouteMetric(ABC):
             BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
         ],
         external_info: dict,
-    ) -> float:
+    ) -> MetricOutput:
         """
         To compute a route metric dependent on external information
 
@@ -33,7 +44,7 @@ class RouteMetric(ABC):
         route: Union[MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph]
             The input SynGraph for which the metrics should be computed
         external_info: TOBEDEFINED
-            The external informatio necessary for computing the route metric
+            The external information necessary for computing the route metric
 
         Returns:
         --------
@@ -126,18 +137,28 @@ class ReactantAvailability(RouteMetric):
             BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
         ],
         external_info: dict,
-    ) -> float:
+    ) -> MetricOutput:
         route = self.check_route_format(route)
         starting_materials = route.get_leaves()
         data = self.fix_external_info_format(external_info)
+        output = MetricOutput()
+        distance_function = "simple"
         score = 0
         normalization = 0
         root = route.get_roots()[0]
         for sm in starting_materials:
-            distance_term = distance_function_calculator("simple", route, sm, root)
+            distance_term = distance_function_calculator(
+                distance_function, route, sm, root
+            )
             normalization += distance_term
             score += distance_term * data[sm.smiles]
-        return round(score / normalization, 2)
+        output.metric_value = round(score / normalization, 2)
+        output.raw_data = {
+            "not_normalized_metric": score,
+            "normalization_term": normalization,
+            "distance_function": distance_function,
+        }
+        return output
 
     @staticmethod
     def check_route_format(
@@ -178,18 +199,26 @@ class YieldMetric(RouteMetric):
             BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
         ],
         external_data: dict,
-    ) -> float:
+    ) -> MetricOutput:
         route = self.check_route_format(route)
+        output = MetricOutput()
+        distance_function = "longest_sequence"
         score = 0.0
         normalization = 0.0
         reaction_root = route.get_roots()[0]
         for reaction in route.graph:
             distance_term = distance_function_calculator(
-                "longest_sequence", route, reaction, reaction_root
+                distance_function, route, reaction, reaction_root
             )
             normalization += distance_term
             score += distance_term * external_data[reaction.smiles]
-        return round(score / normalization, 2)
+        output.metric_value = round(score / normalization, 2)
+        output.raw_data = {
+            "not_normalized_metric": score,
+            "normalization_term": normalization,
+            "distance_function": distance_function,
+        }
+        return output
 
     @staticmethod
     def check_route_format(
@@ -207,7 +236,7 @@ def route_metric_calculator(
     metric_name: str,
     route: Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph],
     external_data: dict,
-) -> float:
+) -> MetricOutput:
     """
     To compute a route metric
 
@@ -222,8 +251,9 @@ def route_metric_calculator(
 
     Returns:
     ----------
-    metric: float
-        The value of the metric, between 0 and 1
+    output: MetricOutput
+        Its attributes contain (i) the metric value (ii) a dictionary containing the raw data
+        (not-normalized metric,normalization term)
 
     """
     if isinstance(
