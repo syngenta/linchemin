@@ -108,6 +108,7 @@ def test_mine_routes(az_path):
     new_reactions = [
         "COC(=O)C1CCS(=O)(=O)CC1>>OC(=O)C1CCS(=O)(=O)CC1",
         "NC1=CC=C(C=C1)C1=NOC=N1.COC(=O)CBr>>BrCC(=O)NC1=CC=C(C=C1)C1=NOC=N1",
+        "OC(=O)CBr.CCl>>COC(=O)CBr",
     ]
 
     mined_routes = mine_routes(syngraphs, root, new_reactions)
