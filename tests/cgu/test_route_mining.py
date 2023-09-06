@@ -3,12 +3,10 @@ import unittest
 
 import pytest
 
-from linchemin.cgu.route_mining import RouteFinder, mine_routes, old_route_miner
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-    MonopartiteReacSynGraph,
-)
+from linchemin.cgu.route_mining import (RouteFinder, mine_routes,
+                                        old_route_miner)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cgu.translate import nx, translator
 
 

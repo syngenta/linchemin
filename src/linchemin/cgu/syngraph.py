@@ -4,10 +4,8 @@ from typing import List, Tuple, Union
 
 import linchemin.utilities as utilities
 from linchemin.cgu.iron import Iron
-from linchemin.cheminfo.constructors import (
-    ChemicalEquationConstructor,
-    MoleculeConstructor,
-)
+from linchemin.cheminfo.constructors import (ChemicalEquationConstructor,
+                                             MoleculeConstructor)
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 
 """

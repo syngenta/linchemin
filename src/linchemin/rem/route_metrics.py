@@ -3,11 +3,8 @@ from dataclasses import dataclass, field
 from typing import Type, Union
 
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-    MonopartiteReacSynGraph,
-)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cgu.syngraph_operations import find_path
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.route_descriptors import descriptor_calculator

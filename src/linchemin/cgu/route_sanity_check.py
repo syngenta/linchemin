@@ -7,11 +7,8 @@ import networkx as nx
 
 from linchemin import settings
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-    MonopartiteReacSynGraph,
-)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cgu.syngraph_operations import find_path, handle_dangling_nodes
 from linchemin.cgu.translate import translator
 from linchemin.cheminfo.models import ChemicalEquation, Molecule

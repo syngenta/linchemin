@@ -1,11 +1,8 @@
 import pytest
 
 from linchemin.cgu.route_sanity_check import (
-    CyclicRouteError,
-    IsolatedNodesError,
-    get_available_route_sanity_checks,
-    route_checker,
-)
+    CyclicRouteError, IsolatedNodesError, get_available_route_sanity_checks,
+    route_checker)
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 
