@@ -11,7 +11,7 @@ from linchemin.cheminfo.functions import Descriptors
 from linchemin.utilities import console_logger
 
 """
-Module containing all classes and functions to compute route's step descriptors 
+Module containing all classes and functions to compute route's step descriptors
 """
 
 logger = console_logger(__name__)

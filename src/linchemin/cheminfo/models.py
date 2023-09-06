@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Union
+from typing import Union
 
 import linchemin.cheminfo.functions as cif
 
@@ -185,7 +185,7 @@ class Ratam:
     """ (dict) The dictionary mapping Molecule uids to a list of dictionaries mapping atom ids with map number"""
     atom_transformations: set = field(default_factory=set)
     """ (set) The set of AtomTransformations namedtuples corresponding to the transformations of mapped atoms.
-        AtomTransformation = namedtuple('AtomTransformation', ['product_uid', 'reactant_uid', 'prod_atom_id', 
+        AtomTransformation = namedtuple('AtomTransformation', ['product_uid', 'reactant_uid', 'prod_atom_id',
         'react_atom_id', 'map_num']) """
     reactants_unmapped_atoms_info: dict = field(default_factory=dict)
     """ (dict) The dictionary containing the fraction of unmapped atoms in the reactants"""
@@ -206,7 +206,7 @@ class ChemicalEquation:
     catalog: dict = field(default_factory=dict)
     """(dict) The catalog of the Molecule instances involved in the chemical reaction."""
     role_map: dict = field(default_factory=dict)
-    """ (dict) The dictionary mapping the uid of the involved Molecules to their roles (reactants, reagents and 
+    """ (dict) The dictionary mapping the uid of the involved Molecules to their roles (reactants, reagents and
     products)."""
     stoichiometry_coefficients: dict = field(default_factory=dict)
     """ (dict) The dictionary mapping each role to a dictionary containing the uids of the Molecules with that role
@@ -216,12 +216,12 @@ class ChemicalEquation:
     uid: int = field(default_factory=int)
     """ (int) The integer representing the unique identifier of the reaction."""
     rdrxn: Union[cif.rdChemReactions.ChemicalReaction, None] = None
-    """ (Union[cif.rdChemReactions.ChemicalReaction, None]) The RDKit ChemicalReaction object corresponding to the 
+    """ (Union[cif.rdChemReactions.ChemicalReaction, None]) The RDKit ChemicalReaction object corresponding to the
     ChemicalEquation (default None)"""
     smiles: str = field(default_factory=str)
     """ (str) The SMILES representation of the reaction."""
     mapping: Union[Ratam, None] = field(default=None)
-    """ (Union[Ratam, None]) The Ratam object with the information about the atom mapping (default None, if the 
+    """ (Union[Ratam, None]) The Ratam object with the information about the atom mapping (default None, if the
     ChemicalEquation is not mapped)."""
     template: Union[Template, None] = field(default=None)
     """ (Union[Template, None]) The Template object (default None, if the ChemicalEquation is not mapped)."""

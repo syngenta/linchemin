@@ -1,6 +1,6 @@
 import abc
 import multiprocessing as mp
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import partial
 from typing import List, Union
 

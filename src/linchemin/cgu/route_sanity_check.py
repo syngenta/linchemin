@@ -288,7 +288,7 @@ def route_checker(
         route, (MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph)
     ):
         logger.error(
-            f"""Object {type(route)} not supported. 
+            f"""Object {type(route)} not supported.
         Only SynGraph objects are supported."""
         )
         raise TypeError

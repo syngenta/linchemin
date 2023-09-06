@@ -1,6 +1,6 @@
 import copy
 from collections import namedtuple
-from typing import List, Tuple, Union
+from typing import List, Tuple
 
 from rdkit import Chem
 from rdkit.Chem import Draw

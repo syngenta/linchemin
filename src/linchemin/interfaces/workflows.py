@@ -491,7 +491,7 @@ def process_routes(
     return output
 
 
-#### Supporting functions and classes
+# Supporting functions and classes
 # Writers factory
 class SyngraphWriter(ABC):
     """Abstract class for the SyngraphWriter taking care of writing the routes in different file formats"""

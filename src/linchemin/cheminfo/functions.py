@@ -6,11 +6,10 @@ from typing import Callable, Dict, Iterable, List, Tuple, Union
 import rdkit
 from rdchiral import template_extractor
 from rdkit import Chem
-from rdkit.Chem import (
-    rdchem,
-    rdChemReactions,
-)
+from rdkit.Chem import (DataStructs, Descriptors, rdchem, rdChemReactions,
+                        rdFingerprintGenerator)
 from rdkit.Chem.rdchem import Atom, Mol
+from rdkit.Chem.rdMolHash import HashFunction, MolHash
 
 import linchemin.cheminfo.models as models
 import linchemin.utilities as utilities
