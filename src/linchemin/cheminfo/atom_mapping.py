@@ -37,7 +37,7 @@ class MappingOutput:
         """A float between 0.0 and 1 indicating the success rate of the mapping"""
         if self.mapped_reactions:
             return len(self.mapped_reactions) / (
-                    len(self.mapped_reactions) + len(self.unmapped_reactions)
+                len(self.mapped_reactions) + len(self.unmapped_reactions)
             )
         else:
             return 0.0
@@ -50,8 +50,7 @@ class Mapper(ABC):
     """Abstract class for the atom mappers"""
 
     @abstractmethod
-    def map_chemical_equations(self,
-                               reactions_list: List[dict]) -> MappingOutput:
+    def map_chemical_equations(self, reactions_list: List[dict]) -> MappingOutput:
         pass
 
 
@@ -60,8 +59,7 @@ class NameRxnMapper(Mapper):
 
     info = "NextMove reaction classifier. Needs credentials"
 
-    def map_chemical_equations(self,
-                               reactions_list: List[dict]) -> MappingOutput:
+    def map_chemical_equations(self, reactions_list: List[dict]) -> MappingOutput:
         # print('NameRxn mapper is called')
         out = MappingOutput()
         base_url = f"{settings.SERVICES.namerxn.url}:{settings.SERVICES.namerxn.port}"
@@ -109,8 +107,7 @@ class RxnMapper(Mapper):
 
     info = "Atom mapper developed by IBM"
 
-    def map_chemical_equations(self,
-                               reactions_list: List[dict]) -> MappingOutput:
+    def map_chemical_equations(self, reactions_list: List[dict]) -> MappingOutput:
         # print('RxnMapper mapper is called')
         out = MappingOutput()
         base_url = (
@@ -137,17 +134,13 @@ class RxnMapper(Mapper):
 
 class MapperFactory:
     mappers = {
-        "namerxn": {"value": NameRxnMapper,
-                    "info": NameRxnMapper.info},
+        "namerxn": {"value": NameRxnMapper, "info": NameRxnMapper.info},
         # 'chematica': {'value': ChematicaMapper,
         #               'info': ChematicaMapper.info},
-        "rxnmapper": {"value": RxnMapper,
-                      "info": RxnMapper.info},
+        "rxnmapper": {"value": RxnMapper, "info": RxnMapper.info},
     }
 
-    def call_mapper(self,
-                    mapper_name: str,
-                    reactions_list: list):
+    def call_mapper(self, mapper_name: str, reactions_list: list):
         """Takes a string indicating a mapper and calls it"""
         if mapper_name not in self.mappers:
             logger.error(
@@ -159,8 +152,7 @@ class MapperFactory:
         return mapper().map_chemical_equations(reactions_list)
 
 
-def perform_atom_mapping(reactions_list: List[dict],
-                         mapper_name: str) -> MappingOutput:
+def perform_atom_mapping(reactions_list: List[dict], mapper_name: str) -> MappingOutput:
     """
     To map a list of reaction smiles
 
@@ -200,16 +192,14 @@ class MappingStep(ABC):
     """Abstract handler for the concrete handlers of consecutive atom mappers"""
 
     @abstractmethod
-    def mapping(self,
-                out: MappingOutput):
+    def mapping(self, out: MappingOutput):
         pass
 
 
 class FirstMapping(MappingStep):
     """Concrete handler to call the first mapper"""
 
-    def mapping(self,
-                out: MappingOutput):
+    def mapping(self, out: MappingOutput):
         mapper = "namerxn"
         # try:
         mapper_output = perform_atom_mapping(out.unmapped_reactions, mapper)

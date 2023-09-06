@@ -4753,11 +4753,11 @@ def get_bonds_with_hydrogen(disconnection, rdmol: cif.Mol) -> Tuple[list, cif.Mo
 
 
 def build_bond_color_map(
-        new_bonds: list,
-        new_bonds_color: tuple,
-        modified_bonds: list,
-        modified_bonds_color: tuple,
-        rdmol: cif.Mol,
+    new_bonds: list,
+    new_bonds_color: tuple,
+    modified_bonds: list,
+    modified_bonds_color: tuple,
+    rdmol: cif.Mol,
 ) -> dict:
     """
     To build the color map for new and modified bonds in a disconnection
@@ -4793,7 +4793,7 @@ def build_bond_color_map(
 
 
 def draw_multiple_disconnections(
-        disconnections: list, show_atom_maps: bool = False
+    disconnections: list, show_atom_maps: bool = False
 ) -> bytes:
     """
     To generate the data for depicting multiple disconnections on the same Molecule.
@@ -4840,8 +4840,7 @@ def draw_multiple_disconnections(
 
 
 def get_multiple_disconnections_color_map(
-        disconnections: list,
-        rdmol: cif.Mol
+    disconnections: list, rdmol: cif.Mol
 ) -> Tuple[dict, cif.Mol]:
     """To build the bonds color map for multiple disconnections"""
     bond_colors = ColorMap().search_by_color_blind(color_blind_type="okabe_ito")
@@ -4882,7 +4881,7 @@ def draw_fragments(rdmol: cif.Mol) -> bytes:
 
 
 def draw_rxn_product_disconnection1(
-        rxn, atms, bnds, productIdx=None, showAtomMaps=False
+    rxn, atms, bnds, productIdx=None, showAtomMaps=False
 ):
     """
     https://greglandrum.github.io/rdkit-blog/tutorial/reactions/2021/11/26/highlighting-changed-bonds-in-reactions.html

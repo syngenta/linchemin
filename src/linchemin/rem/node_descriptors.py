@@ -75,7 +75,8 @@ class CEHypsicity(ChemicalEquationDescriptor):
         atom_transformations: list, desired_product: Molecule, reactants: list
     ) -> float:
         """Computes the change in oxidation state for each mapped atom in the ChemicalEquation as the difference
-        between the oxidation number of an atom in the desired product and the corresponding atom in the reactants."""
+        between the oxidation number of an atom in the desired product and the corresponding atom in the reactants.
+        """
         delta = 0.0
         # ox_nrs = []
         for at in atom_transformations:

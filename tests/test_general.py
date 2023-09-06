@@ -6,5 +6,5 @@ def test_version():
     assert version is not None
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_version()
