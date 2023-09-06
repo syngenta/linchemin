@@ -1,23 +1,21 @@
-from linchemin.rem.graph_distance import (
-    graph_distance_factory,
-    get_reactions_fp_dict,
-    get_mol_fp_dict,
-    build_similarity_matrix,
-    get_available_ged_algorithms,
-    get_ged_default_parameters,
-    compute_distance_matrix,
-    get_ged_parameters,
-    GraphDistanceError,
-)
-from linchemin.cgu.translate import translator
-from linchemin.cgu.convert import converter
-
 import json
-import pytest
+
 import networkx as nx
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pytest
 from rdkit.Chem import rdChemReactions
+
+from linchemin.cgu.convert import converter
+from linchemin.cgu.translate import translator
+from linchemin.rem.graph_distance import (GraphDistanceError,
+                                          build_similarity_matrix,
+                                          compute_distance_matrix,
+                                          get_available_ged_algorithms,
+                                          get_ged_default_parameters,
+                                          get_ged_parameters, get_mol_fp_dict,
+                                          get_reactions_fp_dict,
+                                          graph_distance_factory)
 
 
 def test_similarity_factory(az_path):

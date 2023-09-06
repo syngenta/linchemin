@@ -6,23 +6,16 @@ import networkx as nx
 import pydot
 import pytest
 
-from linchemin.cgu.iron import Iron, Node, Edge, Direction
-from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
-from linchemin.cgu.translate import (
-    translator,
-    ibm_dict_to_iron,
-    get_available_formats,
-    az_dict_to_iron,
-    mit_dict_to_iron,
-    get_available_data_models,
-    get_output_formats,
-    get_input_formats,
-    TranslationError,
-    PyDot,
-    Networkx,
-)
-from linchemin.cheminfo.models import ChemicalEquation
 from linchemin import settings
+from linchemin.cgu.iron import Direction, Edge, Iron, Node
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
+from linchemin.cgu.translate import (Networkx, PyDot, TranslationError,
+                                     az_dict_to_iron,
+                                     get_available_data_models,
+                                     get_available_formats, get_input_formats,
+                                     get_output_formats, ibm_dict_to_iron,
+                                     mit_dict_to_iron, translator)
+from linchemin.cheminfo.models import ChemicalEquation
 
 
 def generate_iron_test_graph():

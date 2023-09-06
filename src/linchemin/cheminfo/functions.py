@@ -1,21 +1,16 @@
 import copy
 import re
 from functools import partial
-from typing import Callable, Dict, List, Tuple, Union, Iterable
+from typing import Callable, Dict, Iterable, List, Tuple, Union
 
 import rdkit
 from rdchiral import template_extractor
 from rdkit import Chem, RDLogger
-from rdkit.Chem import (
-    DataStructs,
-    Draw,
-    rdchem,
-    rdChemReactions,
-    rdFingerprintGenerator,
-    Descriptors,
-)
+from rdkit.Chem import (DataStructs, Descriptors, Draw, rdchem,
+                        rdChemReactions, rdFingerprintGenerator)
 from rdkit.Chem.rdchem import Atom, Mol
 from rdkit.Chem.rdMolHash import HashFunction, MolHash
+
 import linchemin.cheminfo.models as models
 import linchemin.utilities as utilities
 

@@ -1,11 +1,12 @@
-from linchemin.interfaces.facade import facade, facade_helper
-from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph
-from rdkit.Chem import rdChemReactions
-import pandas as pd
-
-import unittest.mock
-import unittest
 import json
+import unittest
+import unittest.mock
+
+import pandas as pd
+from rdkit.Chem import rdChemReactions
+
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
+from linchemin.interfaces.facade import facade, facade_helper
 
 
 @unittest.mock.patch("linchemin.cgu.translate.ibm_dict_to_iron")

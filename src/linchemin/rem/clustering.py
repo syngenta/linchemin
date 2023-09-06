@@ -1,5 +1,5 @@
 import abc
-from typing import Union, List
+from typing import List, Union
 
 import hdbscan
 import numpy as np
@@ -8,7 +8,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 
 from linchemin import settings
-from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.rem.graph_distance import compute_distance_matrix
 from linchemin.rem.route_descriptors import descriptor_calculator
 from linchemin.utilities import console_logger

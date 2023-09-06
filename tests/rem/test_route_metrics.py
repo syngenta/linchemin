@@ -1,14 +1,10 @@
-from linchemin.rem.route_metrics import (
-    route_metric_calculator,
-    distance_function_calculator,
-)
-from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-)
 import pytest
+
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cheminfo.models import Molecule
+from linchemin.rem.route_metrics import (distance_function_calculator,
+                                         route_metric_calculator)
 
 # route from the test file of askcos
 d = [

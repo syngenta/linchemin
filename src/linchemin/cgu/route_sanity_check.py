@@ -1,20 +1,18 @@
+import copy
 import itertools
 from abc import ABC, abstractmethod
-from typing import List, Union, Type
-import copy
-from linchemin import settings
+from typing import List, Type, Union
+
 import networkx as nx
 
+from linchemin import settings
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-)
-from linchemin.cgu.translate import translator
-from linchemin.utilities import console_logger
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cgu.syngraph_operations import find_path, handle_dangling_nodes
-from linchemin.cheminfo.models import Molecule, ChemicalEquation
+from linchemin.cgu.translate import translator
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
+from linchemin.utilities import console_logger
 
 """ Module containing functions and classes to check the presence of issues in routes and handle them """
 logger = console_logger(__name__)

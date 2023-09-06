@@ -4,14 +4,11 @@ from typing import Type, Union
 
 import linchemin.cheminfo.functions as cif
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
-from linchemin.utilities import console_logger
 from linchemin.cheminfo.functions import Descriptors
+from linchemin.utilities import console_logger
 
 """
 Module containing all classes and functions to compute route's step descriptors 

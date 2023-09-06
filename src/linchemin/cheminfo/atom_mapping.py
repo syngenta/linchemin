@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Union, List
+from typing import List, Union
 
 from linchemin import settings
 from linchemin.services.namerxn import service

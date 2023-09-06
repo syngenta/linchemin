@@ -1,24 +1,19 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Union, List
+from typing import List, Union
 
 import pandas as pd
 
 import linchemin.IO.io as lio
 from linchemin import settings
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-    MonopartiteReacSynGraph,
-)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cgu.translate import get_available_data_models
 from linchemin.cheminfo.atom_mapping import get_available_mappers
 from linchemin.interfaces.facade import facade
 from linchemin.rem.clustering import get_available_clustering
-from linchemin.rem.graph_distance import (
-    get_available_ged_algorithms,
-    get_ged_parameters,
-)
+from linchemin.rem.graph_distance import (get_available_ged_algorithms,
+                                          get_ged_parameters)
 from linchemin.rem.route_descriptors import get_available_descriptors
 from linchemin.utilities import console_logger
 

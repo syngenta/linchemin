@@ -1,5 +1,6 @@
 import abc
 import multiprocessing as mp
+from dataclasses import dataclass, field
 from functools import partial
 from typing import List, Union
 
@@ -7,19 +8,15 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
+import linchemin.cheminfo.functions as cif
 from linchemin import settings
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.cgu.translate import translator
 from linchemin.cheminfo.chemical_similarity import (
-    compute_mol_fingerprint,
-    compute_reaction_fingerprint,
-    compute_similarity,
-)
-import linchemin.cheminfo.functions as cif
+    compute_mol_fingerprint, compute_reaction_fingerprint, compute_similarity)
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.configuration.defaults import DEFAULT_GED
 from linchemin.utilities import console_logger
-from dataclasses import dataclass, field
 
 """
 Module containing classes and functions to compute the similarity between pairs of routes.

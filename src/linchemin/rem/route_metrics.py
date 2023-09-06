@@ -1,17 +1,15 @@
 from abc import ABC, abstractmethod
-from linchemin.utilities import console_logger
-from linchemin import settings
-from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-)
 from dataclasses import dataclass, field
-from linchemin.rem.route_descriptors import descriptor_calculator
-from typing import Union, Type
-from linchemin.cgu.syngraph_operations import find_path
+from typing import Type, Union
+
+from linchemin import settings
 from linchemin.cgu.convert import converter
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
+from linchemin.cgu.syngraph_operations import find_path
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
+from linchemin.rem.route_descriptors import descriptor_calculator
+from linchemin.utilities import console_logger
 
 """Module containing functions and classes for computing route metrics that depend on external information"""
 logger = console_logger(__name__)

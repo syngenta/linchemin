@@ -1,15 +1,12 @@
 import copy
-from typing import List, Union, Tuple
+from typing import List, Tuple, Union
 
 from linchemin import settings
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cgu.syngraph_operations import merge_syngraph
-from linchemin.cgu.translate import translator, nx
+from linchemin.cgu.translate import nx, translator
 from linchemin.cheminfo.constructors import MoleculeConstructor
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.route_descriptors import find_path
