@@ -1,5 +1,5 @@
 import abc
-from typing import Union, List
+from typing import List, Union
 
 import hdbscan
 import numpy as np
@@ -8,7 +8,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 
 from linchemin import settings
-from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.rem.graph_distance import compute_distance_matrix
 from linchemin.rem.route_descriptors import descriptor_calculator
 from linchemin.utilities import console_logger
@@ -142,11 +142,11 @@ class ClusterFactory:
 
     available_clustering_algorithms = {
         "hdbscan": {
-            "value": HdbscanClusterCalculator(),
+            "value": HdbscanClusterCalculator,
             "info": "HDBscan algorithm. Not working with less than 15 routes",
         },
         "agglomerative_cluster": {
-            "value": AgglomerativeClusterCalculator(),
+            "value": AgglomerativeClusterCalculator,
             "info": "Agglomerative Clustering algorithm. The number of clusters is optimized "
             "computing the silhouette score",
         },
@@ -170,12 +170,27 @@ class ClusterFactory:
             )
             raise UnavailableClusteringAlgorithm
 
-        selector = self.available_clustering_algorithms[clustering_method]["value"]
-        dist_matrix = compute_distance_matrix(
+        cluster_method = self.available_clustering_algorithms[clustering_method][
+            "value"
+        ]()
+        dist_matrix = self.get_distance_matrix(
             syngraphs, ged_method, ged_params, parallelization, n_cpu
         )
 
-        return selector.get_clustering(dist_matrix, save_dist_matrix, **kwargs)
+        return cluster_method.get_clustering(dist_matrix, save_dist_matrix, **kwargs)
+
+    @staticmethod
+    def get_distance_matrix(
+        syngraphs: list,
+        ged_method: str,
+        ged_params: dict,
+        parallelization: bool,
+        n_cpu: int,
+    ):
+        """To get the ged matrix for the input graphs"""
+        return compute_distance_matrix(
+            syngraphs, ged_method, ged_params, parallelization, n_cpu
+        )
 
 
 def clusterer(
@@ -247,8 +262,7 @@ def clusterer(
     )
 
 
-def compute_silhouette_score(dist_matrix: np.array,
-                             clusterer_labels) -> float:
+def compute_silhouette_score(dist_matrix: np.array, clusterer_labels) -> float:
     """To compute the silhouette score for the clustering of a distance matrix.
 
     Parameters:
@@ -265,8 +279,7 @@ def compute_silhouette_score(dist_matrix: np.array,
     return silhouette_score(dist_matrix, clusterer_labels, metric="precomputed")
 
 
-def optimize_agglomerative_cluster(dist_matrix: np.array,
-                                   linkage: str) -> tuple:
+def optimize_agglomerative_cluster(dist_matrix: np.array, linkage: str) -> tuple:
     """
     To optimize the number of clusters for the AgglomerativeClustering method.
 
@@ -303,15 +316,17 @@ def optimize_agglomerative_cluster(dist_matrix: np.array,
     return best_clustering, max_score, best_n_cluster
 
 
-def get_clustered_routes_metrics(syngraphs: list,
-                                 clustering_output) -> pd.DataFrame:
+def get_clustered_routes_metrics(
+    syngraphs: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph]],
+    clustering_output,
+) -> pd.DataFrame:
     """
     To compute the metrics of the routes in the input list grouped by cluster.
 
     Parameters:
     -----------
-    syngraphs: list
-        The list of SynGraph/MonopartiteSynGraph for which the metrics should be computed
+    syngraphs: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph]]
+        The list of SynGraph for which the metrics should be computed
     clustering_output:
         the output of a clustering algorithm
 
@@ -328,21 +343,30 @@ def get_clustered_routes_metrics(syngraphs: list,
     for k in unique_labels:
         cluster_routes = np.where(clustering_output.labels_ == k)[0].tolist()
         graphs = [syngraphs[i] for i in cluster_routes]
-        d = pd.DataFrame(columns=col)
-        for n, graph in enumerate(graphs):
-            n_step = descriptor_calculator(graph, "nr_steps")
-            route_id = graph.source
-            d.loc[n, "routes_id"] = route_id
-            d.loc[n, "n_steps"] = n_step
-            b = descriptor_calculator(graph, "nr_branches")
-            d.loc[n, "n_branch"] = b
-            d.loc[n, "cluster"] = k
-
+        d = populate_metric_df(graphs, col, k)
         df1 = pd.concat([df1, d], ignore_index=True)
     return df1
 
 
-def get_available_clustering():
+def populate_metric_df(
+    graphs: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph]],
+    columns: list,
+    k: int,
+) -> pd.DataFrame:
+    """To populate a dataframe with the metrics for graphs in the k-th cluster"""
+    d = pd.DataFrame(columns=columns)
+    for n, graph in enumerate(graphs):
+        n_step = descriptor_calculator(graph, "nr_steps")
+        route_id = graph.source
+        d.loc[n, "routes_id"] = route_id
+        d.loc[n, "n_steps"] = n_step
+        b = descriptor_calculator(graph, "nr_branches")
+        d.loc[n, "n_branch"] = b
+        d.loc[n, "cluster"] = k
+    return d
+
+
+def get_available_clustering() -> dict:
     """Returns a dictionary with the available clustering algorithms and some info"""
     return {
         f: additional_info["info"]

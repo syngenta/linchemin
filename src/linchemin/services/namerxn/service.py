@@ -1,4 +1,4 @@
-#############SDK####################
+# SDK####################
 from urllib.parse import urljoin
 
 import requests

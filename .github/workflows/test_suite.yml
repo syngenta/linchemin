@@ -7,22 +7,7 @@ on:
       - main
 
 jobs:
-  pre-commit:
-    name: Run linters with pre-commit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-          cache: 'pip'
-      - name: Install dependencies
-        run: pip install -e '.[dev]'
-      - name: Run pre-commit hooks
-        run: SKIP=no-commit-to-branch pre-commit run --all-files --show-diff-on-failure
-
   testing:
-    needs: [pre-commit]
     strategy:
       fail-fast: false
       matrix:
@@ -33,6 +18,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Setup Python
         uses: actions/setup-python@v4
         with:

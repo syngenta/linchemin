@@ -1,15 +1,12 @@
 import abc
 from collections import defaultdict
-from typing import Union, List
+from typing import List, Union
 
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteReacSynGraph,
-    MonopartiteMolSynGraph,
-)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cgu.syngraph_operations import find_path
-from linchemin.cheminfo.models import ChemicalEquation, Molecule
+from linchemin.cheminfo.models import ChemicalEquation
 from linchemin.rem.node_descriptors import node_descriptor_calculator
 from linchemin.utilities import console_logger
 
@@ -51,7 +48,7 @@ class MismatchingGraphType(DescriptorError):
     pass
 
 
-class DescriptorCalculator(metaclass=abc.ABCMeta):
+class RouteDescriptor(metaclass=abc.ABCMeta):
     """Abstract class for DescriptorCalculator."""
 
     @abc.abstractmethod
@@ -77,7 +74,7 @@ class DescriptorCalculator(metaclass=abc.ABCMeta):
         pass
 
 
-class NrBranches(DescriptorCalculator):
+class NrBranches(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the number of "AND" branches in a SynRoute."""
 
     info = "Computes the number of branches in the input SynGraph"
@@ -106,10 +103,10 @@ class NrBranches(DescriptorCalculator):
             raise WrongGraphType
 
         branching_nodes = set()
-        for reac, connections in mp_graph.graph.items():
+        for reac, connections in mp_graph:
             for c in connections:
                 source_reactions = [
-                    r for r, products_set in mp_graph.graph.items() if c in products_set
+                    r for r, products_set in mp_graph if c in products_set
                 ]
                 if len(source_reactions) > 1:
                     for reaction in source_reactions:
@@ -118,7 +115,7 @@ class NrBranches(DescriptorCalculator):
         return len(branching_nodes)
 
 
-class Branchedness(DescriptorCalculator):
+class Branchedness(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the "branchedness" of a SynGraph"""
 
     info = (
@@ -146,10 +143,10 @@ class Branchedness(DescriptorCalculator):
             raise WrongGraphType
 
         branching_nodes = set()
-        for reac, connections in mp_graph.graph.items():
+        for reac, connections in mp_graph:
             for c in connections:
                 source_reactions = [
-                    r for r, products_set in mp_graph.graph.items() if c in products_set
+                    r for r, products_set in mp_graph if c in products_set
                 ]
                 if len(source_reactions) > 1:
                     for reaction in source_reactions:
@@ -168,7 +165,7 @@ class Branchedness(DescriptorCalculator):
         return branchedness
 
 
-class LongestSequence(DescriptorCalculator):
+class LongestSequence(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the longest linear sequence in a SynGraph."""
 
     info = "Computes the longest linear sequence in the input SynGraph"
@@ -195,14 +192,13 @@ class LongestSequence(DescriptorCalculator):
         leaves = mp_graph.get_leaves()
         longest_sequence: list = []
         for leaf in leaves:
-            path = find_path(mp_graph, leaf, root[0])
-            reaction_path = list(path)
+            reaction_path = find_path(mp_graph, leaf, root[0])
             if len(reaction_path) > len(longest_sequence):
                 longest_sequence = reaction_path
         return len(longest_sequence)
 
 
-class NrReactionSteps(DescriptorCalculator):
+class NrReactionSteps(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the number of ReactionStep nodes in a SynGraph."""
 
     info = "Computes the number of chemical reactions in the input SynGraph"
@@ -227,7 +223,7 @@ class NrReactionSteps(DescriptorCalculator):
         return len(mp_graph.graph)
 
 
-class PathFinder(DescriptorCalculator):
+class PathFinder(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the list of paths (ReactionStep nodes only) in a SynGraph."""
 
     info = "Computes all the paths between the SynRoots and the SynLeaves in the input SynGraph"
@@ -264,7 +260,7 @@ class PathFinder(DescriptorCalculator):
         return all_paths
 
 
-class Convergence(DescriptorCalculator):
+class Convergence(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the convergence of a SynGraph."""
 
     info = (
@@ -287,7 +283,7 @@ class Convergence(DescriptorCalculator):
         return longest_lin_seq / n_steps
 
 
-class AvgBranchingFactor(DescriptorCalculator):
+class AvgBranchingFactor(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the average branching factor of a SynGraph."""
 
     info = "Computes the average branching factor of the input SynGraph"
@@ -319,7 +315,7 @@ class AvgBranchingFactor(DescriptorCalculator):
         return float(nr_non_root_nodes / nr_non_leaf_nodes)
 
 
-class CDScore(DescriptorCalculator):
+class CDScore(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the Convergent Disconnection Score of a SynGraph.
     https://pubs.acs.org/doi/10.1021/acs.jcim.1c01074
     """
@@ -345,11 +341,7 @@ class CDScore(DescriptorCalculator):
             raise WrongGraphType
 
         # Collect all unique reaction invovled in the route
-        unique_reactions = set()
-        for parent, children in mp_graph.graph.items():
-            unique_reactions.add(parent)
-            for child in children:
-                unique_reactions.add(child)
+        unique_reactions = mp_graph.get_unique_nodes()
 
         route_score = 0
         for reaction in unique_reactions:
@@ -359,7 +351,7 @@ class CDScore(DescriptorCalculator):
         return route_score / len(unique_reactions)
 
 
-class AtomEfficiency(DescriptorCalculator):
+class AtomEfficiency(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the atom efficiency of a SynGraph."""
 
     info = (
@@ -476,46 +468,6 @@ def get_available_descriptors():
     }
 
 
-# def find_path(
-#     graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
-#     leaf: Union[Molecule, ChemicalEquation],
-#     root: Union[Molecule, ChemicalEquation],
-#     path: Union[list, None] = None,
-# ) -> list:
-#     """
-#     To find a path between two nodes in a SynGraph.
-#
-#     Parameters:
-#     ------------
-#     graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph]
-#         The graph of interest
-#     leaf:  Union[Molecule, ChemicalEquation]
-#         The node at which the path should end
-#     root: Union[Molecule, ChemicalEquation]
-#         The node at which the path should start
-#     path: Optional[Union[list, None]]
-#         The list of Molecule/ChemicalEquation instances already discovered along the path (default None)
-#
-#     Returns:
-#     --------
-#     path: list
-#         The path as list of Molecule and/or ChemicalEquation
-#
-#     Example:
-#     ---------
-#     >>> path = find_path(syngraph, leaf_mol, root_mol)
-#     """
-#     if path is None:
-#         path = []
-#     path += [leaf]
-#     if leaf == root:
-#         return path
-#     for node in graph.graph[leaf]:
-#         if node not in path:
-#             if newpath := find_path(graph, node, root, path):
-#                 return newpath
-
-
 def is_subset(
     syngraph1: Union[
         BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
@@ -618,7 +570,7 @@ def get_nodes_consensus(syngraphs: list) -> dict:
     """
     node_consensus = defaultdict(set)
     for graph in syngraphs:
-        for reac, connections in graph.graph.items():
+        for reac, connections in graph:
             node_consensus[reac].add(graph.source)
             for c in connections:
                 node_consensus[c].add(graph.source)

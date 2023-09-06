@@ -75,7 +75,7 @@ package_name = defaults.package_name
 
 
 class ConfigurationFileHandler:
-    """ class to handle (search, check, create, configuration files)
+    """class to handle (search, check, create, configuration files)
 
     Attributes:
     -----------
@@ -102,12 +102,12 @@ class ConfigurationFileHandler:
         assess()
             assess if the program can be executed correctly
 
-   """
+    """
 
     user_home_directory = Path.home()
     config_dir = user_home_directory / package_name
-    settings_file = config_dir / 'settings.yaml'
-    secrets_file = config_dir / '.secrets.yaml'
+    settings_file = config_dir / "settings.yaml"
+    secrets_file = config_dir / ".secrets.yaml"
 
     def check(self) -> bool:
         """
@@ -129,7 +129,9 @@ class ConfigurationFileHandler:
             print(f"The configuration directory does not exist!: {self.config_dir}")
 
         if self.config_dir.exists() and not self.config_dir.is_dir():
-            raise FileExistsError("a file exists with the name of the configuration directory: please remove it")
+            raise FileExistsError(
+                "a file exists with the name of the configuration directory: please remove it"
+            )
 
         if not settings_file_exists:
             print(f"\nThe settings file does not exist!: {self.settings_file}")
@@ -154,7 +156,9 @@ class ConfigurationFileHandler:
 
         is_success = self.check()
         if not is_success:
-            raise FileNotFoundError("the configuration directory/files are not properly setup")
+            raise FileNotFoundError(
+                "the configuration directory/files are not properly setup"
+            )
 
     def create(self):
         """
@@ -170,32 +174,39 @@ class ConfigurationFileHandler:
         """
 
         if self.config_dir.exists() and not self.config_dir.is_dir():
-            raise FileExistsError("a file exists with the name of the configuration directory")
+            raise FileExistsError(
+                "a file exists with the name of the configuration directory"
+            )
 
         if not self.config_dir.exists():
             print(f"The configuration directory will be created: {self.config_dir}")
             self.config_dir.mkdir(exist_ok=True)
 
-        for (name, file, content) in zip(('settings', 'secrets'),
-                                         (self.settings_file, self.secrets_file),
-                                         (defaults.settings, defaults.secrets)):
-
+        for name, file, content in zip(
+            ("settings", "secrets"),
+            (self.settings_file, self.secrets_file),
+            (defaults.settings, defaults.secrets),
+        ):
             if not file.exists():
                 write = True
             else:
                 with open(file) as stream:
                     content_old = yaml.load(stream, Loader=yaml.Loader)
-                message = f'\nThe {name} file was found in {file} \n' \
-                          f' current  file content: {content_old}\n' \
-                          f' proposed file content: {content}'
+                message = (
+                    f"\nThe {name} file was found in {file} \n"
+                    f" current  file content: {content_old}\n"
+                    f" proposed file content: {content}"
+                )
 
-                data = _ask(message=message,
-                            question='do you what to overwrite it with the new content?',
-                            accepted_values=['y', 'n'])
-                write = {'y': True, 'n': False}.get(data)
+                data = _ask(
+                    message=message,
+                    question="do you what to overwrite it with the new content?",
+                    accepted_values=["y", "n"],
+                )
+                write = {"y": True, "n": False}.get(data)
             if write:
                 print(f"Writing the {name} file in: {file}")
-                with open(file, 'w') as f:
+                with open(file, "w") as f:
                     yaml.dump(content, f)
 
 
@@ -239,5 +250,5 @@ cfh = ConfigurationFileHandler()
 settings = Dynaconf(
     settings_files=[cfh.settings_file, cfh.secrets_file],
     envvar_prefix=package_name.capitalize(),
-    environments=False
+    environments=False,
 )

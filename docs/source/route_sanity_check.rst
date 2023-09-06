@@ -11,10 +11,10 @@ The route predicted by the CASP tools might contain some "chemical" issues
 that can translate into "graph" issues when the routes are re-built based on the chemical logic
 of reactants --> products. In LinChemIn this happens, for example, when the routes are
 passed through the atom-to-atom mapping machinery: you give a list of routes, the involved chemical reactions
-are extracted and mapped (so that you can have ore information about them) and, in the end, the
+are extracted and mapped (so that you can have more information about them) and, in the end, the
 routes are re-built. In this case, you might notice that some descriptors seem incorrect
 and if you look at the routes, you will probably see some funky structures, with cycles
-or isolated nodes. This is due to the aforementioned "chemical" problems that have also become "graph"" problems.
+or isolated nodes. This is due to the aforementioned "chemical" problems that have also become "graph" problems.
 
 Since we do not want you to delete whole routes because of these issues, we implemented a facade
 functionality that can identified some of these problems and handle them, by removing the extra nodes.

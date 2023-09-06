@@ -1,12 +1,9 @@
 from collections import defaultdict
-from typing import Union, Tuple, Sequence
+from typing import Sequence, Tuple, Union
 
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteReacSynGraph,
-    MonopartiteMolSynGraph,
-)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cheminfo.models import Disconnection
 
 

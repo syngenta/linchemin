@@ -1,23 +1,21 @@
 import datetime
 import os
 from abc import ABC, abstractmethod
-from typing import List, Union, Tuple, Type
+from typing import List, Tuple, Type, Union
+
+import networkx as nx
+import pydot
 
 import linchemin.cheminfo.depiction as cid
 import linchemin.cheminfo.functions as cif
-import networkx as nx
-import pydot
-from linchemin.IO import io as lio
+from linchemin import settings
 from linchemin.cgu.convert import converter
 from linchemin.cgu.iron import Direction, Edge, Iron, Node
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-    MonopartiteReacSynGraph,
-)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
+from linchemin.IO import io as lio
 from linchemin.utilities import console_logger
-from linchemin import settings
 
 """
 Module containing functions and classes to transform a graph from an input format to a different output format.
@@ -62,10 +60,10 @@ class UnavailableTranslation(TranslationError):
     pass
 
 
-# Abstract class definition for translators
-class AbsTranslator(ABC):
+# Abstract graph
+class Graph(ABC):
     """
-    Abstract class for format translators.
+    Abstract class for graph objects.
 
     Attributes:
     ------------
@@ -84,16 +82,7 @@ class AbsTranslator(ABC):
     @abstractmethod
     def from_iron(
         self, graph: Iron
-    ) -> Union[
-        MonopartiteReacSynGraph,
-        MonopartiteMolSynGraph,
-        BipartiteSynGraph,
-        nx.classes.digraph.DiGraph,
-        pydot.Dot,
-        list,
-        dict,
-        None,
-    ]:
+    ) -> Union[nx.classes.digraph.DiGraph, pydot.Dot, list, dict, None]:
         """
         To translate an Iron instance into a graph object of another type.
 
@@ -104,8 +93,7 @@ class AbsTranslator(ABC):
 
         Returns:
         --------
-        output graph: Union[MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph, nx.classes.digraph.DiGraph,
-                    pydot.Dot, list, dict, None]
+        output graph: Union[nx.classes.digraph.DiGraph, pydot.Dot, list, dict, None]
             The input graph in another format selected by the user
         """
         pass
@@ -114,9 +102,6 @@ class AbsTranslator(ABC):
     def to_iron(
         self,
         graph: Union[
-            MonopartiteReacSynGraph,
-            MonopartiteMolSynGraph,
-            BipartiteSynGraph,
             nx.classes.digraph.DiGraph,
             pydot.Dot,
             list,
@@ -129,8 +114,7 @@ class AbsTranslator(ABC):
 
         Parameters:
         -----------
-        graph: Union[MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph, nx.classes.digraph.DiGraph,
-                    pydot.Dot, list, dict, None]
+        graph: Union[nx.classes.digraph.DiGraph, pydot.Dot, list, dict, None]
             The input graph to be translated into an Iron object
 
         Returns:
@@ -139,6 +123,70 @@ class AbsTranslator(ABC):
             The input graph as Iron object
         """
         pass
+
+
+# Translator factory definition
+class DataModelFactory(ABC):
+    """
+    Abstract Data Model Factory
+
+    """
+
+    _formats = {}
+
+    def input_to_iron(
+        self,
+        input_format: str,
+        graph: Union[
+            Iron,
+            nx.classes.digraph.DiGraph,
+            pydot.Dot,
+            list,
+            dict,
+            None,
+        ],
+    ) -> Iron:
+        """To translate an input graph into an Iron object"""
+        if input_format == "iron":
+            return graph
+        graph_format = self.get_format(input_format)
+        return graph_format.to_iron(graph)
+
+    @abstractmethod
+    def iron_to_syngraph(
+        self, iron_graph: Iron
+    ) -> Union[
+        MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph, None
+    ]:
+        """To translate an Iron graph into a SynGraph object of the correct type"""
+        pass
+
+    @abstractmethod
+    def syngraph_to_iron(
+        self,
+        syngraph: Union[
+            MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph, None
+        ],
+    ) -> Union[Iron, None]:
+        """To translate a SynGraph object into an Iron graph"""
+        pass
+
+    @abstractmethod
+    def convert_syngraph(
+        self,
+        syngraph: Union[
+            MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph
+        ],
+    ) -> Union[MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph]:
+        """To convert between SynGraph types"""
+        pass
+
+    def iron_to_output(
+        self, iron_graph: Iron, output_format: str
+    ) -> Union[nx.classes.digraph.DiGraph, pydot.Dot, list, dict, None]:
+        """To translate an Iron object into a graph in the output format"""
+        graph_format = self.get_format(output_format)
+        return graph_format.from_iron(iron_graph)
 
     def get_node_info(
         self, node: Union[ChemicalEquation, Molecule], iron: Iron
@@ -162,7 +210,7 @@ class AbsTranslator(ABC):
     def build_iron_node(
         node: Union[ChemicalEquation, Molecule], id_n: int
     ) -> Tuple[int, Node]:
-        """To build an Iron's node instance from a ChemicalEquation"""
+        """To build an Iron node instance from a ChemicalEquation"""
         # the unmapped smiles is built so that the route is suitable to be correctly displayed in a png file
         if type(node) == ChemicalEquation:
             unmapped_smiles = cif.rdrxn_to_string(
@@ -178,53 +226,20 @@ class AbsTranslator(ABC):
         }
         return id_n, Node(iid=str(id_n), properties=prop, labels=[])
 
-
-# Translator factory definition
-class TranslatorFactory:
-    """
-    Translator Factory to give access to the translations.
-
-    Attributes:
-    ------------
-    _formats: a dictionary
-        It maps the strings representing the 'name' of a format to the correct AbsTranslator subclass
-
-    _data_models: a dictionary
-        It maps the strings representing the 'name' of a data model to the correct SynGraph subclass
-
-    """
-
-    _formats = {}
-    _data_models = {}
-
     @classmethod
-    def register_datamodel_translator(cls, name: str, info: str):
+    def list_formats(cls):
         """
-        Decorator for registering a new data model translator.
-
-        Parameters:
-        ------------
-        name: str
-            The name of the data model to be used as a key in the registry
-        info: str
-            A brief description of the data model
+        To list the names of all available data model factories.
 
         Returns:
         ---------
-        function: The decorator function.
+        formats: dict
+            The names and information of the available data models.
         """
-
-        def decorator(datamodel_translator_class: Type[AbsTranslator]):
-            cls._data_models[name.lower()] = {
-                "class": datamodel_translator_class,
-                "info": info,
-            }
-            return datamodel_translator_class
-
-        return decorator
+        return cls._formats
 
     @classmethod
-    def register_format_translator(cls, name: str, info: str):
+    def register_format(cls, name: str, info: str):
         """
         Decorator for registering a new data model translator.
 
@@ -240,7 +255,7 @@ class TranslatorFactory:
         function: The decorator function.
         """
 
-        def decorator(format_translator_class: Type[AbsTranslator]):
+        def decorator(format_translator_class: Type[Graph]):
             cls._formats[name.lower()] = {
                 "class": format_translator_class,
                 "info": info,
@@ -250,31 +265,7 @@ class TranslatorFactory:
         return decorator
 
     @classmethod
-    def list_format_translators(cls):
-        """
-        To list the names of all available formats.
-
-        Returns:
-        ---------
-        translators: list
-            The names and information of the available formats.
-        """
-        return cls._formats
-
-    @classmethod
-    def list_datamodels_translators(cls):
-        """
-        To list the names of all available formats.
-
-        Returns:
-        ---------
-        translators: list
-            The names and information of the available data models.
-        """
-        return cls._data_models
-
-    @classmethod
-    def get_format_translator(cls, name: str) -> AbsTranslator:
+    def get_format(cls, name: str) -> Graph:
         """
         To get an instance of the specified AbsTranslator.
 
@@ -297,205 +288,87 @@ class TranslatorFactory:
             raise UnavailableFormat
         return format_translator["class"]()
 
+
+class Translation:
+    _factories = {}
+
     @classmethod
-    def get_datamodel_translator(cls, name: str) -> AbsTranslator:
+    def register_factory(cls, name: str, info: str):
+        """
+        Decorator for registering a new data model translator.
+
+        Parameters:
+        ------------
+        name: str
+            The name of the translator to be used as a key in the registry
+        info: str
+            A brief description of the translator
+
+        Returns:
+        ---------
+        function: The decorator function.
+        """
+
+        def decorator(format_translator_class: Type[DataModelFactory]):
+            cls._factories[name.lower()] = {
+                "class": format_translator_class,
+                "info": info,
+            }
+            return format_translator_class
+
+        return decorator
+
+    def get_data_model_factory(self, name: str) -> DataModelFactory:
         """
         To get an instance of the specified AbsTranslator.
 
         Parameters:
         ------------
         name: str
-            The name of the data model translator.
+            The name of the format translator.
 
         Returns:
         ---------
         AbsTranslator: An instance of the specified format translator.
 
-         Raises:
+        Raises:
         -------
         KeyError: If the specified format is not registered.
         """
-        datamodel_translator = cls._data_models.get(name.lower())
-        if datamodel_translator is None:
-            logger.error(f"Data model '{name}' not found")
+        format_translator = self._factories.get(name.lower())
+        if format_translator is None:
+            logger.error(f"Format '{name}' not found")
             raise UnavailableDataModel
-        return datamodel_translator["class"]()
+        return format_translator["class"]()
 
-    def select_translation_to_iron(
-        self, input_format: str, graph, out_data_model: str
-    ) -> Iron:
-        """Calls the correct translator to transform the selected input graph object into an Iron instance"""
-        if input_format == "iron":
-            return graph
+    @classmethod
+    def list_datamodel_factories(cls):
+        """
+        To list the names of all available data model factories.
 
-        if input_format == "syngraph":
-            in_translator = self.get_datamodel_translator(out_data_model)
-        else:
-            in_translator = self.get_format_translator(input_format)
-        return in_translator.to_iron(graph)
+        Returns:
+        ---------
+        datamodel_factories: dict
+            The names and information of the available data models.
+        """
+        return cls._factories
 
-    def select_translation_from_iron(
-        self, out_format: str, iron_graph: Iron, out_data_model: str
+    def set_factory(self, out_data_model):
+        return self.get_data_model_factory(out_data_model)
+
+    def start_translation(
+        self, input_format: str, input_graph, output_format: str, out_data_model: str
     ):
-        """Calls the correct translator to transform an Iron instance into the selected output graph object"""
-        if out_format == "iron":
-            return iron_graph
-        if out_format == "syngraph":
-            out_translator = self.get_datamodel_translator(out_data_model)
-        else:
-            out_translator = self.get_format_translator(out_format)
-        return out_translator.from_iron(iron_graph)
+        data_model_factory = self.set_factory(out_data_model)
+
+        return InputToIron().translate(
+            input_format, input_graph, output_format, data_model_factory
+        )
 
 
-# Concrete translators definitions
-@TranslatorFactory.register_datamodel_translator(
-    "monopartite_reactions", "A graph with reaction nodes only"
-)
-class TranslatorMonopartiteReacSynGraph(AbsTranslator):
-    """Translator subclass to handle translations into and from MonopartiteReacSynGraph instances"""
-
-    as_input = "implemented"
-    as_output = "implemented"
-
-    def from_iron(self, iron_route: Iron) -> Union[MonopartiteReacSynGraph, None]:
-        """Translates an Iron instance into a MonopartiteReacSynGraph instance"""
-        try:
-            if iron_route is None:
-                raise EmptyRoute
-            return MonopartiteReacSynGraph(iron_route)
-        except EmptyRoute:
-            logger.warning(
-                "While translating from Iron to monopartite-reactions SynGraph object an empty route was found: "
-                '"None" returned'
-            )
-            return None
-
-    def to_iron(self, mp_syngraph: MonopartiteReacSynGraph) -> Union[Iron, None]:
-        """Translates a MonopartiteReacSynGraph instance into an Iron instance"""
-        try:
-            if mp_syngraph is None:
-                raise EmptyRoute
-            iron = Iron()
-            id_e = 0
-            for parent, children in mp_syngraph.graph.items():
-                id_n1, node1 = self.get_node_info(parent, iron)
-
-                for c in children:
-                    id_n2, node2 = self.get_node_info(c, iron)
-
-                    e = build_iron_edge(id_n1, id_n2, id_e)
-                    iron.add_edge(str(id_e), e)
-                    id_e += 1
-
-            iron.source = mp_syngraph.uid
-            return iron
-
-        except EmptyRoute:
-            logger.warning(
-                'While translating from a monopartite-reactions SynGraph to Iron an empty route was found: "None" '
-                "returned"
-            )
-            return None
-
-
-@TranslatorFactory.register_datamodel_translator(
-    "bipartite", "A graph with reaction and molecule nodes"
-)
-class TranslatorBipartiteSynGraph(AbsTranslator):
-    """Translator subclass to handle translations into and from BipartiteSynGraph instances"""
-
-    as_input = "implemented"
-    as_output = "implemented"
-
-    def from_iron(self, iron_route: Iron) -> Union[BipartiteSynGraph, None]:
-        """Translates an Iron instance into a BipartiteSynGraph instance"""
-        try:
-            if iron_route is None:
-                raise EmptyRoute
-            return BipartiteSynGraph(iron_route)
-        except EmptyRoute:
-            logger.warning(
-                'While translating from Iron to bipartite SynGraph object an empty route was found: "None" returned'
-            )
-            return None
-
-    def to_iron(self, syngraph: BipartiteSynGraph) -> Union[Iron, None]:
-        """Translates a BipartiteSynGraph instance into an Iron instance"""
-        try:
-            if syngraph is None:
-                raise EmptyRoute
-            iron = Iron()
-            id_e = 0
-            for parent, children in syngraph.graph.items():
-                id_n1, node1 = self.get_node_info(parent, iron)
-
-                for c in children:
-                    id_n2, node2 = self.get_node_info(c, iron)
-
-                    e = build_iron_edge(id_n1, id_n2, id_e)
-                    iron.add_edge(str(id_e), e)
-                    id_e += 1
-
-            iron.source = syngraph.uid
-            return iron
-        except EmptyRoute:
-            logger.warning(
-                'While translating from a bipartite SynGraph to Iron an empty route was found: "None" returned'
-            )
-            return None
-
-
-@TranslatorFactory.register_datamodel_translator(
-    "monopartite_molecules", "A graph with molecule nodes only"
-)
-class TranslatorMonopartiteMolSynGraph(AbsTranslator):
-    """Translator subclass to handle translations into and from MonopartiteMolSynGraph instances"""
-
-    as_input = "implemented"
-    as_output = "implemented"
-
-    def from_iron(self, iron_route: Iron) -> Union[MonopartiteMolSynGraph, None]:
-        """Translates an Iron instance into a MonopartiteMolSynGraph instance"""
-        try:
-            if iron_route is None:
-                raise EmptyRoute
-            return MonopartiteMolSynGraph(iron_route)
-        except EmptyRoute:
-            logger.warning(
-                "While translating from Iron to a monopartite-molecules SynGraph object an empty route was found: "
-                '"None" returned'
-            )
-            return None
-
-    def to_iron(self, mp_syngraph: MonopartiteMolSynGraph) -> Union[Iron, None]:
-        """Translates a MonopartiteReacSynGraph instance into an Iron instance"""
-        try:
-            if mp_syngraph is None:
-                raise EmptyRoute
-            iron = Iron()
-            id_e = 0
-            for parent, children in mp_syngraph.graph.items():
-                id_n1, node1 = self.get_node_info(parent, iron)
-
-                for c in children:
-                    id_n2, node2 = self.get_node_info(c, iron)
-
-                    e = build_iron_edge(id_n1, id_n2, id_e)
-                    iron.add_edge(str(id_e), e)
-                    id_e += 1
-
-            iron.source = mp_syngraph.uid
-            return iron
-        except EmptyRoute:
-            logger.warning(
-                'While translating from a monopartite-molecules SynGraph to Iron an empty route was found: "None" '
-                "returned"
-            )
-            return None
-
-
-@TranslatorFactory.register_format_translator("networkx", "Networkx DiGraph object")
-class TranslatorNetworkx(AbsTranslator):
+# Graph concrete implementations
+@DataModelFactory.register_format("networkx", "Networkx DiGraph object")
+class Networkx(Graph):
     """Translator subclass to handle translations into and from Networkx objects"""
 
     as_input = "implemented"
@@ -633,7 +506,7 @@ class TranslatorNetworkx(AbsTranslator):
             iron.add_node(str(id_n), iron_node)
         for id_e, (edge, data) in enumerate(route.edges.items()):
             iron_edge = self.nx_edge_to_iron_edge(edge, id_e, iron)
-            iron.add_edge(id_e, iron_edge)
+            iron.add_edge(str(id_e), iron_edge)
 
         return iron
 
@@ -649,8 +522,8 @@ class TranslatorNetworkx(AbsTranslator):
         return build_iron_edge(a_id, b_id, id_e)
 
 
-@TranslatorFactory.register_format_translator("pydot", "pydot.Dot object")
-class TranslatorDot(AbsTranslator):
+@DataModelFactory.register_format("pydot", "PyDot object")
+class PyDot(Graph):
     """Translator subclass to handle translations into and from Dot objects"""
 
     as_input = "implemented"
@@ -705,7 +578,7 @@ class TranslatorDot(AbsTranslator):
             iron.add_node(str(id_n), iron_node)
         for id_e, edge in enumerate(route.get_edges()):
             iron_edge = self.pydot_edges_to_iron_edge(edge, id_e, iron)
-            iron.add_edge(id_e, iron_edge)
+            iron.add_edge(str(id_e), iron_edge)
         return iron
 
     @staticmethod
@@ -723,8 +596,8 @@ class TranslatorDot(AbsTranslator):
         return build_iron_edge(a_id, b_id, id_e)
 
 
-@TranslatorFactory.register_format_translator("ibm_retro", "IBMRXN output (dictionary)")
-class TranslatorIbm(AbsTranslator):
+@DataModelFactory.register_format("ibm_retro", "IBMRXN output (dictionary)")
+class IbmRetro(Graph):
     """Translator subclass to handle translations of outputs generated by IBM CASP tool"""
 
     as_input = "implemented"
@@ -762,10 +635,8 @@ class TranslatorIbm(AbsTranslator):
             return None
 
 
-@TranslatorFactory.register_format_translator(
-    "az_retro", "AiZynthFinder output (dictionary)"
-)
-class TranslatorAz(AbsTranslator):
+@DataModelFactory.register_format("az_retro", "AiZynthFinder output (dictionary)")
+class AzRetro(Graph):
     """Translator subclass to handle translations of outputs generated by AZ CASP tool"""
 
     as_input = "implemented"
@@ -792,8 +663,8 @@ class TranslatorAz(AbsTranslator):
             return None
 
 
-@TranslatorFactory.register_format_translator("mit_retro", "Askcos output (dictionary)")
-class TranslatorMit(AbsTranslator):
+@DataModelFactory.register_format("mit_retro", "Askcos output (dictionary)")
+class MitRetro(Graph):
     """Translator subclass to handle translations of outputs generated by Askcos CASP tool"""
 
     as_input = "implemented"
@@ -820,8 +691,8 @@ class TranslatorMit(AbsTranslator):
             return None
 
 
-@TranslatorFactory.register_format_translator("noc", "NOC format (dictionary)")
-class TranslatorNOC(AbsTranslator):
+@DataModelFactory.register_format("noc", "NOC format (dictionary)")
+class NOC(Graph):
     """Translator subclass to handle translations of NOC-compatible documents"""
 
     as_input = None
@@ -918,8 +789,8 @@ class TranslatorNOC(AbsTranslator):
         pass
 
 
-@TranslatorFactory.register_format_translator("pydot_visualization", "PNG file")
-class TranslatorDotVisualization(AbsTranslator):
+@DataModelFactory.register_format("pydot_visualization", "PNG file")
+class PydotVisualization(Graph):
     """Translator subclass to generate pictures"""
 
     as_input = None
@@ -1000,13 +871,179 @@ class TranslatorDotVisualization(AbsTranslator):
         pass
 
 
+# Data model factory concrete implementations
+@Translation.register_factory(
+    "monopartite_reactions", "A graph with only reaction nodes"
+)
+class MonopartiteReactions(DataModelFactory):
+    """Translator subclass to handle translations into and from MonopartiteReacSynGraph instances"""
+
+    def iron_to_syngraph(
+        self, iron_graph: Iron
+    ) -> Union[MonopartiteReacSynGraph, None]:
+        """Translates an Iron instance into a MonopartiteReacSynGraph instance"""
+        try:
+            if iron_graph is None:
+                raise EmptyRoute
+            return MonopartiteReacSynGraph(iron_graph)
+        except EmptyRoute:
+            logger.warning(
+                "While translating from Iron to monopartite-reactions SynGraph object an empty route was found: "
+                '"None" returned'
+            )
+            return None
+
+    def syngraph_to_iron(self, syngraph: MonopartiteReacSynGraph) -> Union[Iron, None]:
+        """Translates a MonopartiteReacSynGraph instance into an Iron instance"""
+        try:
+            if syngraph is None:
+                raise EmptyRoute
+            iron = Iron()
+            id_e = 0
+            for parent, children in syngraph.graph.items():
+                id_n1, node1 = self.get_node_info(parent, iron)
+
+                for c in children:
+                    id_n2, node2 = self.get_node_info(c, iron)
+
+                    e = build_iron_edge(id_n1, id_n2, id_e)
+                    iron.add_edge(str(id_e), e)
+                    id_e += 1
+
+            iron.source = syngraph.uid
+            return iron
+
+        except EmptyRoute:
+            logger.warning(
+                'While translating from a monopartite-reactions SynGraph to Iron an empty route was found: "None" '
+                "returned"
+            )
+            return None
+
+    def convert_syngraph(
+        self,
+        syngraph: Union[
+            MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph
+        ],
+    ) -> MonopartiteReacSynGraph:
+        return converter(syngraph, "monopartite_reactions")
+
+
+@Translation.register_factory("bipartite", "A graph with reaction and molecule nodes")
+class Bipartite(DataModelFactory):
+    """Translator subclass to handle translations into and from BipartiteSynGraph instances"""
+
+    def iron_to_syngraph(self, iron_graph: Iron) -> Union[BipartiteSynGraph, None]:
+        """Translates an Iron instance into a BipartiteSynGraph instance"""
+        try:
+            if iron_graph is None:
+                raise EmptyRoute
+            return BipartiteSynGraph(iron_graph)
+        except EmptyRoute:
+            logger.warning(
+                'While translating from Iron to bipartite SynGraph object an empty route was found: "None" returned'
+            )
+            return None
+
+    def syngraph_to_iron(self, syngraph: BipartiteSynGraph) -> Union[Iron, None]:
+        """Translates a BipartiteSynGraph instance into an Iron instance"""
+        try:
+            if syngraph is None:
+                raise EmptyRoute
+            iron = Iron()
+            id_e = 0
+            for parent, children in syngraph.graph.items():
+                id_n1, node1 = self.get_node_info(parent, iron)
+
+                for c in children:
+                    id_n2, node2 = self.get_node_info(c, iron)
+
+                    e = build_iron_edge(id_n1, id_n2, id_e)
+                    iron.add_edge(str(id_e), e)
+                    id_e += 1
+
+            iron.source = syngraph.uid
+            return iron
+        except EmptyRoute:
+            logger.warning(
+                'While translating from a bipartite SynGraph to Iron an empty route was found: "None" returned'
+            )
+            return None
+
+    def convert_syngraph(
+        self,
+        syngraph: Union[
+            MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph
+        ],
+    ) -> BipartiteSynGraph:
+        return converter(syngraph, "bipartite")
+
+
+@Translation.register_factory(
+    "monopartite_molecules", "A graph with only molecule nodes"
+)
+class MonopartiteMolecules(DataModelFactory):
+    """Translator subclass to handle translations into and from MonopartiteMolSynGraph instances"""
+
+    def iron_to_syngraph(self, iron_graph: Iron) -> Union[MonopartiteMolSynGraph, None]:
+        """Translates an Iron instance into a MonopartiteMolSynGraph instance"""
+        try:
+            if iron_graph is None:
+                raise EmptyRoute
+            return MonopartiteMolSynGraph(iron_graph)
+        except EmptyRoute:
+            logger.warning(
+                "While translating from Iron to a monopartite-molecules SynGraph object an empty route was found: "
+                '"None" returned'
+            )
+            return None
+
+    def syngraph_to_iron(self, syngraph: MonopartiteMolSynGraph) -> Union[Iron, None]:
+        """Translates a MonopartiteReacSynGraph instance into an Iron instance"""
+        try:
+            if syngraph is None:
+                raise EmptyRoute
+            iron = Iron()
+            id_e = 0
+            for parent, children in syngraph.graph.items():
+                id_n1, node1 = self.get_node_info(parent, iron)
+
+                for c in children:
+                    id_n2, node2 = self.get_node_info(c, iron)
+
+                    e = build_iron_edge(id_n1, id_n2, id_e)
+                    iron.add_edge(str(id_e), e)
+                    id_e += 1
+
+            iron.source = syngraph.uid
+            return iron
+        except EmptyRoute:
+            logger.warning(
+                'While translating from a monopartite-molecules SynGraph to Iron an empty route was found: "None" '
+                "returned"
+            )
+            return None
+
+    def convert_syngraph(
+        self,
+        syngraph: Union[
+            MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph
+        ],
+    ) -> MonopartiteMolSynGraph:
+        return converter(syngraph, "monopartite_molecules")
+
+
 # Chain of responsibility structure to handle the translation input -> iron -> syngraph -> iron -> output
 class Handler(ABC):
     """Abstract handler for the concrete translators taking care of the single steps in the workflow"""
 
     @abstractmethod
     def translate(
-        self, input_format: str, graph, output_format: str, out_data_model: str
+        self,
+        input_format: str,
+        graph,
+        output_format: str,
+        data_model_factory: DataModelFactory,
     ):
         pass
 
@@ -1015,24 +1052,28 @@ class InputToIron(Handler):
     """Handler taking care of the first step: input to iron"""
 
     def translate(
-        self, input_format: str, graph, output_format: str, out_data_model: str
-    ) -> Iron:
-        factory = TranslatorFactory()
+        self,
+        input_format: str,
+        graph,
+        output_format: str,
+        data_model_factory: DataModelFactory,
+    ):
+        """To perform the first step: input to iron"""
         # If the input graph is a syngraph
-        if "syngraph" in input_format:
-            syngraphs = converter(graph, out_data_model)
+        if input_format == "syngraph":
+            syngraph = data_model_factory.convert_syngraph(graph)
             graph = SynGraphToIron().translate(
-                input_format, syngraphs, output_format, out_data_model
+                input_format, syngraph, output_format, data_model_factory
             )
             return graph
-        graph = factory.select_translation_to_iron(input_format, graph, out_data_model)
+        graph = data_model_factory.input_to_iron(input_format, graph)
         if output_format == "iron":
             graph = graph
         elif graph is None:
             return None
         else:
             graph = IronToSynGraph().translate(
-                input_format, graph, output_format, out_data_model
+                input_format, graph, output_format, data_model_factory
             )
         return graph
 
@@ -1041,15 +1082,21 @@ class IronToSynGraph(Handler):
     """Handler taking care of the second step: iron to syngraph in the desired data model"""
 
     def translate(
-        self, input_format: str, graph: Iron, output_format: str, out_data_model: str
-    ) -> Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph]:
-        factory = TranslatorFactory()
-        graph = factory.select_translation_from_iron("syngraph", graph, out_data_model)
+        self,
+        input_format: str,
+        graph: Iron,
+        output_format: str,
+        data_model_factory: DataModelFactory,
+    ) -> Union[
+        BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph, None
+    ]:
+        """To perform the second step: iron to syngraph"""
+        graph = data_model_factory.iron_to_syngraph(graph)
         if output_format == "syngraph" or graph is None:
             return graph
         else:
             graph = SynGraphToIron().translate(
-                input_format, graph, output_format, out_data_model
+                input_format, graph, output_format, data_model_factory
             )
         return graph
 
@@ -1064,12 +1111,12 @@ class SynGraphToIron(Handler):
             BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
         ],
         output_format: str,
-        out_data_model: str,
-    ) -> Iron:
-        factory = TranslatorFactory()
-        graph = factory.select_translation_to_iron("syngraph", graph, out_data_model)
+        data_model_factory: DataModelFactory,
+    ):
+        """To perform the third step: syngraph to iron"""
+        graph = data_model_factory.syngraph_to_iron(graph)
         graph = IronToOutput().translate(
-            input_format, graph, output_format, out_data_model
+            input_format, graph, output_format, data_model_factory
         )
         return graph
 
@@ -1078,23 +1125,15 @@ class IronToOutput(Handler):
     """Handler taking care of the fourth step: iron to output"""
 
     def translate(
-        self, input_format: str, graph: Iron, output_format: str, out_data_model: str
+        self,
+        input_format: str,
+        graph: Iron,
+        output_format: str,
+        data_model_factory: DataModelFactory,
     ):
-        factory = TranslatorFactory()
-        graph = factory.select_translation_from_iron(
-            output_format, graph, out_data_model
-        )
+        """To perform the fourth step: iron to output"""
+        graph = data_model_factory.iron_to_output(graph, output_format)
         return graph
-
-
-class Translation:
-    """Class to start the chain calling the handler of the first step"""
-
-    @staticmethod
-    def start_translation(input_format, graph, output_format, out_data_model):
-        return InputToIron().translate(
-            input_format, graph, output_format, out_data_model
-        )
 
 
 # Facade function
@@ -1128,7 +1167,8 @@ def translator(
     ------------
     input_format: str
         The format of the input graph object
-    original_graph: Union[MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph, nx.classes.digraph.DiGraph, pydot.Dot, list, dict, Iron]
+    original_graph: Union[MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph,
+    nx.classes.digraph.DiGraph, pydot.Dot, list, dict, Iron]
         The input graph
     output_format: str
         The desired output format
@@ -1137,7 +1177,8 @@ def translator(
 
     Returns:
     ----------
-    out_graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph, nx.DiGraph, pydot.Dot, Iron, None]
+    out_graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph,
+    nx.DiGraph, pydot.Dot, Iron, None]
         The output graph
 
     Raises:
@@ -1176,7 +1217,7 @@ def get_available_formats() -> dict:
     Example:
     >>> av_formats = get_available_formats()
     """
-    all_formats = TranslatorFactory.list_format_translators()
+    all_formats = DataModelFactory.list_formats()
     d = {f: additional_info["info"] for f, additional_info in all_formats.items()}
     d.update({"iron": "Iron object", "syngraph": "Syngraph object"})
     return d
@@ -1194,7 +1235,7 @@ def get_available_data_models():
     Example:
     >>> av_datamodels = get_available_data_models()
     """
-    all_datamodels = TranslatorFactory.list_datamodels_translators()
+    all_datamodels = Translation.list_datamodel_factories()
     return {f: additional_info["info"] for f, additional_info in all_datamodels.items()}
 
 
@@ -1210,9 +1251,9 @@ def get_output_formats():
     Example:
     >>> out_formats = get_output_formats()
     """
-    all_formats = TranslatorFactory.list_format_translators()
+    all_formats = list(DataModelFactory.__subclasses__())[0].list_formats()
     available_output = {}
-    for c in list(AbsTranslator.__subclasses__()):
+    for c in list(Graph.__subclasses__()):
         if c.as_output is not None:
             if name := next(
                 (f for f, info in all_formats.items() if info["class"] == c), None
@@ -1235,9 +1276,9 @@ def get_input_formats():
     Example:
     >>> in_formats = get_input_formats()
     """
-    all_formats = TranslatorFactory.list_format_translators()
+    all_formats = list(DataModelFactory.__subclasses__())[0].list_formats()
     available_input = {}
-    for c in list(AbsTranslator.__subclasses__()):
+    for c in list(Graph.__subclasses__()):
         if c.as_input is not None:
             if name := next(
                 (f for f, info in all_formats.items() if info["class"] == c), None

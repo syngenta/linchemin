@@ -6,20 +6,15 @@ import networkx as nx
 import pydot
 import pytest
 
-from linchemin.cgu.iron import Iron, Node, Edge, Direction
-from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
-from linchemin.cgu.translate import (
-    translator,
-    ibm_dict_to_iron,
-    get_available_formats,
-    az_dict_to_iron,
-    get_available_data_models,
-    get_output_formats,
-    get_input_formats,
-    TranslationError,
-)
-from linchemin.cheminfo.models import ChemicalEquation
 from linchemin import settings
+from linchemin.cgu.iron import Direction, Edge, Iron, Node
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
+from linchemin.cgu.translate import (PyDot, TranslationError, az_dict_to_iron,
+                                     get_available_data_models,
+                                     get_available_formats, get_input_formats,
+                                     get_output_formats, ibm_dict_to_iron,
+                                     translator)
+from linchemin.cheminfo.models import ChemicalEquation
 
 
 def generate_iron_test_graph():
@@ -281,13 +276,86 @@ def test_iron_source_attribute(ibm1_path):
 
 
 def test_dot_translation(az_path):
-    graph = json.loads(open(az_path).read())
-    dot_graph = translator(
-        "az_retro", graph[2], "pydot", out_data_model="monopartite_molecules"
-    )
-    iron_graph = translator(
-        "az_retro", graph[2], "iron", out_data_model="monopartite_molecules"
-    )
+    nodes = {
+        "0": Node(
+            iid="0",
+            properties={
+                "node_smiles": "Cc1cccc(C)c1N(CC(=O)Nc1ccc(-c2ncon2)cc1)C(=O)C1CCS(=O)(=O)CC1"
+            },
+            labels=[],
+        ),
+        "1": Node(
+            iid="1", properties={"node_smiles": "Nc1ccc(-c2ncon2)cc1"}, labels=[]
+        ),
+        "2": Node(
+            iid="2",
+            properties={"node_smiles": "Cc1cccc(C)c1N(CC(=O)Cl)C(=O)C1CCS(=O)(=O)CC1"},
+            labels=[],
+        ),
+        "3": Node(
+            iid="3", properties={"node_smiles": "O=C(O)C1CCS(=O)(=O)CC1"}, labels=[]
+        ),
+        "4": Node(
+            iid="4", properties={"node_smiles": "Cc1cccc(C)c1NCC(=O)Cl"}, labels=[]
+        ),
+        "5": Node(
+            iid="5", properties={"node_smiles": "Cc1cccc(C)c1NCC(=O)O"}, labels=[]
+        ),
+    }
+    edges = {
+        "0": Edge(
+            iid="0",
+            a_iid="1",
+            b_iid="0",
+            direction=Direction("1>0"),
+            properties={},
+            labels=[],
+        ),
+        "1": Edge(
+            iid="1",
+            a_iid="2",
+            b_iid="0",
+            direction=Direction("2>0"),
+            properties={},
+            labels=[],
+        ),
+        "2": Edge(
+            iid="2",
+            a_iid="3",
+            b_iid="2",
+            direction=Direction("3>2"),
+            properties={},
+            labels=[],
+        ),
+        "3": Edge(
+            iid="3",
+            a_iid="4",
+            b_iid="2",
+            direction=Direction("4>2"),
+            properties={},
+            labels=[],
+        ),
+        "4": Edge(
+            iid="4",
+            a_iid="5",
+            b_iid="4",
+            direction=Direction("5>4"),
+            properties={},
+            labels=[],
+        ),
+    }
+    iron_graph = Iron()
+
+    for id_n, node in nodes.items():
+        iron_graph.add_node(id_n, node)
+
+    for id_e, edge in edges.items():
+        iron_graph.add_edge(id_e, edge)
+    pydot_translator = PyDot()
+    dot_graph = pydot_translator.from_iron(iron_graph)
+    new_iron = pydot_translator.to_iron(dot_graph)
+    assert iron_graph.nodes == new_iron.nodes
+    assert iron_graph.edges == new_iron.edges
 
     assert type(dot_graph) == pydot.Dot
     # the two graphs have the same number of nodes
@@ -367,10 +435,7 @@ def testing_dict_to_iron(az_path, ibm1_path):
 
 
 def test_syngraph_to_syngraph(az_path):
-    graph_az = json.loads(open(az_path).read())
-    bp_syngraph = translator(
-        "az_retro", graph_az[2], "syngraph", out_data_model="bipartite"
-    )
+    bp_syngraph = BipartiteSynGraph()
     with pytest.raises(TranslationError) as ke:
         translator(
             "syngraph", bp_syngraph, "syngraph", out_data_model="monopartite_reactions"
@@ -441,12 +506,14 @@ def test_translate_into_NOC_document(ibm1_path):
 
 def test_out_format():
     out = get_output_formats()
-    assert type(out) == dict and "pydot_visualization" in out and "iron" in out
+    assert isinstance(out, dict) and "pydot_visualization" in out and "iron" in out
+    assert "mit_retro" not in out
 
 
 def test_in_format():
     in_f = get_input_formats()
-    assert type(in_f) == dict and "ibm_retro" in in_f and "syngraph" in in_f
+    assert isinstance(in_f, dict) and "ibm_retro" in in_f and "syngraph" in in_f
+    assert "noc" not in in_f
 
 
 def test_mit_to_iron(mit_path):

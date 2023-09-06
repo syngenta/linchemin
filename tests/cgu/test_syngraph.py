@@ -1,17 +1,12 @@
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteReacSynGraph,
-    MonopartiteMolSynGraph,
-)
+import json
+import unittest
+
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cgu.syngraph_operations import merge_syngraph
 from linchemin.cgu.translate import translator
-from linchemin.cheminfo.constructors import (
-    ChemicalEquationConstructor,
-    MoleculeConstructor,
-)
-import json
-import pytest
-import unittest
+from linchemin.cheminfo.constructors import (ChemicalEquationConstructor,
+                                             MoleculeConstructor)
 
 
 def test_bipartite_syngraph_instance(az_path):
@@ -121,7 +116,6 @@ def test_monopartite_syngraph(ibm1_path):
     mp_syngraph = translator(
         "ibm_retro", graph_ibm[5], "syngraph", out_data_model="monopartite_molecules"
     )
-
     molecule_constructor = MoleculeConstructor(
         molecular_identity_property_name="smiles"
     )
@@ -134,6 +128,7 @@ def test_monopartite_syngraph(ibm1_path):
 
     assert mol1 in mp_syngraph.get_leaves()
     assert mol2 in mp_syngraph.get_roots()
+    assert len(mp_syngraph.graph) == len(mp_syngraph.get_unique_nodes())
 
 
 def test_reaction_monopartite(az_path):
@@ -224,6 +219,7 @@ def test_read_dictionary(az_path, ibm1_path):
     assert mom_syngraph == translator(
         "ibm_retro", graph_ibm[4], "syngraph", "monopartite_molecules"
     )
+    assert len(mom_syngraph.graph) == len(mom_syngraph.get_unique_nodes())
 
 
 def test_hashing(ibm2_path):
@@ -266,7 +262,7 @@ def test_bipartite_iron(az_path):
     syngraph = translator("az_retro", graph_az[0], "syngraph", "bipartite")
     assert syngraph.graph == syngraph_mpr.graph
     assert syngraph.uid == syngraph_mpr.uid
-
+    assert len(syngraph.graph) == len(syngraph.get_unique_nodes())
     nx_bp = translator("az_retro", graph_az[0], "networkx", "bipartite")
     syngraph_mpr = translator("networkx", nx_bp, "syngraph", "monopartite_reactions")
     syngraph = translator("az_retro", graph_az[0], "syngraph", "monopartite_reactions")
@@ -285,6 +281,10 @@ def test_node_removal():
             "output_string": "Cc1cccc(C)c1NCC(=O)Nc1ccc(-c2ncon2)cc1.O=C(O)C1CCS(=O)(=O)CC1>>Cc1cccc(C)c1N(CC("
             "=O)Nc1ccc(-c2ncon2)cc1)C(=O)C1CCS(=O)(=O)CC1",
         },
+        {
+            "query_id": 2,
+            "output_string": "CCOC(=O)CNc1c(C)cccc1C>>Cc1cccc(C)c1NCC(O)=O",
+        },
     ]
     syngraph = MonopartiteReacSynGraph(d)
     chemical_equation_constructor = ChemicalEquationConstructor(
@@ -298,13 +298,15 @@ def test_node_removal():
     # if the selected node is not present, a warning is raised and the syngraph instance remains unchanged
     with unittest.TestCase().assertLogs("linchemin.cgu.syngraph", level="WARNING"):
         syngraph.remove_node(ce_not_present.uid)
-    assert len(syngraph.graph) == 2
+    assert len(syngraph.graph) == 3
     # if the selected node is present,it is removed from the syngraph dictionary
     ce = chemical_equation_constructor.build_from_reaction_string(
         d[0]["output_string"], "smiles"
     )
     syngraph.remove_node(ce.uid)
-    assert len(syngraph.graph) == 1
+
+    assert len(syngraph.graph) == 2
+    assert len(syngraph.get_roots()) > 1
 
 
 def test_isolated_ce_removal():

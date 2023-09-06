@@ -15,10 +15,12 @@ Translate
 
 
     translator
-    AbsTranslator
-    AbsTranslator.from_iron
-    AbsTranslator.to_iron
-    TranslatorFactory
+    Graph
+    Graph.from_iron
+    Graph.to_iron
+    DataModelFactory
+    DataModelFactory.iron_to_syngraph
+    DataModelFactory.syngraph_to_iron
 
 Iron
 ^^^^^
@@ -46,7 +48,6 @@ Syngraph
 
     SynGraph
     SynGraph.add_node
-    SynGraph.remove_node
     BipartiteSynGraph
     MonopartiteReacSynGraph
     MonopartiteMolSynGraph
@@ -119,8 +120,8 @@ Route Descriptors
     :toctree: generated
 
     descriptor_calculator
-    DescriptorCalculator
-    DescriptorCalculator.compute_descriptor
+    RouteDescriptor
+    RouteDescriptor.compute_descriptor
     DescriptorsCalculatorFactory
 
 Graph Distance

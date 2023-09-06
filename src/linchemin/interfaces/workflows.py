@@ -1,24 +1,19 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Union, List
+from typing import List, Union
 
 import pandas as pd
 
 import linchemin.IO.io as lio
 from linchemin import settings
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-    MonopartiteReacSynGraph,
-)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cgu.translate import get_available_data_models
 from linchemin.cheminfo.atom_mapping import get_available_mappers
 from linchemin.interfaces.facade import facade
 from linchemin.rem.clustering import get_available_clustering
-from linchemin.rem.graph_distance import (
-    get_available_ged_algorithms,
-    get_ged_parameters,
-)
+from linchemin.rem.graph_distance import (get_available_ged_algorithms,
+                                          get_ged_parameters)
 from linchemin.rem.route_descriptors import get_available_descriptors
 from linchemin.utilities import console_logger
 
@@ -395,18 +390,18 @@ class WorkflowBuilder:
 
 
 def process_routes(
-        input_dict: dict,
-        output_format: str = settings.WORKFLOW.output_format,
-        mapping: bool = settings.WORKFLOW.mapping,
-        functionalities: Union[List[str], None] = settings.WORKFLOW.functionalities,
-        mapper: Union[str, None] = settings.FACADE.mapper,
-        out_data_model: str = settings.FACADE.out_data_model,
-        descriptors: List[str] = settings.FACADE.descriptors,
-        ged_method: str = settings.FACADE.ged_method,
-        ged_params: Union[dict, None] = settings.FACADE.ged_params,
-        clustering_method: Union[str, None] = settings.FACADE.clustering_method,
-        parallelization: bool = settings.FACADE.parallelization,
-        n_cpu: int = settings.FACADE.n_cpu,
+    input_dict: dict,
+    output_format: str = settings.WORKFLOW.output_format,
+    mapping: bool = settings.WORKFLOW.mapping,
+    functionalities: Union[List[str], None] = settings.WORKFLOW.functionalities,
+    mapper: Union[str, None] = settings.FACADE.mapper,
+    out_data_model: str = settings.FACADE.out_data_model,
+    descriptors: List[str] = settings.FACADE.descriptors,
+    ged_method: str = settings.FACADE.ged_method,
+    ged_params: Union[dict, None] = settings.FACADE.ged_params,
+    clustering_method: Union[str, None] = settings.FACADE.clustering_method,
+    parallelization: bool = settings.FACADE.parallelization,
+    n_cpu: int = settings.FACADE.n_cpu,
 ) -> WorkflowOutput:
     """
     Function process routed predicted by CASP tools: based on the input arguments, only the selected
@@ -491,17 +486,14 @@ def process_routes(
     return output
 
 
-#### Supporting functions and classes
+# Supporting functions and classes
 # Writers factory
 class SyngraphWriter(ABC):
     """Abstract class for the SyngraphWriter taking care of writing the routes in different file formats"""
 
     @abstractmethod
     def write_file(
-            self, syngraphs: list,
-            out_data_model: str,
-            output_format: str,
-            file_name: str
+        self, syngraphs: list, out_data_model: str, output_format: str, file_name: str
     ) -> None:
         pass
 
@@ -510,10 +502,7 @@ class JsonWriter(SyngraphWriter):
     """Writer to generate a Json file of the routes"""
 
     def write_file(
-            self, syngraphs: list,
-            out_data_model: str,
-            output_format: str,
-            file_name: str
+        self, syngraphs: list, out_data_model: str, output_format: str, file_name: str
     ):
         routes, meta = facade(
             "translate", "syngraph", syngraphs, "noc", out_data_model=out_data_model
@@ -526,10 +515,7 @@ class CsvWriter(SyngraphWriter):
     """Writer to generate a csv file of the routes"""
 
     def write_file(
-            self, syngraphs: list,
-            out_data_model: str,
-            output_format: str,
-            file_name: str
+        self, syngraphs: list, out_data_model: str, output_format: str, file_name: str
     ):
         routes, meta = facade(
             "translate", "syngraph", syngraphs, "noc", out_data_model=out_data_model
@@ -542,10 +528,7 @@ class PngWriter(SyngraphWriter):
     """Writer to generate png files of the routes"""
 
     def write_file(
-            self, syngraphs: list,
-            out_data_model: str,
-            output_format: str,
-            file_name: str
+        self, syngraphs: list, out_data_model: str, output_format: str, file_name: str
     ):
         facade(
             "translate",
@@ -560,10 +543,7 @@ class GraphMLWriter(SyngraphWriter):
     """Writer to generate graphml files of the routes"""
 
     def write_file(
-            self, syngraphs: list,
-            out_data_model: str,
-            output_format: str,
-            file_name: str
+        self, syngraphs: list, out_data_model: str, output_format: str, file_name: str
     ):
         nx_routes, meta = facade(
             "translate",
@@ -592,10 +572,7 @@ class SyngraphWriterFactory:
     }
 
     def select_writer(
-            self, syngraphs: list,
-            out_data_model: str,
-            output_format: str,
-            file_name: str
+        self, syngraphs: list, out_data_model: str, output_format: str, file_name: str
     ):
         if output_format not in self.file_formats:
             logger.error(
@@ -608,10 +585,12 @@ class SyngraphWriterFactory:
 
 
 def write_syngraph(
-        syngraphs: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]],
-        out_data_model: str,
-        output_format: str,
-        file_name: str
+    syngraphs: List[
+        Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
+    ],
+    out_data_model: str,
+    output_format: str,
+    file_name: str,
 ) -> None:
     """
     To write a list of SynGraph instances to a file

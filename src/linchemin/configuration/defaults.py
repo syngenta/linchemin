@@ -146,6 +146,8 @@ DEFAULT_ROUTE_MINING = {
     "chemicalequation_node_label": "CE",
 }
 
+DEFAULT_ROUTE_SANITY_CHECKS = {"fix_issue": False}
+
 
 def get_settings():
     """To assemble the default values read from the dictionaries above and written to the settings.yaml file"""
@@ -163,6 +165,7 @@ def get_settings():
     all_settings["CLUSTERING"] = DEFAULT_CLUSTERING
     all_settings["SERVICES"] = DEFAULT_SERVICES
     all_settings["ROUTE_MINING"] = DEFAULT_ROUTE_MINING
+    all_settings["ROUTE_SANITY_CHECKS"] = DEFAULT_ROUTE_SANITY_CHECKS
     return all_settings
 
 

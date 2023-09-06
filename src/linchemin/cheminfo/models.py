@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Union, List
+from enum import Enum
+from typing import Union
 
 import linchemin.cheminfo.functions as cif
 
@@ -79,9 +80,14 @@ class Disconnection:
 
     def extract_info(self) -> dict:
         """To extract a dictionary containing the ids of atoms and bonds involved in the disconnection"""
-        if bonds := [self.rdmol.GetBondBetweenAtoms(*atoms_pair).GetIdx() for atoms_pair in
-                     self.new_bonds + self.modified_bonds]:
-            return {"disconnection_bonds": bonds, "disconnection_atoms": self.reacting_atoms}
+        if bonds := [
+            self.rdmol.GetBondBetweenAtoms(*atoms_pair).GetIdx()
+            for atoms_pair in self.new_bonds + self.modified_bonds
+        ]:
+            return {
+                "disconnection_bonds": bonds,
+                "disconnection_atoms": self.reacting_atoms,
+            }
         else:
             return {"disconnection_atoms": self.reacting_atoms}
 
@@ -177,10 +183,14 @@ class Ratam:
 
     full_map_info: dict = field(default_factory=dict)
     """ (dict) The dictionary mapping Molecule uids to a list of dictionaries mapping atom ids with map number"""
-    atom_transformations: list = field(default_factory=list)
-    """ (list) The list of AtomTransformations namedtuples corresponding to the transformations of mapped atoms.
-        AtomTransformation = namedtuple('AtomTransformation', ['product_uid', 'reactant_uid', 'prod_atom_id', 
+    atom_transformations: set = field(default_factory=set)
+    """ (set) The set of AtomTransformations namedtuples corresponding to the transformations of mapped atoms.
+        AtomTransformation = namedtuple('AtomTransformation', ['product_uid', 'reactant_uid', 'prod_atom_id',
         'react_atom_id', 'map_num']) """
+    reactants_unmapped_atoms_info: dict = field(default_factory=dict)
+    """ (dict) The dictionary containing the fraction of unmapped atoms in the reactants"""
+    desired_product_unmapped_atoms_info: dict = field(default_factory=dict)
+    """ (dict) The dictionary containing the fraction of unmapped atoms in the desired product and their indices"""
 
     def diagnosis(self):
         """To perform a diagnostic process on the atom mapping"""
@@ -194,9 +204,9 @@ class ChemicalEquation:
     """
 
     catalog: dict = field(default_factory=dict)
-    """(dict) The catalog of the Molecule instances invlived in the chemical reaction."""
+    """(dict) The catalog of the Molecule instances involved in the chemical reaction."""
     role_map: dict = field(default_factory=dict)
-    """ (dict) The dictionary mapping the uid of the involved Molecules to their roles (reactants, reagents and 
+    """ (dict) The dictionary mapping the uid of the involved Molecules to their roles (reactants, reagents and
     products)."""
     stoichiometry_coefficients: dict = field(default_factory=dict)
     """ (dict) The dictionary mapping each role to a dictionary containing the uids of the Molecules with that role
@@ -206,12 +216,12 @@ class ChemicalEquation:
     uid: int = field(default_factory=int)
     """ (int) The integer representing the unique identifier of the reaction."""
     rdrxn: Union[cif.rdChemReactions.ChemicalReaction, None] = None
-    """ (Union[cif.rdChemReactions.ChemicalReaction, None]) The RDKit ChemicalReaction object corresponding to the 
+    """ (Union[cif.rdChemReactions.ChemicalReaction, None]) The RDKit ChemicalReaction object corresponding to the
     ChemicalEquation (default None)"""
     smiles: str = field(default_factory=str)
     """ (str) The SMILES representation of the reaction."""
     mapping: Union[Ratam, None] = field(default=None)
-    """ (Union[Ratam, None]) The Ratam object with the information about the atom mapping (default None, if the 
+    """ (Union[Ratam, None]) The Ratam object with the information about the atom mapping (default None, if the
     ChemicalEquation is not mapped)."""
     template: Union[Template, None] = field(default=None)
     """ (Union[Template, None]) The Template object (default None, if the ChemicalEquation is not mapped)."""
@@ -264,7 +274,7 @@ class ChemicalEquation:
         }
 
     def build_rdrxn(
-            self, use_reagents: bool, use_atom_mapping=True
+        self, use_reagents: bool, use_atom_mapping=True
     ) -> cif.rdChemReactions.ChemicalReaction:
         """To build an rdkit ChemicalReaction object from the ChemicalEquation instance"""
         return cif.build_rdrxn(
@@ -275,3 +285,57 @@ class ChemicalEquation:
             use_smiles=False,
             use_atom_mapping=use_atom_mapping,
         )
+
+
+class Role(Enum):
+    """Class for 2-levels based classification of molecules' roles in chemical reactions"""
+
+    @classmethod
+    def list(cls):
+        """To return the list of possible values of the Role class"""
+        return list(map(lambda c: c.value, cls))
+
+    @classmethod
+    def from_string(cls, role):
+        """To build a Role instance from a string"""
+        return cls(role)
+
+    @classmethod
+    def get_class_name(cls):
+        return cls.__name__.lower()
+
+    def get_full_name(self):
+        return f"{self.get_class_name()}.{self.name}".lower()
+
+    def __str__(self):
+        return f"{self.get_class_name()}.{self.name}"
+
+
+class Product(Role):
+    """Class with possible classifications of Products in a reaction"""
+
+    DESIRED = "desired_product"
+    BYPRODUCT = "by_product"
+    SIDEPRODUCT = "side_product"
+    UNKNOWN = "unknown"
+
+
+class Reagent(Role):
+    """Class with possible classifications of Reagents in a reaction"""
+
+    SOLVENT = "solvent"
+    CATALYST = "catalyst"
+    AGENT = "agent"
+    ADDITIVE = "additive"
+    REACTANT_QUENCH = "reactant_quench"
+    REAGENT_QUENCH = "reagent_quench"
+    UNKNOWN = "unknown"
+
+
+class Reactant(Role):
+    """Class with possible classifications of Reactants in a reaction"""
+
+    BP1 = "bp1"
+    BP2 = "bp2"
+    BP3 = "bp3"
+    UNKNOWN = "unknown"

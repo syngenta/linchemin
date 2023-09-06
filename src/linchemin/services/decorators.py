@@ -12,9 +12,9 @@ logger.addHandler(logging.NullHandler())
 
 
 def response_handling(
-        function: Optional[Callable] = None,
-        success_status_code: int = 200,
-        on_success: Callable[[requests.models.Response], Any] = default_on_success,
+    function: Optional[Callable] = None,
+    success_status_code: int = 200,
+    on_success: Callable[[requests.models.Response], Any] = default_on_success,
 ) -> Callable:
     """
     Decorator to handle request responses.

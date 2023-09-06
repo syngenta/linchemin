@@ -2,58 +2,39 @@ from __future__ import annotations
 
 import multiprocessing as mp
 from abc import ABC, abstractmethod
-from typing import List, Union, Tuple, Dict
+from typing import List, Tuple, Union
 
 import pandas as pd
+
 from linchemin import settings
 from linchemin.cgu.convert import Converter, converter
 from linchemin.cgu.route_sanity_check import (
-    route_checker,
-    get_available_route_sanity_checks,
-)
-from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-    SynGraph,
-)
-from linchemin.cgu.syngraph_operations import (
-    merge_syngraph,
-    extract_reactions_from_syngraph,
-    remove_reaction_from_syngraph,
-)
-from linchemin.cgu.translate import (
-    TranslationError,
-    get_available_data_models,
-    get_input_formats,
-    get_output_formats,
-    translator,
-)
-from linchemin.cheminfo.atom_mapping import (
-    get_available_mappers,
-    perform_atom_mapping,
-    pipeline_atom_mapping,
-)
+    get_available_route_sanity_checks, route_checker)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph, SynGraph)
+from linchemin.cgu.syngraph_operations import (extract_reactions_from_syngraph,
+                                               merge_syngraph,
+                                               remove_reaction_from_syngraph)
+from linchemin.cgu.translate import (TranslationError,
+                                     get_available_data_models,
+                                     get_input_formats, get_output_formats,
+                                     translator)
+from linchemin.cheminfo.atom_mapping import (get_available_mappers,
+                                             perform_atom_mapping,
+                                             pipeline_atom_mapping)
 from linchemin.configuration.defaults import DEFAULT_FACADE
-from linchemin.rem.clustering import (
-    ClusteringError,
-    clusterer,
-    get_available_clustering,
-    get_clustered_routes_metrics,
-)
-from linchemin.rem.graph_distance import (
-    GraphDistanceError,
-    compute_distance_matrix,
-    get_available_ged_algorithms,
-    get_ged_parameters,
-)
-from linchemin.rem.route_descriptors import (
-    DescriptorError,
-    descriptor_calculator,
-    find_duplicates,
-    get_available_descriptors,
-    is_subset,
-)
+from linchemin.rem.clustering import (ClusteringError, clusterer,
+                                      get_available_clustering,
+                                      get_clustered_routes_metrics)
+from linchemin.rem.graph_distance import (GraphDistanceError,
+                                          compute_distance_matrix,
+                                          get_available_ged_algorithms,
+                                          get_ged_parameters)
+from linchemin.rem.route_descriptors import (DescriptorError,
+                                             descriptor_calculator,
+                                             find_duplicates,
+                                             get_available_descriptors,
+                                             is_subset)
 
 """
 Module containing high level functionalities/"user stories" to work in stream; it provides a simplified interface for the user.
@@ -772,7 +753,7 @@ class DuplicatesFacade(Facade):
         list: The list of duplicates
         """
         routes1 = routes[: len(routes) // 2]
-        routes2 = routes[len(routes) // 2 :]
+        routes2 = routes[len(routes) // 2:]
         return find_duplicates(routes1, routes2)
 
     def get_available_options(self) -> dict:
@@ -1089,7 +1070,7 @@ class RouteSanityCheckFacade(Facade):
             checked_route = r
             for check in checks:
                 try:
-                    checked_route = route_checker(checked_route, check)
+                    checked_route = route_checker(checked_route, check, fix_issue=True)
                 except Exception as ke:
                     exceptions.append(ke)
             checked_routes.append(checked_route)
@@ -1173,7 +1154,7 @@ class NodeRemovalFacade(Facade):
         routes: List[Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]]
             The list of SynGraph instances
         node_to_remove: str
-            The smiles of the node to be removed
+            The smiles of the reaction to be removed
 
         Returns:
         ---------

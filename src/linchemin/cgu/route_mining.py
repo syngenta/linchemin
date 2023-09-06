@@ -1,15 +1,12 @@
 import copy
-from typing import List, Union, Tuple
+from typing import List, Tuple, Union
 
 from linchemin import settings
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cgu.syngraph_operations import merge_syngraph
-from linchemin.cgu.translate import translator, nx
+from linchemin.cgu.translate import nx, translator
 from linchemin.cheminfo.constructors import MoleculeConstructor
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.route_descriptors import find_path
@@ -154,7 +151,6 @@ class RouteFinder:
         # If the current M node has more than one P edge, it is an OR node
         if len(p_neighbors) > 1:
             self.handle_OR_node(route_graph, p_neighbors, seen, stack)
-        # otherwiseit is an AND node
         elif p_neighbors:
             self.handle_AND_node(route_graph, p_neighbors, seen, stack)
 
@@ -164,50 +160,44 @@ class RouteFinder:
         """To handle the ChemicalEquation nodes during the tree traversal."""
         # Find R edges connected to the current CE node
         r_neighbors = self.get_R_neighbors(current_node)
-        # the stack dictionary is used to keep track of all the Molecule nodes parent of a ChemicalEquation node, that are still to be visited
-        stack[current_node] = [
-            parent for parent, child, edge_info in r_neighbors if parent not in seen
-        ]
+
+        stack[current_node] = [u for u, v, d in r_neighbors if u not in seen]
         while stack[current_node]:
             n = stack[current_node].pop()
-            edge_data = next(
-                edge_info for parent, child, edge_info in r_neighbors if parent == n
-            )
-            route_graph.add_edge(n, current_node, **edge_data)
-            self.traverse_route(route_graph, n, seen, stack)
+            (u, v, edge_data) = next(tup for tup in r_neighbors if tup[0] == n)
+            route_graph.add_edge(u, v, **edge_data)
+            self.traverse_route(route_graph, u, seen, stack)
 
         stack.pop(current_node)
-        # if stack is not empty, the residual leaf nodes are handled
-        if ce_nodes := [ce for ce, val in stack.items() if len(val) > 0]:
-            self.handle_leaf_nodes(route_graph, seen, stack, ce_nodes)
-        # when stack is empty, the route is completed
-        if route_graph not in self.routes:
+        if stack:
+            self.handle_leaf_nodes(route_graph, seen, stack)
+        elif route_graph not in self.routes:
             self.routes.append(route_graph)
 
     def handle_OR_node(
         self, route_graph: nx.DiGraph, p_neighbors: List[tuple], seen: set, stack: dict
     ) -> None:
         """To handle 'OR' Molecule nodes --> Molecule nodes that are product of more than one ChemicalEquation node."""
-        for i, (parent, child, edge_data) in enumerate(p_neighbors):
-            if self.is_loop(parent, seen):
+        for i, (u, v, edge_data) in enumerate(p_neighbors):
+            if self.is_loop(u, seen):
                 continue
 
             if i < len(p_neighbors) - 1:  # Only create new routes for non-last P edges
                 new_route, new_seen, new_stack = self.create_new_route(
                     route_graph, seen, stack
                 )
-                new_route.add_edge(parent, child, **edge_data)
+                new_route.add_edge(u, v, **edge_data)
                 self.traverse_route(
                     new_route,
-                    parent,
+                    u,
                     new_seen,
                     new_stack,
                 )
             else:
-                route_graph.add_edge(parent, child, **edge_data)
+                route_graph.add_edge(u, v, **edge_data)
                 self.traverse_route(
                     route_graph,
-                    parent,
+                    u,
                     seen,
                     stack,
                 )
@@ -222,14 +212,13 @@ class RouteFinder:
     def handle_AND_node(
         self, route_graph: nx.DiGraph, p_neighbors: List[tuple], seen: set, stack: dict
     ) -> None:
-        """To handle AND nodes --> Molecule nodes with only one ChemicalEquation parent node"""
-        parent, child, edge_data = p_neighbors[0]
-        if self.is_loop(parent, seen):
+        u, v, edge_data = p_neighbors[0]
+        if self.is_loop(u, seen):
             return
-        route_graph.add_edge(parent, child, **edge_data)
+        route_graph.add_edge(u, v, **edge_data)
         self.traverse_route(
             route_graph,
-            parent,
+            u,
             seen,
             stack,
         )
@@ -244,38 +233,38 @@ class RouteFinder:
     def get_P_neighbors(self, node: str) -> List[tuple]:
         """To get the ChemicalEquation nodes, parents of a Molecule node, following the 'PRODUCT' edges."""
         return [
-            (parent, child, edge_info)
-            for parent, child, edge_info in self.nx_tree.in_edges(node, data=True)
-            if edge_info["label"] == self.product_edge
+            (u, v, d)
+            for u, v, d in self.nx_tree.in_edges(node, data=True)
+            if d["label"] == self.product_edge
         ]
 
     def get_R_neighbors(self, node: str) -> List[tuple]:
         """To get the Molecule nodes, parents of a ChemicalEquation node, following the 'REACTANT' edges."""
         return [
-            (parent, child, edge_info)
-            for parent, child, edge_info in self.nx_tree.in_edges(node, data=True)
-            if edge_info["label"] == self.reactant_edge
+            (u, v, d)
+            for u, v, d in self.nx_tree.in_edges(node, data=True)
+            if d["label"] == self.reactant_edge
         ]
 
     def handle_leaf_nodes(
-        self, route_graph: nx.DiGraph, seen: set, stack: dict, ce_nodes: List
+        self, route_graph: nx.DiGraph, seen: set, stack: dict
     ) -> None:
-        """To handle residual leaf nodes"""
-        for ce in ce_nodes:
-            r_neighbors = self.get_R_neighbors(ce)
-            while stack[ce]:
-                n = stack[ce].pop()
-                edge_data = next(
-                    edge_info for parent, child, edge_info in r_neighbors if parent == n
-                )
-                route_graph.add_edge(n, ce, **edge_data)
+        if ce_nodes := [ce for ce, val in stack.items() if len(val) > 0]:
+            for ce in ce_nodes:
+                while stack[ce]:
+                    n = stack[ce].pop()
+                    r_neighbors = self.get_R_neighbors(ce)
+                    (u, v, edge_data) = next(tup for tup in r_neighbors if tup[0] == n)
+                    route_graph.add_edge(u, v, **edge_data)
 
-                self.traverse_route(
-                    route_graph,
-                    n,
-                    seen,
-                    stack,
-                )
+                    self.traverse_route(
+                        route_graph,
+                        u,
+                        seen,
+                        stack,
+                    )
+        if route_graph not in self.routes:
+            self.routes.append(route_graph)
 
 
 def mine_routes(
@@ -324,182 +313,175 @@ def mine_routes(
         graphs_list = copy.deepcopy(input_list)
         if new_reaction_list is not None:
             new_graph = build_graph_from_node_sequence(new_reaction_list)
-            graphs_list.extend(new_graph)
+            graphs_list.append(new_graph)
 
         return RouteMiner(graphs_list, root).mine_routes()
     logger.error("Only a list of syngraph objects can be used.")
     raise TypeError
 
 
-def build_graph_from_node_sequence(
+# OLD CODE #########
+class NewRouteBuilder:
+    """RouteBuilder to handle the creation of new routes from a pre-existing list of routes
+    and a sequence of new nodes
+    """
+
+    def search_new_routes(
+        self,
+        original_routes: List[MonopartiteReacSynGraph],
+        branching_mol: Molecule,
+        new_graph: MonopartiteReacSynGraph,
+    ) -> Union[List[MonopartiteReacSynGraph], None]:
+        """To start the search for new routes generated by the addition of new nodes"""
+        target = {
+            mol for route in original_routes for mol in route.get_molecule_roots()
+        }
+        if branching_mol in target:
+            # if the branching molecule is the target of the original routes,
+            # the new sequence of nodes is a brand-new route
+            return [new_graph]
+
+        branching_nodes = self.identify_branching_nodes(original_routes, branching_mol)
+        if branching_nodes is None:
+            logger.warning(
+                "None of the input routes is connected the new node. None is returned."
+            )
+            return None
+
+        return self.build_new_routes(
+            original_routes, branching_nodes, branching_mol, new_graph
+        )
+
+    def build_new_routes(
+        self,
+        original_routes: List[MonopartiteReacSynGraph],
+        branching_nodes: dict,
+        branching_mol: Molecule,
+        new_graph: MonopartiteReacSynGraph,
+    ) -> List[MonopartiteReacSynGraph]:
+        """To build the new routes"""
+        new_routes: List[MonopartiteReacSynGraph] = []
+        new_sequence_root = new_graph.get_roots()[0]
+        for r_uid, branching_node in branching_nodes.items():
+            route = next(r for r in original_routes if r.uid == r_uid)
+            if next(
+                (
+                    leaf
+                    for leaf in route.get_leaves()
+                    if branching_mol.uid in leaf.role_map["reactants"]
+                ),
+                None,
+            ):
+                # the branching node is a leaf!
+                new_route = copy.deepcopy(route)
+            else:
+                # the branching node is an intermediate!
+                new_route = self.remove_nodes_from_route(route, branching_node)
+
+            new_route.add_node((new_sequence_root, [branching_node]))
+            new_route: MonopartiteReacSynGraph = merge_syngraph([new_route, new_graph])
+            new_routes = self.update_route_list(new_route, new_routes)
+
+        return new_routes
+
+    @staticmethod
+    def identify_branching_nodes(
+        original_routes: List[MonopartiteReacSynGraph], branching_mol: Molecule
+    ) -> Union[dict, None]:
+        """To identify the branching nodes for each of the routes in the original list
+        A branching node is a reaction node that has the branching molecule as a reactant
+        """
+        if d := {
+            r.uid: n_ce
+            for r in original_routes
+            for n_ce in r.graph
+            if branching_mol.uid in n_ce.role_map["reactants"]
+        }:
+            return d
+        else:
+            return None
+
+    @staticmethod
+    def remove_nodes_from_route(
+        route: MonopartiteReacSynGraph, branching_node: ChemicalEquation
+    ) -> MonopartiteReacSynGraph:
+        """To build a new route from a path, i.e. a list of ChemicalEquation objects"""
+        new_route = copy.deepcopy(route)
+        for leaf in new_route.get_leaves():
+            if path := find_path(new_route, leaf, branching_node):
+                [new_route.graph.pop(ce) for ce in path if ce != branching_node]
+        return new_route
+
+    @staticmethod
+    def update_route_list(
+        new_route: MonopartiteReacSynGraph, route_list: List[MonopartiteReacSynGraph]
+    ) -> List[MonopartiteReacSynGraph]:
+        """To update the list of new routes"""
+        if new_route not in route_list:
+            route_list.append(new_route)
+        return route_list
+
+
+def identify_branching_molecule(syngraph: MonopartiteReacSynGraph) -> Molecule:
+    """To identify the branching Molecule
+    The branching molecule is identified as the product of root of the new sequence of nodes
+    """
+    new_sequence_root = syngraph.get_roots()[0]
+    return next(
+        m
+        for h, m in new_sequence_root.catalog.items()
+        if h in new_sequence_root.role_map["products"]
+    )
+
+
+def build_graph_from_node_sequence(new_nodes: List[str]) -> MonopartiteReacSynGraph:
+    """To build a MonopartiteReacSynGraph from a list of reaction smiles"""
+    new_nodes_d = [{"query_id": n, "output_string": s} for n, s in enumerate(new_nodes)]
+    return MonopartiteReacSynGraph(new_nodes_d)
+
+
+def old_route_miner(
+    original_routes: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph]],
     new_nodes: List[str],
-) -> List[MonopartiteReacSynGraph]:
-    """To build a list of 1-step MonopartiteReacSynGraph from a list of reaction smiles"""
-    new_syngraphs = [
-        MonopartiteReacSynGraph([{"query_id": n, "output_string": s}])
-        for n, s in enumerate(new_nodes)
-    ]
-    return new_syngraphs
+) -> Union[List[MonopartiteReacSynGraph], None]:
+    """
+    To mine routes from a list of routes to which one or more reaction nodes are added
 
+    Parameters:
+    ------------
+    original_routes: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph]]
+        The inut list of SynGraph objects that will be merged and from which routes will be mined
+    new_nodes: List[str]
+        The list of strings representing the smiles of the new ChemicalEquations to be added
 
-"""######### OLD CODE #########"""
+    Returns:
+    ---------
+    miened routes: Union[List[MonopartiteReacSynGraph], None]
+        the list of new routes if any, None otherwise
 
+    Raises:
+    --------
+    TypeError: if the objects in the input list are not of the correct type
 
-# class NewRouteBuilder:
-#     """RouteBuilder to handle the creation of new routes from a pre-existing list of routes
-#     and a sequence of new nodes
-#     """
-#
-#     def search_new_routes(
-#         self,
-#         original_routes: List[MonopartiteReacSynGraph],
-#         branching_mol: Molecule,
-#         new_graph: MonopartiteReacSynGraph,
-#     ) -> Union[List[MonopartiteReacSynGraph], None]:
-#         """To start the search for new routes generated by the addition of new nodes"""
-#         target = {
-#             mol for route in original_routes for mol in route.get_molecule_roots()
-#         }
-#         if branching_mol in target:
-#             # if the branching molecule is the target of the original routes,
-#             # the new sequence of nodes is a brand-new route
-#             return [new_graph]
-#
-#         branching_nodes = self.identify_branching_nodes(original_routes, branching_mol)
-#         if branching_nodes is None:
-#             logger.warning(
-#                 "None of the input routes is connected the new node. None is returned."
-#             )
-#             return None
-#
-#         return self.build_new_routes(
-#             original_routes, branching_nodes, branching_mol, new_graph
-#         )
-#
-#     def build_new_routes(
-#         self,
-#         original_routes: List[MonopartiteReacSynGraph],
-#         branching_nodes: dict,
-#         branching_mol: Molecule,
-#         new_graph: MonopartiteReacSynGraph,
-#     ) -> List[MonopartiteReacSynGraph]:
-#         """To build the new routes"""
-#         new_routes: List[MonopartiteReacSynGraph] = []
-#         new_sequence_root = new_graph.get_roots()[0]
-#         for r_uid, branching_node in branching_nodes.items():
-#             route = next(r for r in original_routes if r.uid == r_uid)
-#             if next(
-#                 (
-#                     leaf
-#                     for leaf in route.get_leaves()
-#                     if branching_mol.uid in leaf.role_map["reactants"]
-#                 ),
-#                 None,
-#             ):
-#                 # the branching node is a leaf!
-#                 new_route = copy.deepcopy(route)
-#             else:
-#                 # the branching node is an intermediate!
-#                 new_route = self.remove_nodes_from_route(route, branching_node)
-#
-#             new_route.add_node((new_sequence_root, [branching_node]))
-#             new_route: MonopartiteReacSynGraph = merge_syngraph([new_route, new_graph])
-#             new_routes = self.update_route_list(new_route, new_routes)
-#
-#         return new_routes
-#
-#     @staticmethod
-#     def identify_branching_nodes(
-#         original_routes: List[MonopartiteReacSynGraph], branching_mol: Molecule
-#     ) -> Union[dict, None]:
-#         """To identify the branching nodes for each of the routes in the original list
-#         A branching node is a reaction node that has the branching molecule as a reactant
-#         """
-#         if d := {
-#             r.uid: n_ce
-#             for r in original_routes
-#             for n_ce in r.graph
-#             if branching_mol.uid in n_ce.role_map["reactants"]
-#         }:
-#             return d
-#         else:
-#             return None
-#
-#     @staticmethod
-#     def remove_nodes_from_route(
-#         route: MonopartiteReacSynGraph, branching_node: ChemicalEquation
-#     ) -> MonopartiteReacSynGraph:
-#         """To build a new route from a path, i.e. a list of ChemicalEquation objects"""
-#         new_route = copy.deepcopy(route)
-#         for leaf in new_route.get_leaves():
-#             if path := find_path(new_route, leaf, branching_node):
-#                 [new_route.graph.pop(ce) for ce in path if ce != branching_node]
-#         return new_route
-#
-#     @staticmethod
-#     def update_route_list(
-#         new_route: MonopartiteReacSynGraph, route_list: List[MonopartiteReacSynGraph]
-#     ) -> List[MonopartiteReacSynGraph]:
-#         """To update the list of new routes"""
-#         if new_route not in route_list:
-#             route_list.append(new_route)
-#         return route_list
-#
-#
-# def identify_branching_molecule(syngraph: MonopartiteReacSynGraph) -> Molecule:
-#     """To identify the branching Molecule
-#     The branching molecule is identified as the product of root of the new sequence of nodes
-#     """
-#     new_sequence_root = syngraph.get_roots()[0]
-#     return next(
-#         m
-#         for h, m in new_sequence_root.catalog.items()
-#         if h in new_sequence_root.role_map["products"]
-#     )
-#
-#
-# def old_route_miner(
-#     original_routes: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph]],
-#     new_nodes: List[str],
-# ) -> Union[List[MonopartiteReacSynGraph], None]:
-#     """
-#     To mine routes from a list of routes to which one or more reaction nodes are added
-#
-#     Parameters:
-#     ------------
-#     original_routes: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph]]
-#         The inut list of SynGraph objects that will be merged and from which routes will be mined
-#     new_nodes: List[str]
-#         The list of strings representing the smiles of the new ChemicalEquations to be added
-#
-#     Returns:
-#     ---------
-#     miened routes: Union[List[MonopartiteReacSynGraph], None]
-#         the list of new routes if any, None otherwise
-#
-#     Raises:
-#     --------
-#     TypeError: if the objects in the input list are not of the correct type
-#
-#     Example:
-#     >>> input_list = [route1, route2]
-#     >>> new_reaction_list = ['CC(=O)Nc1ccccc1C(=O)O.[O-]S(=O)(=O)C(F)(F)F>>CC(=O)Nc1ccccc1C(=O)OS(=O)(=O)C(F)(F)F']
-#     >>> new_routes = old_route_miner(input_list,new_reaction_list)
-#     """
-#     if all(isinstance(r, MonopartiteReacSynGraph) for r in original_routes):
-#         original_routes = original_routes
-#     elif any(isinstance(r, BipartiteSynGraph) for r in original_routes):
-#         original_routes = [
-#             converter(route, "monopartite_reactions") for route in original_routes
-#         ]
-#     else:
-#         logger.error(
-#             "Only monopartite-reactions and bipartite syngraph objects can be used."
-#         )
-#         raise TypeError
-#
-#     new_graph = build_graph_from_node_sequence(new_nodes)
-#     branching_mol = identify_branching_molecule(new_graph)
-#
-#     route_builder = NewRouteBuilder()
-#     return route_builder.search_new_routes(original_routes, branching_mol, new_graph)
+    Example:
+    >>> input_list = [route1, route2]
+    >>> new_reaction_list = ['CC(=O)Nc1ccccc1C(=O)O.[O-]S(=O)(=O)C(F)(F)F>>CC(=O)Nc1ccccc1C(=O)OS(=O)(=O)C(F)(F)F']
+    >>> new_routes = old_route_miner(input_list,new_reaction_list)
+    """
+    if all(isinstance(r, MonopartiteReacSynGraph) for r in original_routes):
+        original_routes = original_routes
+    elif any(isinstance(r, BipartiteSynGraph) for r in original_routes):
+        original_routes = [
+            converter(route, "monopartite_reactions") for route in original_routes
+        ]
+    else:
+        logger.error(
+            "Only monopartite-reactions and bipartite syngraph objects can be used."
+        )
+        raise TypeError
+
+    new_graph = build_graph_from_node_sequence(new_nodes)
+    branching_mol = identify_branching_molecule(new_graph)
+
+    route_builder = NewRouteBuilder()
+    return route_builder.search_new_routes(original_routes, branching_mol, new_graph)

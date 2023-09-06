@@ -1,20 +1,19 @@
 import abc
 import multiprocessing as mp
+from dataclasses import dataclass
 from functools import partial
-from typing import List, Union, Tuple
+from typing import List, Union
 
 import networkx as nx
 import numpy as np
 import pandas as pd
 
+import linchemin.cheminfo.functions as cif
 from linchemin import settings
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.cgu.translate import translator
 from linchemin.cheminfo.chemical_similarity import (
-    compute_mol_fingerprint,
-    compute_reaction_fingerprint,
-    compute_similarity,
-)
+    compute_mol_fingerprint, compute_reaction_fingerprint, compute_similarity)
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.configuration.defaults import DEFAULT_GED
 from linchemin.utilities import console_logger
@@ -50,6 +49,17 @@ class TooFewRoutes(GraphDistanceError):
     pass
 
 
+@dataclass
+class ChemicalSimilarityParameters:
+    reaction_fingerprint: str = settings.GED.reaction_fp
+    reaction_fp_params: Union[dict, None] = settings.GED.reaction_fp_params
+    reaction_similarity: str = settings.GED.reaction_similarity_name
+    molecular_fingerprint: str = settings.GED.molecular_fp
+    molecular_fp_params: Union[dict, None] = settings.GED.molecular_fp_params
+    molecular_fp_count_vect: bool = settings.GED.molecular_fp_count_vect
+    molecular_similarity_name: str = settings.GED.molecular_similarity_name
+
+
 class Ged(metaclass=abc.ABCMeta):
     """Abstract class for Ged calculators."""
 
@@ -58,13 +68,7 @@ class Ged(metaclass=abc.ABCMeta):
         self,
         syngraph1: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
         syngraph2: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
-        reaction_fp: str,
-        reaction_fp_params: dict,
-        reaction_similarity_name: str,
-        molecular_fp: str,
-        molecular_fp_params: dict,
-        molecular_fp_count_vect: bool,
-        molecular_similarity_name: str,
+        ged_params: ChemicalSimilarityParameters,
     ) -> float:
         """
         To calculate the Graph Edit Distance for a pair of graphs.
@@ -75,20 +79,8 @@ class Ged(metaclass=abc.ABCMeta):
             The first graph
         syngraph2: Union[MonopartiteReacSynGraph, BipartiteSynGraph]
             The second graph
-        reaction_fp: str
-            The reaction fingerprints should be used
-        reaction_fp_params: dict
-            The parameters for the reaction fingerprints
-        reaction_similarity_name: str
-            The method to be used to compute the similarity between reactions
-        molecular_fp: str
-            The molecular fingerprints to be used
-        molecular_fp_params: dict
-            The parameters for the molecular fingerprints
-        molecular_fp_count_vect: bool
-            Whether GetCountFingerprint should be used for the molecular fingerprints
-        molecular_similarity_name: str
-            The method should be used to compute the similarity between molecules
+        ged_params: ChemicalSimilarityParameters
+            It contains the parameters to be used in the chemical similarity calculation
 
         Returns:
         ---------
@@ -105,65 +97,20 @@ class GedOptNx(Ged):
         self,
         syngraph1: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
         syngraph2: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
-        reaction_fp: str,
-        reaction_fp_params: dict,
-        reaction_similarity_name: str,
-        molecular_fingerprint: str,
-        molecular_fp_params: dict,
-        molecular_fp_count_vect: bool,
-        molecular_similarity_name: str,
+        ged_params: ChemicalSimilarityParameters,
     ) -> float:
         """Takes two SynGraph instances, fingerprints and similarity methods for both molecules
-        and reactions and returns the GED between the two graphs as computed by the optmized GED algorithm in
+        and reactions and returns the GED between the two graphs as computed by the optimized GED algorithm in
         NetworkX."""
-        if (
-            type(syngraph1) == type(syngraph2)
-            and type(syngraph1) == MonopartiteReacSynGraph
+        if isinstance(syngraph1, MonopartiteReacSynGraph) and isinstance(
+            syngraph2, MonopartiteReacSynGraph
         ):
-            nx_graphs = [
-                translator(
-                    "syngraph", s, "networkx", out_data_model="monopartite_reactions"
-                )
-                for s in [syngraph1, syngraph2]
-            ]
-            # The cost function uses the selected reaction fingerprints.
-            node_subst_cost_partial = partial(
-                node_subst_cost,
-                reaction_fingerprints=reaction_fp,
-                reaction_similarity_name=reaction_similarity_name,
-                reaction_fp_params=reaction_fp_params,
-                molecular_fingerprint=molecular_fingerprint,
-                molecular_fp_params=molecular_fp_params,
-                molecular_fp_count_vect=molecular_fp_count_vect,
-                molecular_similarity_name=molecular_similarity_name,
-            )
-            # The NetworkX GED is called
-            opt_ged = nx.optimize_graph_edit_distance(
-                nx_graphs[0], nx_graphs[1], node_subst_cost=node_subst_cost_partial
-            )
+            out_data_model = "monopartite_reactions"
 
-        elif (
-            type(syngraph1) == type(syngraph2) and type(syngraph1) == BipartiteSynGraph
+        elif isinstance(syngraph1, BipartiteSynGraph) and isinstance(
+            syngraph2, BipartiteSynGraph
         ):
-            nx_graphs = [
-                translator("syngraph", s, "networkx", out_data_model="bipartite")
-                for s in [syngraph1, syngraph2]
-            ]
-            # The cost function uses the selected reaction and molecular fingerprints and the selected similarity type.
-            node_subst_cost_partial = partial(
-                node_subst_cost,
-                reaction_fingerprints=reaction_fp,
-                reaction_fp_params=reaction_fp_params,
-                reaction_similarity_name=reaction_similarity_name,
-                molecular_fingerprint=molecular_fingerprint,
-                molecular_fp_params=molecular_fp_params,
-                molecular_fp_count_vect=molecular_fp_count_vect,
-                molecular_similarity_name=molecular_similarity_name,
-            )
-
-            opt_ged = nx.optimize_graph_edit_distance(
-                nx_graphs[0], nx_graphs[1], node_subst_cost=node_subst_cost_partial
-            )
+            out_data_model = "bipartite"
 
         else:
             logger.error(
@@ -171,6 +118,25 @@ class GedOptNx(Ged):
                 f"The GED cannot be computed between graph of different types."
             )
             raise MismatchingGraph
+        nx_graphs = [
+            translator("syngraph", s, "networkx", out_data_model=out_data_model)
+            for s in [syngraph1, syngraph2]
+        ]
+        # The cost function uses the selected reaction and molecular fingerprints and the selected similarity type.
+        node_subst_cost_partial = partial(
+            node_subst_cost,
+            reaction_fingerprints=ged_params.reaction_fingerprint,
+            reaction_fp_params=ged_params.reaction_fp_params,
+            reaction_similarity_name=ged_params.reaction_similarity,
+            molecular_fingerprint=ged_params.molecular_fingerprint,
+            molecular_fp_params=ged_params.molecular_fp_params,
+            molecular_fp_count_vect=ged_params.molecular_fp_count_vect,
+            molecular_similarity_name=ged_params.molecular_similarity_name,
+        )
+
+        opt_ged = nx.optimize_graph_edit_distance(
+            nx_graphs[0], nx_graphs[1], node_subst_cost=node_subst_cost_partial
+        )
 
         for g in opt_ged:
             min_g = g
@@ -185,117 +151,107 @@ class GedNxPrecomputedMatrix(Ged):
         self,
         syngraph1: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
         syngraph2: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
-        reaction_fingerprints: str,
-        reaction_fp_params: dict,
-        reaction_similarity_name: str,
-        molecular_fingerprint: str,
-        molecular_fp_params: dict,
-        molecular_fp_count_vect: bool,
-        molecular_similarity_name: str,
+        ged_params: ChemicalSimilarityParameters,
     ) -> float:
         """Takes two SynGraph instances, fingerprints and similarity methods for both molecules
         and reactions and returns the GED between the two graphs as computed by the GED algorithm in NetworkX.
         The similarity matrix between nodes in the involved graphs is precomputed.
         """
-        if (
-            type(syngraph1) == type(syngraph2)
-            and type(syngraph1) == MonopartiteReacSynGraph
+        if isinstance(syngraph1, MonopartiteReacSynGraph) and isinstance(
+            syngraph2, MonopartiteReacSynGraph
         ):
-            d_reactions1, d_mol = compute_nodes_fingerprints(
-                syngraph1,
-                reaction_fingerprints,
-                molecular_fingerprint,
-                reaction_fp_params=reaction_fp_params,
-                molecular_fp_params=molecular_fp_params,
-                molecular_fp_count_vect=molecular_fp_count_vect,
+            reaction_similarity_matrix = self.precompute_reaction_similarity_matrix(
+                syngraph1, syngraph2, ged_params
             )
-            d_reactions2, d_mol = compute_nodes_fingerprints(
-                syngraph2,
-                reaction_fingerprints,
-                molecular_fingerprint,
-                reaction_fp_params=reaction_fp_params,
-                molecular_fp_params=molecular_fp_params,
-                molecular_fp_count_vect=molecular_fp_count_vect,
-            )
-            reaction_similarity_matrix = build_similarity_matrix(
-                d_reactions1, d_reactions2, reaction_similarity_name
-            )
-            nx_graphs = [
-                translator(
-                    "syngraph", s, "networkx", out_data_model="monopartite_reactions"
-                )
-                for s in [syngraph1, syngraph2]
-            ]
+            out_data_model = "monopartite_reactions"
+
             # The cost function uses the selected reaction fingerprints.
             node_subst_cost_partial = partial(
                 node_subst_cost_matrix,
                 reaction_similarity_matrix=reaction_similarity_matrix,
                 molecule_similarity_matrix=None,
             )
-            root_g1 = [n for n, d in nx_graphs[0].out_degree() if d == 0]
-            root_g2 = [n for n, d in nx_graphs[1].out_degree() if d == 0]
-            # The NetworkX GED is called
-            ged = nx.graph_edit_distance(
-                nx_graphs[0],
-                nx_graphs[1],
-                node_subst_cost=node_subst_cost_partial,
-                roots=(root_g1[0], root_g2[0]),
-            )
 
-        elif (
-            type(syngraph1) == type(syngraph2) and type(syngraph1) == BipartiteSynGraph
+        elif isinstance(syngraph1, BipartiteSynGraph) and isinstance(
+            syngraph2, BipartiteSynGraph
         ):
-            d_reactions1, d_mol1 = compute_nodes_fingerprints(
+            reaction_similarity_matrix = self.precompute_reaction_similarity_matrix(
                 syngraph1,
-                reaction_fingerprints,
-                molecular_fingerprint,
-                reaction_fp_params=reaction_fp_params,
-                molecular_fp_params=molecular_fp_params,
-                molecular_fp_count_vect=molecular_fp_count_vect,
-            )
-            d_reactions2, d_mol2 = compute_nodes_fingerprints(
                 syngraph2,
-                reaction_fingerprints,
-                molecular_fingerprint,
-                reaction_fp_params=reaction_fp_params,
-                molecular_fp_params=molecular_fp_params,
-                molecular_fp_count_vect=molecular_fp_count_vect,
+                ged_params,
             )
-            reaction_similarity_matrix = build_similarity_matrix(
-                d_reactions1, d_reactions2, reaction_similarity_name
+            molecule_similarity_matrix = self.precompute_molecule_similarity_matrix(
+                syngraph1, syngraph2, ged_params
             )
-            molecule_similarity_matrix = build_similarity_matrix(
-                d_mol1, d_mol2, molecular_similarity_name
-            )
-            nx_graphs = [
-                translator("syngraph", s, "networkx", out_data_model="bipartite")
-                for s in [syngraph1, syngraph2]
-            ]
+            out_data_model = "bipartite"
+
             # The cost function uses the selected reaction and molecular fingerprints and the selected similarity type.
             node_subst_cost_partial = partial(
                 node_subst_cost_matrix,
                 reaction_similarity_matrix=reaction_similarity_matrix,
                 molecule_similarity_matrix=molecule_similarity_matrix,
             )
-            # Retrieve the roots of the routes
-            root_g1 = [n for n, d in nx_graphs[0].out_degree() if d == 0]
-            root_g2 = [n for n, d in nx_graphs[1].out_degree() if d == 0]
-
-            ged = nx.graph_edit_distance(
-                nx_graphs[0],
-                nx_graphs[1],
-                node_subst_cost=node_subst_cost_partial,
-                roots=(root_g1[0], root_g2[0]),
-            )
-
         else:
             logger.error(
                 f"Graph1 has type = {type(syngraph1)} \nGraph2 has type = {type(syngraph2)}. "
                 f"The GED cannot be computed between graph of different types."
             )
             raise MismatchingGraph
+        nx_graphs = [
+            translator("syngraph", s, "networkx", out_data_model=out_data_model)
+            for s in [syngraph1, syngraph2]
+        ]
+        # Retrieve the roots of the routes
+        root_g1 = next(n for n, d in nx_graphs[0].out_degree() if d == 0)
+        root_g2 = next(n for n, d in nx_graphs[1].out_degree() if d == 0)
 
-        return ged
+        return nx.graph_edit_distance(
+            nx_graphs[0],
+            nx_graphs[1],
+            node_subst_cost=node_subst_cost_partial,
+            roots=(root_g1, root_g2),
+        )
+
+    @staticmethod
+    def precompute_reaction_similarity_matrix(
+        syngraph1: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
+        syngraph2: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
+        ged_params: ChemicalSimilarityParameters,
+    ) -> pd.DataFrame:
+        """To precompute the similarity matrix for ChemicalEquation nodes only"""
+        d_reactions1 = get_reactions_fp_dict(
+            syngraph1, ged_params.reaction_fingerprint, ged_params.reaction_fp_params
+        )
+
+        d_reactions2 = get_reactions_fp_dict(
+            syngraph2, ged_params.reaction_fingerprint, ged_params.reaction_fp_params
+        )
+
+        return build_similarity_matrix(
+            d_reactions1, d_reactions2, ged_params.reaction_similarity
+        )
+
+    @staticmethod
+    def precompute_molecule_similarity_matrix(
+        syngraph1: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
+        syngraph2: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
+        ged_params: ChemicalSimilarityParameters,
+    ) -> pd.DataFrame:
+        """To precompute the similarity matrix for ChemicalEquation nodes only"""
+        d_mol1 = get_mol_fp_dict(
+            syngraph1,
+            ged_params.molecular_fingerprint,
+            ged_params.molecular_fp_params,
+            ged_params.molecular_fp_count_vect,
+        )
+        d_mol2 = get_mol_fp_dict(
+            syngraph2,
+            ged_params.molecular_fingerprint,
+            ged_params.molecular_fp_params,
+            ged_params.molecular_fp_count_vect,
+        )
+
+        return build_similarity_matrix(d_mol1, d_mol2, ged_params.reaction_similarity)
 
 
 class GedNx(Ged):
@@ -305,76 +261,20 @@ class GedNx(Ged):
         self,
         syngraph1: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
         syngraph2: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
-        reaction_fp: str,
-        reaction_fp_params: dict,
-        reaction_similarity_name: str,
-        molecular_fingerprint: str,
-        molecular_fp_params: dict,
-        molecular_fp_count_vect: bool,
-        molecular_similarity_name: str,
+        ged_params: ChemicalSimilarityParameters,
     ) -> float:
         """Takes two SynGraph instances, fingerprints and similarity methods for both molecules
         and reactions and returns the GED between the two graphs as computed by the GED algorithm in NetworkX.
         """
-        if (
-            type(syngraph1) == type(syngraph2)
-            and type(syngraph1) == MonopartiteReacSynGraph
+        if isinstance(syngraph1, MonopartiteReacSynGraph) and isinstance(
+            syngraph2, MonopartiteReacSynGraph
         ):
-            nx_graphs = [
-                translator(
-                    "syngraph", s, "networkx", out_data_model="monopartite_reactions"
-                )
-                for s in [syngraph1, syngraph2]
-            ]
-            # The cost function uses the selected reaction fingerprints.
-            node_subst_cost_partial = partial(
-                node_subst_cost,
-                reaction_fingerprints=reaction_fp,
-                reaction_fp_params=reaction_fp_params,
-                reaction_similarity_name=reaction_similarity_name,
-                molecular_fingerprint=molecular_fingerprint,
-                molecular_fp_params=molecular_fp_params,
-                molecular_fp_count_vect=molecular_fp_count_vect,
-                molecular_similarity_name=molecular_similarity_name,
-            )
-            root_g1 = [n for n, d in nx_graphs[0].out_degree() if d == 0]
-            root_g2 = [n for n, d in nx_graphs[1].out_degree() if d == 0]
+            out_data_model = "monopartite_reactions"
 
-            ged = nx.graph_edit_distance(
-                nx_graphs[0],
-                nx_graphs[1],
-                node_subst_cost=node_subst_cost_partial,
-                roots=(root_g1[0], root_g2[0]),
-            )
-
-        elif (
-            type(syngraph1) == type(syngraph2) and type(syngraph1) == BipartiteSynGraph
+        elif isinstance(syngraph1, BipartiteSynGraph) and isinstance(
+            syngraph2, BipartiteSynGraph
         ):
-            nx_graphs = [
-                translator("syngraph", s, "networkx", out_data_model="bipartite")
-                for s in [syngraph1, syngraph2]
-            ]
-            # The cost function uses the selected reaction and molecular fingerprints and the selected similarity type.
-            node_subst_cost_partial = partial(
-                node_subst_cost,
-                reaction_fingerprints=reaction_fp,
-                reaction_fp_params=reaction_fp_params,
-                reaction_similarity_name=reaction_similarity_name,
-                molecular_fingerprint=molecular_fingerprint,
-                molecular_fp_params=molecular_fp_params,
-                molecular_fp_count_vect=molecular_fp_count_vect,
-                molecular_similarity_name=molecular_similarity_name,
-            )
-            # Retrieve the roots of the routes
-            root_g1 = [n for n, d in nx_graphs[0].out_degree() if d == 0]
-            root_g2 = [n for n, d in nx_graphs[1].out_degree() if d == 0]
-
-            ged = nx.graph_edit_distance(
-                nx_graphs[0],
-                nx_graphs[1],
-                node_subst_cost=node_subst_cost_partial,
-                roots=(root_g1[0], root_g2[0]),
-            )
+            out_data_model = "bipartite"
 
         else:
             logger.error(
@@ -382,8 +282,31 @@ class GedNx(Ged):
                 f"The GED cannot be computed between graph of different types."
             )
             raise MismatchingGraph
+        nx_graphs = [
+            translator("syngraph", s, "networkx", out_data_model=out_data_model)
+            for s in [syngraph1, syngraph2]
+        ]
+        # The cost function uses the selected reaction and molecular fingerprints and the selected similarity type.
+        node_subst_cost_partial = partial(
+            node_subst_cost,
+            reaction_fingerprints=ged_params.reaction_fingerprint,
+            reaction_fp_params=ged_params.reaction_fp_params,
+            reaction_similarity_name=ged_params.reaction_similarity,
+            molecular_fingerprint=ged_params.molecular_fingerprint,
+            molecular_fp_params=ged_params.molecular_fp_params,
+            molecular_fp_count_vect=ged_params.molecular_fp_count_vect,
+            molecular_similarity_name=ged_params.molecular_similarity_name,
+        )
+        # Retrieve the roots of the routes
+        root_g1 = next(n for n, d in nx_graphs[0].out_degree if d == 0)
+        root_g2 = next(n for n, d in nx_graphs[1].out_degree if d == 0)
 
-        return ged
+        return nx.graph_edit_distance(
+            nx_graphs[0],
+            nx_graphs[1],
+            node_subst_cost=node_subst_cost_partial,
+            roots=(root_g1, root_g2),
+        )
 
 
 class GedFactory:
@@ -416,13 +339,14 @@ class GedFactory:
         syngraph1,
         syngraph2,
         ged_method,
-        reaction_fp,
-        reaction_fp_params,
-        reaction_similarity_name,
-        molecular_fp,
-        molecular_fp_params,
-        molecular_fp_count_vect,
-        molecular_similarity_name,
+        ged_params: ChemicalSimilarityParameters,
+        # reaction_fp,
+        # reaction_fp_params,
+        # reaction_similarity_name,
+        # molecular_fp,
+        # molecular_fp_params,
+        # molecular_fp_count_vect,
+        # molecular_similarity_name,
     ):
         if ged_method not in self.available_ged:
             logger.error(
@@ -431,17 +355,7 @@ class GedFactory:
             raise UnavailableGED
 
         selector = self.available_ged[ged_method]["value"]
-        return selector().compute_ged(
-            syngraph1,
-            syngraph2,
-            reaction_fp,
-            reaction_fp_params,
-            reaction_similarity_name,
-            molecular_fp,
-            molecular_fp_params,
-            molecular_fp_count_vect,
-            molecular_similarity_name,
-        )
+        return selector().compute_ged(syngraph1, syngraph2, ged_params)
 
 
 def graph_distance_factory(
@@ -483,65 +397,63 @@ def graph_distance_factory(
     >>> syngraphs = [translator('ibm_retro', g, 'syngraph', out_data_model='bipartite') for g in graphs]
     >>> ged = graph_distance_factory(syngraphs[0], syngraphs[3], ged_method='nx_ged')
     """
+    params = set_chemical_similarity_parameters(ged_params)
+    ged_calculator = GedFactory()
+    return ged_calculator.select_ged(syngraph1, syngraph2, ged_method, params)
 
+
+def set_chemical_similarity_parameters(
+    ged_params: dict,
+) -> ChemicalSimilarityParameters:
+    """To set the instance of ChemicalSimilarityParameters with the desired parameters"""
+    params = ChemicalSimilarityParameters()
     if ged_params is None:
-        ged_params = {}
-
-    reaction_fp = ged_params.get("reaction_fp", settings.GED.reaction_fp)
-    reaction_fp_params = ged_params.get(
+        return params
+    params.reaction_fingerprint = ged_params.get(
+        "reaction_fp", settings.GED.reaction_fp
+    )
+    params.reaction_fp_params = ged_params.get(
         "reaction_fp_params", settings.GED.reaction_fp_params
     )
-    reaction_similarity_name = ged_params.get(
+    params.reaction_similarity_name = ged_params.get(
         "reaction_similarity_name", settings.GED.reaction_similarity_name
     )
-    molecular_fp = ged_params.get("molecular_fp", settings.GED.molecular_fp)
-    molecular_fp_params = ged_params.get(
+    params.molecular_fingerprint = ged_params.get(
+        "molecular_fp", settings.GED.molecular_fp
+    )
+    params.molecular_fp_params = ged_params.get(
         "molecular_fp_params", settings.GED.molecular_fp_params
     )
-    molecular_fp_count_vect = ged_params.get(
+    params.molecular_fp_count_vect = ged_params.get(
         "molecular_fp_count_vect", settings.GED.molecular_fp_count_vect
     )
-    molecular_similarity_name = ged_params.get(
+    params.molecular_similarity_name = ged_params.get(
         "molecular_similarity_name", settings.GED.molecular_similarity_name
     )
-
-    ged_calculator = GedFactory()
-    return ged_calculator.select_ged(
-        syngraph1,
-        syngraph2,
-        ged_method,
-        reaction_fp,
-        reaction_fp_params,
-        reaction_similarity_name,
-        molecular_fp,
-        molecular_fp_params,
-        molecular_fp_count_vect,
-        molecular_similarity_name,
-    )
+    return params
 
 
 # COST FUNCTIONS
 def node_subst_cost_matrix(
-    node1, node2, reaction_similarity_matrix, molecule_similarity_matrix
+    node1,
+    node2,
+    reaction_similarity_matrix: pd.DataFrame,
+    molecule_similarity_matrix: Union[pd.DataFrame, None],
 ):
     """To compute the cost of substituting ona node with another, based on the pre-computed similarity matrices.
     The more different the nodes, the higher the cost.
-
-
     """
     # The correct similarity matrix is used based on the node types
-    if (
-        type(node1["properties"]["node_type"]) == ChemicalEquation
-        and type(node2["properties"]["node_type"]) == ChemicalEquation
+    if isinstance(node1["properties"]["node_type"], ChemicalEquation) and isinstance(
+        node2["properties"]["node_type"], ChemicalEquation
     ):
         similarity = reaction_similarity_matrix.loc[
             node2["properties"]["node_type"].uid, node1["properties"]["node_type"].uid
         ]
         return 1.0 - similarity
 
-    elif (
-        type(node1["properties"]["node_type"]) == Molecule
-        and type(node2["properties"]["node_type"]) == Molecule
+    elif isinstance(node1["properties"]["node_type"], Molecule) and isinstance(
+        node2["properties"]["node_type"], Molecule
     ):
         similarity = molecule_similarity_matrix.loc[
             node2["properties"]["node_type"].uid, node1["properties"]["node_type"].uid
@@ -571,72 +483,96 @@ def node_subst_cost(
     cost: float
         The cost of the substitution (between 0 and 1)
     """
-    # If both nodes are of the type 'ChemicalEquation', their Tanimoto similarity is computed
-    if (
-        type(node1["properties"]["node_type"]) == ChemicalEquation
-        and type(node2["properties"]["node_type"]) == ChemicalEquation
+    # If both nodes are ChemicalEquation, their similarity is computed
+    if isinstance(node1["properties"]["node_type"], ChemicalEquation) and isinstance(
+        node2["properties"]["node_type"], ChemicalEquation
     ):
-        rdrxn1 = node1["properties"]["node_type"].rdrxn
-        rdrxn2 = node2["properties"]["node_type"].rdrxn
-        fp1 = compute_reaction_fingerprint(
-            rdrxn1, fp_name=reaction_fingerprints, params=reaction_fp_params
+        return get_reaction_similarity(
+            node1["properties"]["node_type"].rdrxn,
+            node2["properties"]["node_type"].rdrxn,
+            reaction_fingerprints,
+            reaction_fp_params,
+            reaction_similarity_name,
         )
-        fp2 = compute_reaction_fingerprint(
-            rdrxn2, fp_name=reaction_fingerprints, params=reaction_fp_params
-        )
-        tanimoto = compute_similarity(
-            fp1, fp2, similarity_name=reaction_similarity_name
-        )
-        return 1.0 - tanimoto
-
-    elif (
-        type(node1["properties"]["node_type"]) == Molecule
-        and type(node2["properties"]["node_type"]) == Molecule
+    # if both nodes are MoleculeEquation, their similarity is computed
+    elif isinstance(node1["properties"]["node_type"], Molecule) and isinstance(
+        node2["properties"]["node_type"], Molecule
     ):
-        rdmol1 = node1["properties"]["node_type"].rdmol
-        rdmol2 = node2["properties"]["node_type"].rdmol
-        fp1 = compute_mol_fingerprint(
-            rdmol1,
-            fp_name=molecular_fingerprint,
-            parameters=molecular_fp_params,
-            count_fp_vector=molecular_fp_count_vect,
+        return get_molecular_similarity(
+            node1["properties"]["node_type"].rdmol,
+            node2["properties"]["node_type"].rdmol,
+            molecular_fingerprint,
+            molecular_fp_params,
+            molecular_similarity_name,
+            molecular_fp_count_vect,
         )
-        fp2 = compute_mol_fingerprint(
-            rdmol2,
-            fp_name=molecular_fingerprint,
-            parameters=molecular_fp_params,
-            count_fp_vector=molecular_fp_count_vect,
-        )
-        tanimoto = compute_similarity(
-            fp1, fp2, similarity_name=molecular_similarity_name
-        )
-        return 1.0 - tanimoto
-
+    # if the two nodes are of different types, the maximum diversity is returned
     else:
         return 1.0
 
 
-def compute_nodes_fingerprints(
-    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
-    reaction_fingerprints: str,
+def get_reaction_similarity(
+    rdrxn1: cif.rdChemReactions,
+    rdrxn2: cif.rdChemReactions,
+    reaction_fingerprint,
+    reaction_fp_params,
+    reaction_similarity,
+) -> float:
+    """To compute the similarity between two reactions"""
+    fp1 = compute_reaction_fingerprint(
+        rdrxn1,
+        fp_name=reaction_fingerprint,
+        params=reaction_fp_params,
+    )
+    fp2 = compute_reaction_fingerprint(
+        rdrxn2,
+        fp_name=reaction_fingerprint,
+        params=reaction_fp_params,
+    )
+    tanimoto = compute_similarity(fp1, fp2, similarity_name=reaction_similarity)
+    return 1.0 - tanimoto
+
+
+def get_molecular_similarity(
+    rdmol1: cif.rdChemReactions,
+    rdmol2: cif.rdChemReactions,
+    molecular_fingerprint,
+    molecular_fp_params,
+    molecular_similarity_name,
+    molecular_fp_count_vect,
+) -> float:
+    """To compute the similarity between two molecules"""
+    fp1 = compute_mol_fingerprint(
+        rdmol1,
+        fp_name=molecular_fingerprint,
+        parameters=molecular_fp_params,
+        count_fp_vector=molecular_fp_count_vect,
+    )
+    fp2 = compute_mol_fingerprint(
+        rdmol2,
+        fp_name=molecular_fingerprint,
+        parameters=molecular_fp_params,
+        count_fp_vector=molecular_fp_count_vect,
+    )
+    tanimoto = compute_similarity(fp1, fp2, similarity_name=molecular_similarity_name)
+    return 1.0 - tanimoto
+
+
+def get_mol_fp_dict(
+    syngraph: BipartiteSynGraph,
     molecular_fingerprint: str,
-    reaction_fp_params=DEFAULT_GED["reaction_fp_params"]["value"],
     molecular_fp_params=DEFAULT_GED["molecular_fp_params"]["value"],
     molecular_fp_count_vect=DEFAULT_GED["molecular_fp_count_vect"]["value"],
-) -> Tuple[dict, dict]:
+) -> dict:
     """
-    To create two dictionaries, whose keys are the hashes of the SynGraph nodes and the values their fingerprints.
+    To build a dictionary, whose keys are the hashes of the Molecule nodes in a SynGraph and the values their fingerprints.
 
     Parameters:
     ------------
-    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph]
+    syngraph: BipartiteSynGraph
         The graph object for whose nodes fingerprints should be computed
-    reaction_fingerprints: str
-        The selected type of reaction fingerprint
     molecular_fingerprint: str
         The selected type of molecular fingerprint
-    reaction_fp_params: dict
-        The optional parameters for computing reaction fingerprints
     molecular_fp_params: dict
         The optional parameters for computing molecular fingerprints
     molecular_fp_count_vect: bool
@@ -644,45 +580,79 @@ def compute_nodes_fingerprints(
 
     Returns:
     ----------
-    Tuple[dict, dict]:
-        reaction_nodes_fingerprints: dict
-            The fingerprints of the ChemicalEquation nodes
-        molecule_node_fingerprints: dict
-            The fingerprints of the Molecule nodes
+    molecule_node_fingerprints: dict
+        The fingerprints of the Molecule nodes
     """
-    reaction_nodes_fingerprints = {}
-    molecule_node_fingerprints = {}
 
-    for r, connections in syngraph.graph.items():
-        if type(r) == ChemicalEquation:
-            if r.uid not in reaction_nodes_fingerprints:
-                reaction_nodes_fingerprints[r.uid] = compute_reaction_fingerprint(
-                    r.rdrxn, fp_name=reaction_fingerprints, params=reaction_fp_params
-                )
-        elif r.uid not in molecule_node_fingerprints:
-            molecule_node_fingerprints[r.uid] = compute_mol_fingerprint(
-                r.rdmol,
-                fp_name=molecular_fingerprint,
-                parameters=molecular_fp_params,
-                count_fp_vector=molecular_fp_count_vect,
-            )
+    molecules = get_molecule_nodes(syngraph)
 
-        for c in connections:
-            if type(c) == ChemicalEquation:
-                if c.uid not in reaction_nodes_fingerprints:
-                    reaction_nodes_fingerprints[c.uid] = compute_reaction_fingerprint(
-                        c.rdrxn,
-                        fp_name=reaction_fingerprints,
-                        params=reaction_fp_params,
-                    )
-            elif c.uid not in molecule_node_fingerprints:
-                molecule_node_fingerprints[c.uid] = compute_mol_fingerprint(
-                    c.rdmol,
-                    fp_name=molecular_fingerprint,
-                    parameters=molecular_fp_params,
-                    count_fp_vector=molecular_fp_count_vect,
-                )
-    return reaction_nodes_fingerprints, molecule_node_fingerprints
+    return {
+        mol.uid: compute_mol_fingerprint(
+            mol.rdmol,
+            molecular_fingerprint,
+            molecular_fp_params,
+            molecular_fp_count_vect,
+        )
+        for mol in molecules
+    }
+
+
+def get_reactions_fp_dict(
+    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
+    reaction_fingerprints: str,
+    reaction_fp_params=DEFAULT_GED["reaction_fp_params"]["value"],
+) -> dict:
+    """
+    To build a dictionary, whose keys are the hashes of the ChemicalEquation nodes in a SynGraph and the values their fingerprints.
+
+    Parameters:
+    ------------
+    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph]
+        The graph object for whose nodes fingerprints should be computed
+    reaction_fingerprints: str
+        The selected type of reaction fingerprint
+    reaction_fp_params: dict
+        The optional parameters for computing reaction fingerprints
+
+
+    Returns:
+    ----------
+    reaction_node_fingerprints: dict
+        The fingerprints of the ChemicalEquation nodes
+    """
+    reactions = get_chemical_equation_nodes(syngraph)
+    return {
+        ce.uid: compute_reaction_fingerprint(
+            ce.rdrxn, reaction_fingerprints, reaction_fp_params
+        )
+        for ce in reactions
+    }
+
+
+def get_chemical_equation_nodes(
+    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph]
+) -> set:
+    """To extract all ChemicalEquation nodes from a SynGraph"""
+    reactions = set()
+    for parent, children in syngraph.graph.items():
+        if isinstance(parent, ChemicalEquation):
+            reactions.add(parent)
+            [
+                reactions.add(child)
+                for child in children
+                if isinstance(child, ChemicalEquation)
+            ]
+    return reactions
+
+
+def get_molecule_nodes(syngraph: BipartiteSynGraph) -> set:
+    """To extract all Molecule nodes from a SynGraph"""
+    molecules = set()
+    for parent, children in syngraph.graph.items():
+        if isinstance(parent, Molecule):
+            molecules.add(parent)
+            [molecules.add(child) for child in children if isinstance(child, Molecule)]
+    return molecules
 
 
 def build_similarity_matrix(
@@ -762,42 +732,44 @@ def compute_distance_matrix(
         )
         raise TooFewRoutes
 
-    routes = range(len(syngraphs))
-    matrix = pd.DataFrame(columns=routes, index=routes)
-
     # Calculation with parallelization
     if parallelization:
-        results = []
-        pool = mp.Pool(n_cpu)
-        for i in routes:
-            in_routes = [(i, j, syngraphs[i], syngraphs[j]) for j in routes if j >= i]
-            results.append(
-                pool.starmap(
-                    parallel_matrix_calculations,
-                    [(tup, ged_method, ged_params) for tup in in_routes],
-                )
-            )
-        pool.close()
+        matrix = setup_parallel_calculation(syngraphs, n_cpu, ged_method, ged_params)
 
-        for result in results:
-            for t in result:
-                matrix.loc[t[1], t[0]] = t[2]
-                matrix.loc[t[0], t[1]] = t[2]
-
-    # Calculation without parallelization
     else:
-        for i in routes:
-            for j in routes:
-                if j >= i:
-                    sim = graph_distance_factory(
-                        syngraphs[i],
-                        syngraphs[j],
-                        ged_method=ged_method,
-                        ged_params=ged_params,
-                    )
-                    matrix.loc[j, i] = sim
-                    matrix.loc[i, j] = sim
+        n_routes = len(syngraphs)
+        matrix = pd.DataFrame(columns=range(n_routes), index=range(n_routes))
+        for i in range(n_routes):
+            for j in range(i, n_routes):
+                sim = graph_distance_factory(
+                    syngraphs[i],
+                    syngraphs[j],
+                    ged_method=ged_method,
+                    ged_params=ged_params,
+                )
+                matrix.loc[j, i] = sim
+                matrix.loc[i, j] = sim
     return matrix
+
+
+def setup_parallel_calculation(
+    syngraphs: list, n_cpu: int, ged_method: str, ged_params: dict
+) -> pd.DataFrame:
+    """To setup the matrix calculation with parallelization"""
+    routes_range = range(len(syngraphs))
+
+    results = []
+    pool = mp.Pool(n_cpu)
+    for i in routes_range:
+        in_routes = [(i, j, syngraphs[i], syngraphs[j]) for j in routes_range if j >= i]
+        results.append(
+            pool.starmap(
+                parallel_matrix_calculations,
+                [(tup, ged_method, ged_params) for tup in in_routes],
+            )
+        )
+    pool.close()
+    return build_ged_matrix(results, routes_range)
 
 
 def parallel_matrix_calculations(
@@ -826,7 +798,18 @@ def parallel_matrix_calculations(
     return i, j, sim
 
 
-def get_available_ged_algorithms():
+def build_ged_matrix(results: list, routes_range: range) -> pd.DataFrame:
+    """To build the distance matrix from a list of lists"""
+    matrix = pd.DataFrame(columns=routes_range, index=routes_range)
+    for result in results:
+        for t in result:
+            matrix.loc[t[1], t[0]] = t[2]
+            matrix.loc[t[0], t[1]] = t[2]
+    return matrix
+
+
+# Helper functions
+def get_available_ged_algorithms() -> dict:
     """Returns a dictionary with the available GED algorithms and some info"""
     return {
         f: additional_info["info"]
@@ -834,12 +817,13 @@ def get_available_ged_algorithms():
     }
 
 
-def get_ged_default_parameters():
+def get_ged_default_parameters() -> dict:
     """Returns a dictionary with the default parameters used in GED calculation"""
     return {f: additional_info["info"] for f, additional_info in DEFAULT_GED.items()}
 
 
-def get_ged_parameters():
+def get_ged_parameters() -> dict:
+    """Returns a dictionary with the default parameters used in GED calculations"""
     return {
         f: additional_info["general_info"] for f, additional_info in DEFAULT_GED.items()
     }

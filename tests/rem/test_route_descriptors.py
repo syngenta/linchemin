@@ -1,17 +1,15 @@
-from linchemin.cgu.convert import converter
-from linchemin.rem.route_descriptors import (
-    descriptor_calculator,
-    is_subset,
-    find_duplicates,
-    get_nodes_consensus,
-    get_available_descriptors,
-    DescriptorError,
-)
-from linchemin.cgu.syngraph import SynGraph, MonopartiteReacSynGraph
-from linchemin.cgu.syngraph_operations import merge_syngraph
 import json
-from linchemin.cgu.translate import translator
+
 import pytest
+
+from linchemin.cgu.syngraph import MonopartiteReacSynGraph
+from linchemin.cgu.syngraph_operations import merge_syngraph
+from linchemin.cgu.translate import translator
+from linchemin.rem.route_descriptors import (DescriptorError,
+                                             descriptor_calculator,
+                                             find_duplicates,
+                                             get_available_descriptors,
+                                             get_nodes_consensus, is_subset)
 
 
 def test_unavailable_metrics(ibm1_path):
@@ -25,15 +23,15 @@ def test_unavailable_metrics(ibm1_path):
     assert "UnavailableDescriptor" in str(ke.type)
 
 
-def test_longest_sequence(az_path):
+def test_longest_sequence(mit_path):
     """To test that the LongestSequence object is returned as expected."""
-    graph = json.loads(open(az_path).read())
-    syngraph = translator("az_retro", graph[3], "syngraph", out_data_model="bipartite")
+    graph = json.loads(open(mit_path).read())
+    syngraph = translator("mit_retro", graph[1], "syngraph", out_data_model="bipartite")
     longest_seq = descriptor_calculator(syngraph, "longest_seq")
-    assert longest_seq == 3
+    assert longest_seq == 4
 
     mp_syngraph = translator(
-        "az_retro", graph[3], "syngraph", out_data_model="monopartite_reactions"
+        "mit_retro", graph[1], "syngraph", out_data_model="monopartite_reactions"
     )
     longest_seq_mp = descriptor_calculator(mp_syngraph, "longest_seq")
     assert longest_seq_mp == longest_seq

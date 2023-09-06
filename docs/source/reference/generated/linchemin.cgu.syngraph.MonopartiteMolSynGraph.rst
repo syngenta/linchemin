@@ -23,7 +23,6 @@
       ~MonopartiteMolSynGraph.get_leaves
       ~MonopartiteMolSynGraph.get_roots
       ~MonopartiteMolSynGraph.initialize_with_iron
-      ~MonopartiteMolSynGraph.remove_isolate_nodes
       ~MonopartiteMolSynGraph.remove_node
       ~MonopartiteMolSynGraph.set_source
    

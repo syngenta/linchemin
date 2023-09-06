@@ -4,17 +4,14 @@ from typing import Type, Union
 
 import linchemin.cheminfo.functions as cif
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-)
+from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
+                                    MonopartiteReacSynGraph)
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
-from linchemin.utilities import console_logger
 from linchemin.cheminfo.functions import Descriptors
+from linchemin.utilities import console_logger
 
 """
-Module containing all classes and functions to compute route's step descriptors 
+Module containing all classes and functions to compute route's step descriptors
 """
 
 logger = console_logger(__name__)
@@ -61,9 +58,9 @@ class StepDescriptor(metaclass=abc.ABCMeta):
     def extract_all_atomic_paths(desired_product, all_transformations: list) -> list:
         """To identify the atomic paths starting from the desired product."""
         # identify all the atom transformations that involve atoms of the desired product
-        target_transformations = [
+        target_transformations = set(
             at for at in all_transformations if at.product_uid == desired_product.uid
-        ]
+        )
         all_atomic_paths = []
         # One path is created from each mapped atom in the desired product to the corresponding atom in a leaf
         for t in target_transformations:
@@ -140,16 +137,13 @@ class StepDescriptorsFactory:
 @StepDescriptorsFactory.register_step_descriptor("step_effectiveness")
 class StepEffectiveness(StepDescriptor):
     """Subclass to compute the atom effectiveness of the step. Currently computed as the ratio between the number
-    of atoms in the step reactants that contribute to the final target and thetotal number of atoms in the step reactants
+    of atoms in the step reactants that contribute to the final target and the total number of atoms in the step reactants
     """
 
     def compute_step_descriptor(
         self, unique_reactions: set, all_transformations: list, target, step
     ) -> DescriptorCalculationOutput:
         out = DescriptorCalculationOutput()
-        # n_atoms_prod = target.rdmol.GetNumAtoms()
-        # print("atoms in target = ", n_atoms_prod)
-        # print("target", target.smiles)
         all_atomic_paths = self.extract_all_atomic_paths(target, all_transformations)
 
         contributing_atoms = sum(
@@ -214,8 +208,8 @@ class StepHypsicity(StepDescriptor):
 
     @staticmethod
     def hypsicity_calculation(target_transformation, step_transformation, target, step):
-        """It computes the difference between the oxidation number of an atom in the target and the same atom in the
-        considered step"""
+        """It computes the difference between the oxidation number of an atom in the reactants of considered step
+        and the same atom in the target (aligned with Andraos' definition)"""
         leaf = next(
             m
             for uid, m in step.catalog.items()
@@ -286,7 +280,7 @@ def step_descriptor_calculator(
     step_descriptor = StepDescriptorsFactory.get_step_descriptor_instance(
         descriptor_name
     )
-    unique_reactions = extract_unique_ce(route)
+    unique_reactions = route.get_unique_nodes()
     all_transformations = [
         at for ce in unique_reactions for at in ce.mapping.atom_transformations
     ]
@@ -303,11 +297,6 @@ def step_descriptor_calculator(
 def get_available_step_descriptors():
     """It returns all the available step descriptor names"""
     return StepDescriptorsFactory.list_step_descriptors()
-
-
-def extract_unique_ce(route):
-    """To extract all unique ChemicalEquations in the input route"""
-    return set(parent for parent in route.graph)
 
 
 def build_step_ce(step_smiles: str):

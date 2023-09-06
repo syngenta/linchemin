@@ -74,7 +74,9 @@ class CEHypsicity(ChemicalEquationDescriptor):
     def compute_oxidation_state_change(
         atom_transformations: list, desired_product: Molecule, reactants: list
     ) -> float:
-        """Computes the change in oxidation state for each mapped atom in the ChemicalEquation"""
+        """Computes the change in oxidation state for each mapped atom in the ChemicalEquation as the difference
+        between the oxidation number of an atom in the desired product and the corresponding atom in the reactants.
+        """
         delta = 0.0
         # ox_nrs = []
         for at in atom_transformations:
@@ -116,7 +118,7 @@ class CEAtomEfficiency(ChemicalEquationDescriptor):
 
     def compute_descriptor(self, reaction: ChemicalEquation) -> float:
         """Takes a ChemicalEquation instance and computes the atom efficiency as the ratio between the number of
-        mapped atoms in the desired product and the number of atom sin the reactants.
+        mapped atoms in the desired product and the number of atom in the reactants.
         """
         if reaction.mapping is None:
             logger.error("No atom mapping: the descriptor cannot be computed")

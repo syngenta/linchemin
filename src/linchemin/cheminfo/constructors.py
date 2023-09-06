@@ -9,14 +9,9 @@ from typing import Dict, List, Set, Tuple, Union
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
 from linchemin import settings
-from linchemin.cheminfo.models import (
-    ChemicalEquation,
-    Disconnection,
-    Molecule,
-    Pattern,
-    Ratam,
-    Template,
-)
+from linchemin.cheminfo.models import (ChemicalEquation, Disconnection,
+                                       Molecule, Pattern, Product, Ratam,
+                                       Reactant, Reagent, Role, Template)
 
 """
 Module containing the constructor classes of relevant cheminformatics models defined in 'models' module
@@ -183,15 +178,30 @@ AtomTransformation = namedtuple(
 class RatamConstructor:
     """Class implementing the constructor of the Ratam class"""
 
-    def create_ratam(
-        self, molecules_catalog: dict, desired_products: Molecule
-    ) -> Ratam:
+    def create_ratam(self, molecules_catalog: dict, desired_product: Molecule) -> Ratam:
         """To initialize an instance of the Ratam class"""
         ratam = Ratam()
-        ratam.full_map_info = self.get_full_map_info(
-            molecules_catalog, desired_products
-        )
+
+        ratam.full_map_info = self.get_full_map_info(molecules_catalog, desired_product)
+
         ratam.atom_transformations = self.get_atom_transformations(ratam.full_map_info)
+        dp_atom_transformations = set(
+            at
+            for at in ratam.atom_transformations
+            if at.product_uid == desired_product.uid
+        )
+        ratam.desired_product_unmapped_atoms_info = (
+            self.get_unmapped_atoms_in_desired_product(
+                ratam.full_map_info["products"][desired_product.uid],
+                dp_atom_transformations,
+                desired_product.uid,
+            )
+        )
+
+        ratam.reactants_unmapped_atoms_info = self.get_unmapped_atoms_in_reactants(
+            ratam.full_map_info["reactants"], ratam.atom_transformations
+        )
+
         return ratam
 
     def get_full_map_info(
@@ -205,13 +215,80 @@ class RatamConstructor:
         dp_map_nums = {
             a.GetAtomMapNum() for a in desired_product.rdmol_mapped.GetAtoms()
         }
-        full_map_info = self.reactants_reagents_map_info(
+        full_map_info = self.precursors_map_info(
             molecules_catalog, full_map_info, dp_map_nums
         )
 
         full_map_info = cif.clean_full_map_info(full_map_info)
         self.mapping_sanity_check(full_map_info)
         return full_map_info
+
+    def get_unmapped_atoms_in_reactants(
+        self, reactants_map_info: dict, atom_transformations: Set[AtomTransformation]
+    ) -> dict:
+        """To get the information about unmapped atoms in the reactants"""
+        info = {"unmapped_atoms": {}}
+        reactants_tot_atoms = 0.0
+        reactants_tot_unmapped = 0.0
+        for r_uid, map_list in reactants_map_info.items():
+            r_transformed_atoms = set(
+                at.map_num for at in atom_transformations if at.reactant_uid == r_uid
+            )
+            for mapping in map_list:
+                n_atoms, n_unmapped_atoms, info = self.analyze_map_dict(
+                    mapping, r_transformed_atoms, info, r_uid
+                )
+                reactants_tot_atoms += n_atoms
+                reactants_tot_unmapped += n_unmapped_atoms
+
+        info["fraction"] = round(reactants_tot_unmapped / reactants_tot_atoms, 2)
+        return info
+
+    def get_unmapped_atoms_in_desired_product(
+        self,
+        desired_product_map_info: List[dict],
+        dp_atom_transformations: Set[AtomTransformation],
+        dp_uid: int,
+    ) -> dict:
+        """To get the information about unmapped atoms in the desired product"""
+        info = {"unmapped_atoms": {}}
+        tot_atoms = 0.0
+        tot_unmapped_atoms = 0.0
+        transformed_atoms_map = set(at.map_num for at in dp_atom_transformations)
+        for mapping in desired_product_map_info:
+            n_atoms, n_unmapped_atoms, info = self.analyze_map_dict(
+                mapping, transformed_atoms_map, info, dp_uid
+            )
+            tot_atoms += n_atoms
+            tot_unmapped_atoms += n_unmapped_atoms
+
+        info["fraction"] = round(tot_unmapped_atoms / tot_atoms, 2)
+        return info
+
+    def analyze_map_dict(
+        self, mapping, transformed_atoms_map, info, uid
+    ) -> Tuple[int, int, dict]:
+        """To check if there are unmapped atoms based on a mapping dictionary"""
+        if unmapped_atoms := self.find_unmapped_atoms(mapping, transformed_atoms_map):
+            if uid not in info["unmapped_atoms"].keys():
+                info["unmapped_atoms"][uid] = [unmapped_atoms]
+            else:
+                info["unmapped_atoms"][uid].append(unmapped_atoms)
+            return (
+                len(mapping.keys()),
+                len(unmapped_atoms),
+                info,
+            )
+        else:
+            return len(mapping.keys()), 0, info
+
+    @staticmethod
+    def find_unmapped_atoms(mapping: dict, transformed_atoms_id: set) -> set:
+        return set(
+            a_id
+            for a_id, map_num in mapping.items()
+            if map_num not in transformed_atoms_id
+        )
 
     @staticmethod
     def products_map_info(molecules_catalog: dict, full_map_info: dict) -> dict:
@@ -225,31 +302,57 @@ class RatamConstructor:
                 full_map_info["products"][mol.uid].append(mapping)
         return full_map_info
 
-    @staticmethod
-    def reactants_reagents_map_info(
-        molecules_catalog: dict, full_map_info: dict, desired_product_map_nums: set
+    def precursors_map_info(
+        self,
+        molecules_catalog: dict,
+        full_map_info: dict,
+        desired_product_map_nums: set,
     ) -> dict:
-        """To collect identify reactants and reagents based on the mapping and collect their mapping information"""
+        """To collect the mapping info for product Molecules"""
         for mol in molecules_catalog["reactants"] + molecules_catalog["reagents"]:
             if mol.uid not in full_map_info["reactants"]:
                 full_map_info["reactants"][mol.uid] = []
             if mol.uid not in full_map_info["reagents"]:
                 full_map_info["reagents"][mol.uid] = []
             map_nums = {a.GetAtomMapNum() for a in mol.rdmol_mapped.GetAtoms()}
-            if [
+            full_map_info = self.update_full_info(
+                full_map_info, mol, desired_product_map_nums, map_nums
+            )
+
+        return full_map_info
+
+    @staticmethod
+    def update_full_info(
+        full_map_info: dict,
+        precursor: Molecule,
+        desired_product_map_nums: set,
+        precursor_map_nums: set,
+    ):
+        """To update the full_map_info dictionary with a new entry of either a reactant or a reagent"""
+        shared_map = next(
+            (
                 n
-                for n in map_nums
+                for n in precursor_map_nums
                 if n in desired_product_map_nums and n not in [0, -1]
-            ]:
-                # it's a reactant!
-                full_map_info["reactants"][mol.uid].append(
-                    {a.GetIdx(): a.GetAtomMapNum() for a in mol.rdmol_mapped.GetAtoms()}
-                )
-            else:
-                # it's a reagent!
-                full_map_info["reagents"][mol.uid].append(
-                    {a.GetIdx(): a.GetAtomMapNum() for a in mol.rdmol_mapped.GetAtoms()}
-                )
+            ),
+            None,
+        )
+        if shared_map is not None:
+            # it's a reactant!
+            full_map_info["reactants"][precursor.uid].append(
+                {
+                    a.GetIdx(): a.GetAtomMapNum()
+                    for a in precursor.rdmol_mapped.GetAtoms()
+                }
+            )
+        else:
+            # it's a reagent!
+            full_map_info["reagents"][precursor.uid].append(
+                {
+                    a.GetIdx(): a.GetAtomMapNum()
+                    for a in precursor.rdmol_mapped.GetAtoms()
+                }
+            )
         return full_map_info
 
     @staticmethod
@@ -512,7 +615,7 @@ class RXNReactiveCenter:
         seen = set()
         bonds = []
         hydrogenated_atoms = []
-        # for each AtomTransformation of involving the reacting atoms..
+        # for each AtomTransformation involving reacting atoms..
         for at in ats_desired_product:
             # ...the involved atom of the desired product and of the reactant are identified
             reactant = next(
@@ -864,6 +967,111 @@ class ChemicalEquationConstructor:
             desired_product = cif.rdmol_from_string(desired_product, inp_fmt=inp_fmt)
         return self.build_from_rdrxn(rdrxn=rdrxn, desired_product=desired_product)
 
+    def build_from_db(self, mol_list: List[dict]) -> ChemicalEquation:
+        """To build a ChemicalEquation instance from information extracted from a database.
+        The input list of dictionaries is expected to have the following format:
+        [{'smiles': mol_smiles, 'role': role, 'stoichiometry': n}]"""
+        mol_constructor = MoleculeConstructor(
+            molecular_identity_property_name=self.molecular_identity_property_name
+        )
+        stoichiometry_coefficients = {}
+        catalog = {}
+        desired_product = None
+        for mol in mol_list:
+            original_stoich = mol["stoichiometry"]
+            original_role = mol["role"]
+            # dividing possible substances in single molecules
+            molecules = mol["smiles"].split(".")
+            for m in molecules:
+                # building the molecule instance
+                molecule = mol_constructor.build_from_molecule_string(m, "smiles")
+                # adding molecule to catalog dictionary
+                catalog[molecule.uid] = molecule
+                # defining molecule role
+                role = self.get_role(original_role)
+                if role.get_full_name() == "product.desired":
+                    desired_product = molecule
+                # adding stoichiometry info to the stoichiometry dictionary
+                stoichiometry_coefficients = self.update_stoichiometry(
+                    stoichiometry_coefficients, role, molecule.uid, original_stoich
+                )
+
+        role_map = self.get_role_map(stoichiometry_coefficients)
+        if desired_product is None:
+            desired_product = self.get_desired_product(catalog, role_map)
+        basic_attributes = {
+            "mapping": None,
+            "role_map": role_map,
+            "stoichiometry_coefficients": stoichiometry_coefficients,
+            "catalog": catalog,
+        }
+        return self.initialize_builder(basic_attributes, desired_product)
+
+    def initialize_builder(self, basic_attributes, desired_product) -> ChemicalEquation:
+        """To initialize the appropriate ChemicalEquation builder"""
+        builder = Builder()
+        builder.set_builder("unmapped")
+        return builder.get_chemical_equation(
+            self.chemical_equation_identity_name,
+            desired_product,
+            basic_attributes=basic_attributes,
+        )
+
+    @staticmethod
+    def get_role(input_role: str) -> Union[Product, Reactant, Reagent]:
+        """To get the Role instance to the input role string"""
+        for cls in Role.__subclasses__():
+            if input_role == cls.get_class_name():
+                return cls.from_string("unknown")
+            elif input_role in cls.list():
+                return cls.from_string(input_role)
+
+    @staticmethod
+    def get_stoichiometry_coeff(stoichiometry_coeff: float) -> int:
+        """To ensure that a stoichiometry coefficient is an integer"""
+        if isinstance(stoichiometry_coeff, int):
+            return stoichiometry_coeff
+        elif int(stoichiometry_coeff // 1) > 0:
+            return int(stoichiometry_coeff // 1)
+        elif int(stoichiometry_coeff) == 0:
+            return 1
+
+    def update_stoichiometry(
+        self,
+        stoichiometry_coefficients: dict,
+        role: Union[Reactant, Reagent, Product],
+        mol_uid: int,
+        original_stoich: int,
+    ) -> dict:
+        """To update the stoichiometry coefficients dictionary with a new entry"""
+        roles = {Reactant: "reactants", Reagent: "reagents", Product: "products"}
+        stoich_coeff = self.get_stoichiometry_coeff(original_stoich)
+        general_role = roles[type(role)]
+        sc_dict = stoichiometry_coefficients.get(general_role, {})
+        if mol_uid in sc_dict:
+            sc_dict[mol_uid] += stoich_coeff
+        else:
+            sc_dict.update({mol_uid: stoich_coeff})
+        stoichiometry_coefficients[general_role] = sc_dict
+        return stoichiometry_coefficients
+
+    @staticmethod
+    def get_role_map(stoichiometry_coefficients: dict) -> dict:
+        """To build the role_map dictionary"""
+        role_map = {
+            role: sorted(list(info.keys()))
+            for role, info in stoichiometry_coefficients.items()
+        }
+        if "reagents" not in role_map:
+            role_map["reagents"] = []
+        return role_map
+
+    @staticmethod
+    def get_desired_product(catalog: dict, role_map: dict) -> Molecule:
+        """To assign a default desired product if it has not been found"""
+        products = [prod for h, prod in catalog.items() if h in role_map["products"]]
+        return cif.select_desired_product(products)
+
 
 def create_chemical_equation(
     rdrxn: cif.rdChemReactions.ChemicalReaction,
@@ -898,12 +1106,14 @@ def create_chemical_equation(
             logger.error("The selected product does not appear in the reaction. ")
             raise ValueError
     else:
-        desired_product_mol = cif.select_desired_product(reaction_mols)
+        desired_product_mol = cif.select_desired_product(reaction_mols["products"])
     builder = Builder()
     builder.set_builder(builder_type)
-    return builder.get_chemical_equation(
-        reaction_mols, chemical_equation_identity_name, desired_product_mol
+    chemical_equation = builder.get_chemical_equation(
+        chemical_equation_identity_name, desired_product_mol, reaction_mols
     )
+
+    return chemical_equation
 
 
 class ChemicalEquationGenerator(ABC):
@@ -1086,14 +1296,16 @@ class Builder:
 
     def get_chemical_equation(
         self,
-        reaction_mols: dict,
         chemical_equation_identity_name: str,
         desired_product: Molecule,
+        reaction_mols: Union[dict, None] = None,
+        basic_attributes: Union[dict, None] = None,
     ) -> ChemicalEquation:
         ce = ChemicalEquation()
-        basic_attributes, desired_product = self.__builder.get_basic_attributes(
-            reaction_mols, desired_product
-        )
+        if basic_attributes is None:
+            basic_attributes, desired_product = self.__builder.get_basic_attributes(
+                reaction_mols, desired_product
+            )
         ce.catalog = basic_attributes["catalog"]
         ce.mapping = basic_attributes["mapping"]
         ce.role_map = basic_attributes["role_map"]
@@ -1204,7 +1416,7 @@ def calculate_disconnection_hash_values(disconnection: Disconnection) -> dict:
     }
 
     """
-    | separates properties and is followed by the name and a:  
+    | separates properties and is followed by the name and a:
     """
     changes_str = "|".join(
         [f'{k}:{",".join(map(str, v))}' for k, v in changes_map.items()]
