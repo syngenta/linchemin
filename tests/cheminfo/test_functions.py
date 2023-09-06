@@ -1,28 +1,32 @@
 import unittest
 
-import pytest
 from rdkit import Chem
-from rdkit.Chem import DataStructs, rdChemReactions
+from rdkit.Chem import rdChemReactions
 
-from linchemin.cheminfo.constructors import (ChemicalEquationConstructor,
-                                             MoleculeConstructor)
-from linchemin.cheminfo.functions import (bstr_to_rdmol,
-                                          canonicalize_mapped_rdmol,
-                                          canonicalize_rdmol,
-                                          canonicalize_rdmol_lite,
-                                          compute_oxidation_numbers,
-                                          get_canonical_order,
-                                          has_mapped_products,
-                                          is_mapped_molecule,
-                                          mapping_diagnosis,
-                                          rdchiral_extract_template)
+from linchemin.cheminfo.constructors import (
+    ChemicalEquationConstructor,
+)
+from linchemin.cheminfo.functions import (
+    bstr_to_rdmol,
+    canonicalize_mapped_rdmol,
+    canonicalize_rdmol,
+    compute_oxidation_numbers,
+    get_canonical_order,
+    has_mapped_products,
+    is_mapped_molecule,
+    mapping_diagnosis,
+    rdchiral_extract_template,
+)
 from linchemin.cheminfo.functions import rdkit as rdkit
-from linchemin.cheminfo.functions import (rdmol_from_string, rdmol_to_bstr,
-                                          rdrxn_from_string,
-                                          rdrxn_role_reassignment,
-                                          rdrxn_to_rxn_mol_catalog,
-                                          rdrxn_to_string,
-                                          remove_rdmol_atom_mapping)
+from linchemin.cheminfo.functions import (
+    rdmol_from_string,
+    rdmol_to_bstr,
+    rdrxn_from_string,
+    rdrxn_role_reassignment,
+    rdrxn_to_rxn_mol_catalog,
+    rdrxn_to_string,
+    remove_rdmol_atom_mapping,
+)
 
 
 def test_build_rdrxn_from_smiles():

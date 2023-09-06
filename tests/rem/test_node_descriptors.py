@@ -1,8 +1,7 @@
 import pytest
 
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
-from linchemin.rem.node_descriptors import (NoMapping,
-                                            node_descriptor_calculator)
+from linchemin.rem.node_descriptors import NoMapping, node_descriptor_calculator
 
 
 def test_factory():

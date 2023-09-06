@@ -1,10 +1,11 @@
 import pytest
 
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph
-from linchemin.cheminfo.constructors import ChemicalEquationConstructor
-from linchemin.rem.step_descriptors import (WrongSmilesType,
-                                            get_available_step_descriptors,
-                                            step_descriptor_calculator)
+from linchemin.rem.step_descriptors import (
+    WrongSmilesType,
+    get_available_step_descriptors,
+    step_descriptor_calculator,
+)
 
 
 def test_factory():

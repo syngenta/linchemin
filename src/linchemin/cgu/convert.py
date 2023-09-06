@@ -1,8 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Union
 
-from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
-                                    MonopartiteReacSynGraph, SynGraph)
+from linchemin.cgu.syngraph import (
+    BipartiteSynGraph,
+    MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
+    SynGraph,
+)
 from linchemin.cgu.syngraph_operations import extract_reactions_from_syngraph
 
 """

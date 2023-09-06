@@ -9,12 +9,15 @@ import pydot
 import linchemin.cheminfo.depiction as cid
 import linchemin.cheminfo.functions as cif
 from linchemin import settings
+from linchemin.IO import io as lio
 from linchemin.cgu.convert import converter
 from linchemin.cgu.iron import Direction, Edge, Iron, Node
-from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
-                                    MonopartiteReacSynGraph)
+from linchemin.cgu.syngraph import (
+    BipartiteSynGraph,
+    MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
+)
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
-from linchemin.IO import io as lio
 from linchemin.utilities import console_logger
 
 """

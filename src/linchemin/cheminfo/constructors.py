@@ -9,9 +9,18 @@ from typing import Dict, List, Set, Tuple, Union
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
 from linchemin import settings
-from linchemin.cheminfo.models import (ChemicalEquation, Disconnection,
-                                       Molecule, Pattern, Product, Ratam,
-                                       Reactant, Reagent, Role, Template)
+from linchemin.cheminfo.models import (
+    ChemicalEquation,
+    Disconnection,
+    Molecule,
+    Pattern,
+    Product,
+    Ratam,
+    Reactant,
+    Reagent,
+    Role,
+    Template,
+)
 
 """
 Module containing the constructor classes of relevant cheminformatics models defined in 'models' module
