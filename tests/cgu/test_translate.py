@@ -9,11 +9,17 @@ import pytest
 from linchemin import settings
 from linchemin.cgu.iron import Direction, Edge, Iron, Node
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
-from linchemin.cgu.translate import (PyDot, TranslationError, az_dict_to_iron,
-                                     get_available_data_models,
-                                     get_available_formats, get_input_formats,
-                                     get_output_formats, ibm_dict_to_iron,
-                                     translator)
+from linchemin.cgu.translate import (
+    PyDot,
+    TranslationError,
+    az_dict_to_iron,
+    get_available_data_models,
+    get_available_formats,
+    get_input_formats,
+    get_output_formats,
+    ibm_dict_to_iron,
+    translator,
+)
 from linchemin.cheminfo.models import ChemicalEquation
 
 
@@ -530,3 +536,42 @@ def test_mit_to_iron(mit_path):
     )
     assert syngraph
     assert len(syngraph.graph) == 4
+
+
+def test_sparrow_to_iron():
+    graph = {
+        "CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": {
+            "Compounds": ["CC(=O)Cl", "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"],
+            "Reactions": [
+                {
+                    "smiles": "CC(=O)Cl.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                    "conditions": ["CCN(CC)CC", "[Na+].[OH-]"],
+                    "score": 0.24807077478828643,
+                },
+                {
+                    "smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+                    "conditions": [],
+                    "score": 0.9898093781319756,
+                },
+                {"smiles": ">>CC(=O)Cl", "starting material cost ($/g)": 0.8},
+            ],
+            "Reward": 20,
+        }
+    }
+    iron = translator("sparrow", graph, "iron", "monopartite_reactions")
+    assert iron.i_node_number() == 2
+    assert iron.i_edge_number() == 0
+
+    syngraph = translator("sparrow", graph, "syngraph", "monopartite_reactions")
+    assert len(syngraph.graph) == 2
+    assert len(syngraph.get_roots()) == 1
+    assert len(syngraph.get_leaves()) == 1
+    nodes = syngraph.get_unique_nodes()
+    assert any(node.role_map["reagents"] != [] for node in nodes)
+
+    syngraph = translator("sparrow", graph, "syngraph", "bipartite")
+    assert len(syngraph.graph) == 6
+    assert len(syngraph.get_roots()) == 1
+    assert len(syngraph.get_leaves()) == 2
+
+    assert "sparrow" in get_input_formats()

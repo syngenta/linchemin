@@ -3,8 +3,11 @@ from collections import defaultdict
 from typing import List, Union
 
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
-                                    MonopartiteReacSynGraph)
+from linchemin.cgu.syngraph import (
+    BipartiteSynGraph,
+    MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
+)
 from linchemin.cgu.syngraph_operations import find_path
 from linchemin.cheminfo.models import ChemicalEquation
 from linchemin.rem.node_descriptors import node_descriptor_calculator

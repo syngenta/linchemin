@@ -9,9 +9,18 @@ from typing import Dict, List, Set, Tuple, Union
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
 from linchemin import settings
-from linchemin.cheminfo.models import (ChemicalEquation, Disconnection,
-                                       Molecule, Pattern, Product, Ratam,
-                                       Reactant, Reagent, Role, Template)
+from linchemin.cheminfo.models import (
+    ChemicalEquation,
+    Disconnection,
+    Molecule,
+    Pattern,
+    Product,
+    Ratam,
+    Reactant,
+    Reagent,
+    Role,
+    Template,
+)
 
 """
 Module containing the constructor classes of relevant cheminformatics models defined in 'models' module
@@ -185,11 +194,11 @@ class RatamConstructor:
         ratam.full_map_info = self.get_full_map_info(molecules_catalog, desired_product)
 
         ratam.atom_transformations = self.get_atom_transformations(ratam.full_map_info)
-        dp_atom_transformations = set(
+        dp_atom_transformations = {
             at
             for at in ratam.atom_transformations
             if at.product_uid == desired_product.uid
-        )
+        }
         ratam.desired_product_unmapped_atoms_info = (
             self.get_unmapped_atoms_in_desired_product(
                 ratam.full_map_info["products"][desired_product.uid],
@@ -231,9 +240,9 @@ class RatamConstructor:
         reactants_tot_atoms = 0.0
         reactants_tot_unmapped = 0.0
         for r_uid, map_list in reactants_map_info.items():
-            r_transformed_atoms = set(
+            r_transformed_atoms = {
                 at.map_num for at in atom_transformations if at.reactant_uid == r_uid
-            )
+            }
             for mapping in map_list:
                 n_atoms, n_unmapped_atoms, info = self.analyze_map_dict(
                     mapping, r_transformed_atoms, info, r_uid
@@ -254,7 +263,7 @@ class RatamConstructor:
         info = {"unmapped_atoms": {}}
         tot_atoms = 0.0
         tot_unmapped_atoms = 0.0
-        transformed_atoms_map = set(at.map_num for at in dp_atom_transformations)
+        transformed_atoms_map = {at.map_num for at in dp_atom_transformations}
         for mapping in desired_product_map_info:
             n_atoms, n_unmapped_atoms, info = self.analyze_map_dict(
                 mapping, transformed_atoms_map, info, dp_uid
@@ -284,11 +293,11 @@ class RatamConstructor:
 
     @staticmethod
     def find_unmapped_atoms(mapping: dict, transformed_atoms_id: set) -> set:
-        return set(
+        return {
             a_id
             for a_id, map_num in mapping.items()
             if map_num not in transformed_atoms_id
-        )
+        }
 
     @staticmethod
     def products_map_info(molecules_catalog: dict, full_map_info: dict) -> dict:

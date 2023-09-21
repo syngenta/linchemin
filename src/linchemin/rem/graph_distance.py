@@ -13,7 +13,10 @@ from linchemin import settings
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.cgu.translate import translator
 from linchemin.cheminfo.chemical_similarity import (
-    compute_mol_fingerprint, compute_reaction_fingerprint, compute_similarity)
+    compute_mol_fingerprint,
+    compute_reaction_fingerprint,
+    compute_similarity,
+)
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.configuration.defaults import DEFAULT_GED
 from linchemin.utilities import console_logger
