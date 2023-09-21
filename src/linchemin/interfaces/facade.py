@@ -773,7 +773,7 @@ class DuplicatesFacade(Facade):
         list: The list of duplicates
         """
         routes1 = routes[: len(routes) // 2]
-        routes2 = routes[len(routes) // 2:]
+        routes2 = routes[len(routes) // 2 :]
         return find_duplicates(routes1, routes2)
 
     def get_available_options(self) -> dict:
