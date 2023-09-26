@@ -538,7 +538,7 @@ def test_mit_to_iron(mit_path):
     assert len(syngraph.graph) == 4
 
 
-def test_sparrow_to_iron():
+def test_sparrow():
     graph = {
         "CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": {
             "Compounds": ["CC(=O)Cl", "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"],
@@ -575,3 +575,12 @@ def test_sparrow_to_iron():
     assert len(syngraph.get_leaves()) == 2
 
     assert "sparrow" in get_input_formats()
+
+    sparrow_dict = translator("syngraph", syngraph, "sparrow", "bipartite")
+    assert "Compound Nodes" in sparrow_dict
+    assert "Reaction Nodes" in sparrow_dict
+
+    sparrow_dict = translator("syngraph", syngraph, "sparrow", "monopartite_reactions")
+    assert sparrow_dict["Compound Nodes"] == []
+
+    assert "sparrow" in get_output_formats()
