@@ -917,14 +917,13 @@ class Sparrow(Graph):
     def from_iron(self, route_iron: Iron) -> dict:
         reactions = []
         compounds = []
-
         if len(self.get_node_types(route_iron)) != 2:
             logger.warning(
                 "For full compatibility with sparrow software, the graph should be bipartite"
             )
         for id_n, node in route_iron.nodes.items():
             if isinstance(node.properties["node_type"], ChemicalEquation):
-                reaction = self.handle_reaction(node.properties["node_type"])
+                reaction = self.handle_reaction(node)
                 reactions.append(reaction)
             elif isinstance(node.properties["node_type"], Molecule):
                 compound = self.handle_molecules(node, route_iron)
@@ -934,12 +933,13 @@ class Sparrow(Graph):
     @staticmethod
     def get_node_types(iron) -> set:
         """To check which node types are present in the graph"""
-        return {node.properties["node_type"] for node in iron.nodes.values()}
+        return {type(node.properties["node_type"]) for node in iron.nodes.values()}
 
-    def handle_reaction(self, chemical_equation: ChemicalEquation) -> dict:
+    def handle_reaction(self, node: ChemicalEquation) -> dict:
         """To create a Reaction Node entry"""
+        chemical_equation = node.properties["node_type"]
         reaction = {
-            "smiles": chemical_equation.smiles,
+            "smiles": node.properties["node_unmapped_smiles"],
             "parents": self.get_molecules(chemical_equation, "reactants"),
             "children": self.get_molecules(chemical_equation, "products"),
             "conditions": self.get_molecules(chemical_equation, "reagents"),
@@ -966,15 +966,15 @@ class Sparrow(Graph):
         compound = {
             "smiles": molecule.smiles,
         }
-        parents = iron.get_parent_nodes(node)
+        parents = iron.get_parent_nodes(node.iid)
         compound["parents"] = [
-            n.properties["node_type"].smiles
+            n.properties["node_unmapped_smiles"]
             for i, n in iron.nodes.items()
             if i in parents
         ]
-        children = iron.get_child_nodes(node)
+        children = iron.get_child_nodes(node.iid)
         compound["children"] = [
-            n.properties["node_type"].smiles
+            n.properties["node_unmapped_smiles"]
             for i, n in iron.nodes.items()
             if i in children
         ]
@@ -1242,6 +1242,8 @@ class IronToOutput(Handler):
         data_model_factory: DataModelFactory,
     ):
         """To perform the fourth step: iron to output"""
+        if output_format == "iron":
+            return graph
         graph = data_model_factory.iron_to_output(graph, output_format)
         return graph
 

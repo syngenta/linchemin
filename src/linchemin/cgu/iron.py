@@ -138,13 +138,13 @@ class Iron:
                 neigh_lst.append(edge.a_iid)
         return neigh_lst
 
-    def get_child_nodes(self, b: Node) -> list:
+    def get_child_nodes(self, b_iid: str) -> list:
         """To get the list of 'child' nodes of a given node"""
-        return [edge.a_iid for id_e, edge in self.edges.items() if edge.b_iid == str(b)]
+        return [edge.a_iid for id_e, edge in self.edges.items() if edge.b_iid == b_iid]
 
-    def get_parent_nodes(self, a: Node) -> list:
+    def get_parent_nodes(self, a_iid: str) -> list:
         """To get the list of 'parent' nodes of a given node"""
-        return [edge.b_iid for id_e, edge in self.edges.items() if edge.a_iid == str(a)]
+        return [edge.b_iid for id_e, edge in self.edges.items() if edge.a_iid == a_iid]
 
     def get_edge_id(self, a: Node, b: Node) -> list:
         """To get the list of edge ids connecting the nodes a and b (direction ignored)"""

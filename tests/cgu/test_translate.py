@@ -538,7 +538,7 @@ def test_mit_to_iron(mit_path):
     assert len(syngraph.graph) == 4
 
 
-def test_sparrow():
+def test_sparrow_to_iron():
     graph = {
         "CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": {
             "Compounds": ["CC(=O)Cl", "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"],
@@ -576,11 +576,52 @@ def test_sparrow():
 
     assert "sparrow" in get_input_formats()
 
+
+def test_iron_to_sparrow():
+    reaction_list = [
+        {
+            "output_string": "C1COCCO1.CC(=O)O.CC1(C)OB([B:6]2[O:7][C:8]([CH3:9])([CH3:10])[C:11]([CH3:12])([CH3:13])[O:14]2)OC1(C)C.Br[C:5]1=[CH:4][CH2:3][N:2]([CH3:1])[CH2:17][C:15]1=[O:16].Cl[Pd]Cl.[CH]1[CH][CH]C(P(c2ccccc2)c2ccccc2)[CH]1.[CH]1[CH][CH]C(P(c2ccccc2)c2ccccc2)[CH]1.[Fe].[K+]>>[CH3:1][N:2]1[CH2:3][CH:4]=[C:5]([B:6]2[O:7][C:8]([CH3:9])([CH3:10])[C:11]([CH3:12])([CH3:13])[O:14]2)[C:15](=[O:16])[CH2:17]1",
+            "query_id": "0",
+        },
+        {
+            "output_string": "CC1(C)OB([C:23]2=[CH:24][CH2:25][N:26]([CH3:27])[CH2:28][C:29]2=[O:30])OC1(C)C.COCCOC.Br[c:22]1[c:3]([O:2][CH3:1])[cH:4][c:5]([O:6][CH3:7])[c:8]2[c:9](=[O:10])[cH:11][c:12](-[c:13]3[cH:14][cH:15][cH:16][cH:17][c:18]3[Cl:19])[o:20][c:21]21.[Cs+].[F-]>>[CH3:1][O:2][c:3]1[cH:4][c:5]([O:6][CH3:7])[c:8]2[c:9](=[O:10])[cH:11][c:12](-[c:13]3[cH:14][cH:15][cH:16][cH:17][c:18]3[Cl:19])[o:20][c:21]2[c:22]1[C:23]1=[CH:24][CH2:25][N:26]([CH3:27])[CH2:28][C:29]1=[O:30]",
+            "query_id": "1",
+        },
+        {
+            "output_string": "C[O:8][c:7]1[c:6]([C:5]2=[CH:4][CH2:3][N:2]([CH3:1])[CH2:28][CH:26]2[OH:27])[c:25]2[c:12]([c:10]([O:11]C)[cH:9]1)[c:13](=[O:14])[cH:15][c:16](-[c:17]1[cH:18][cH:19][cH:20][cH:21][c:22]1[Cl:23])[o:24]2.Cc1cc(C)nc(C)c1.[Li]I>>[CH3:1][N:2]1[CH2:3][CH:4]=[C:5]([c:6]2[c:7]([OH:8])[cH:9][c:10]([OH:11])[c:12]3[c:13](=[O:14])[cH:15][c:16](-[c:17]4[cH:18][cH:19][cH:20][cH:21][c:22]4[Cl:23])[o:24][c:25]23)[CH:26]([OH:27])[CH2:28]1",
+            "query_id": "2",
+        },
+        {
+            "output_string": "C[O:8][c:7]1[c:6]([C:5]2=[CH:4][CH2:3][N:2]([CH3:1])[CH2:28][CH:26]2[OH:27])[c:25]2[c:12]([c:10]([O:11]C)[cH:9]1)[c:13](=[O:14])[cH:15][c:16](-[c:17]1[cH:18][cH:19][cH:20][cH:21][c:22]1[Cl:23])[o:24]2.Cl.O.c1ccncc1>>[CH3:1][N:2]1[CH2:3][CH:4]=[C:5]([c:6]2[c:7]([OH:8])[cH:9][c:10]([OH:11])[c:12]3[c:13](=[O:14])[cH:15][c:16](-[c:17]4[cH:18][cH:19][cH:20][cH:21][c:22]4[Cl:23])[o:24][c:25]23)[CH:26]([OH:27])[CH2:28]1",
+            "query_id": "3",
+        },
+        {
+            "output_string": "C1CCOC1.[CH3:1][N:2]1[CH2:3][CH:4]=[C:5]([c:6]2[c:7]([OH:8])[cH:9][c:10]([OH:11])[c:12]3[c:13](=[O:14])[cH:15][c:16](-[c:17]4[cH:18][cH:19][cH:20][cH:21][c:22]4[Cl:23])[o:24][c:25]23)[CH:26]([OH:27])[CH2:28]1.CO>>[CH3:1][N:2]1[CH2:3][CH2:4][CH:5]([c:6]2[c:7]([OH:8])[cH:9][c:10]([OH:11])[c:12]3[c:13](=[O:14])[cH:15][c:16](-[c:17]4[cH:18][cH:19][cH:20][cH:21][c:22]4[Cl:23])[o:24][c:25]23)[CH:26]([OH:27])[CH2:28]1",
+            "query_id": "4",
+        },
+        {
+            "output_string": "CO.[CH3:1][O:2][c:3]1[cH:4][c:5]([O:6][CH3:7])[c:8]2[c:9](=[O:10])[cH:11][c:12](-[c:13]3[cH:14][cH:15][cH:16][cH:17][c:18]3[Cl:19])[o:20][c:21]2[c:22]1[C:23]1=[CH:24][CH2:25][N:26]([CH3:27])[CH2:28][C:29]1=[O:30].[BH4-].[Na+]>>[CH3:1][O:2][c:3]1[cH:4][c:5]([O:6][CH3:7])[c:8]2[c:9](=[O:10])[cH:11][c:12](-[c:13]3[cH:14][cH:15][cH:16][cH:17][c:18]3[Cl:19])[o:20][c:21]2[c:22]1[C:23]1=[CH:24][CH2:25][N:26]([CH3:27])[CH2:28][CH:29]1[OH:30]",
+            "query_id": "5",
+        },
+    ]
+    syngraph = BipartiteSynGraph(reaction_list)
     sparrow_dict = translator("syngraph", syngraph, "sparrow", "bipartite")
     assert "Compound Nodes" in sparrow_dict
     assert "Reaction Nodes" in sparrow_dict
 
-    sparrow_dict = translator("syngraph", syngraph, "sparrow", "monopartite_reactions")
+    # check if a warning is logged if the required data model is not bipartite
+    test_context = unittest.TestCase()
+    with test_context.assertLogs("linchemin.cgu.translate", level="WARNING") as cm:
+        sparrow_dict = translator(
+            "syngraph", syngraph, "sparrow", "monopartite_reactions"
+        )
+    test_context.assertEqual(
+        cm.output,
+        [
+            "WARNING:linchemin.cgu.translate:For full compatibility with sparrow software, the graph should be "
+            "bipartite"
+        ],
+    )
     assert sparrow_dict["Compound Nodes"] == []
 
     assert "sparrow" in get_output_formats()
