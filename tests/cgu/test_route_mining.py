@@ -104,6 +104,10 @@ def test_mine_routes(az_path):
     assert len(mined_routes) == 6
     assert sorted([r.uid for r in mined_routes]) == sorted([r.uid for r in syngraphs])
 
+    mined_routes = mine_routes(syngraphs)
+    assert len(mined_routes) == 6
+    assert root in [r.smiles for r in mined_routes[0].get_molecule_roots()]
+
     new_reactions = [
         "COC(=O)C1CCS(=O)(=O)CC1>>OC(=O)C1CCS(=O)(=O)CC1",
         "NC1=CC=C(C=C1)C1=NOC=N1.COC(=O)CBr>>BrCC(=O)NC1=CC=C(C=C1)C1=NOC=N1",

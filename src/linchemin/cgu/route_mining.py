@@ -43,7 +43,7 @@ class RouteMiner:
         else:
             logger.error("Only syngraph objects can be used.")
             raise TypeError
-        if isinstance(root, str):
+        if isinstance(root, str) or root is None:
             self.root = root
         else:
             logger.error("The input target molecule should be in smiles (string) form.")
