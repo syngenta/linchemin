@@ -34,6 +34,7 @@ from linchemin.cheminfo.atom_mapping import (
     get_available_mappers,
     perform_atom_mapping,
     pipeline_atom_mapping,
+    MappingOutput,
 )
 from linchemin.configuration.defaults import DEFAULT_FACADE
 from linchemin.rem.clustering import (
@@ -975,29 +976,48 @@ class AtomMappingFacade(Facade):
         out_syngraphs: List = []
         out_syngraph_type = Converter.out_datamodels[out_data_model]
         tot_success_rate: Union[float, int] = 0
+        exceptions = []
         for route in routes:
             source = route.source
+            route_id = route.uid
             reaction_list = extract_reactions_from_syngraph(route)
-            if mapper is None:
-                # the full pipeline is used
-                mapping_out = pipeline_atom_mapping(reaction_list)
-            else:
-                # the selected mapper is used
-                mapping_out = perform_atom_mapping(reaction_list, mapper)
-            if mapping_out.success_rate != 1:
-                # if not all the reactions are mapped, a warning is raised and
-                # the output graph is built using all the mapped and the unmapped reactions (so that it is complete)
-                mapping_out.mapped_reactions.extend(mapping_out.unmapped_reactions)
-            mapped_route = out_syngraph_type(mapping_out.mapped_reactions)
-            mapped_route.source = source
-            out_syngraphs.append(mapped_route)
+            mapping_out = self.map_reaction_strings(mapper, reaction_list)
+            try:
+                mapped_route = out_syngraph_type(mapping_out.mapped_reactions)
+                mapped_route.source = source
+                out_syngraphs.append(mapped_route)
+            except Exception as e:
+                exceptions.append({"route_uid": route_id, "exception": e})
+
             tot_success_rate += mapping_out.success_rate
 
         tot_success_rate = float(tot_success_rate / len(routes))
 
-        meta = {"mapper": mapper, "mapping_success_rate": tot_success_rate}
+        meta = {
+            "mapper": mapper,
+            "mapping_success_rate": tot_success_rate,
+            "exception": exceptions,
+            "nr_invalid_routes": len(routes) - len(out_syngraphs),
+        }
 
         return out_syngraphs, meta
+
+    @staticmethod
+    def map_reaction_strings(
+        mapper: Union[None, str], reaction_list: List
+    ) -> MappingOutput:
+        """To perform the mapping of the reaction strings"""
+        if mapper is None:
+            # the full pipeline is used
+            mapping_out = pipeline_atom_mapping(reaction_list)
+        else:
+            # the selected mapper is used
+            mapping_out = perform_atom_mapping(reaction_list, mapper)
+        if mapping_out.success_rate != 1:
+            # if not all the reactions are mapped, a warning is raised and
+            # the output graph is built using all the mapped and the unmapped reactions (so that it is complete)
+            mapping_out.mapped_reactions.extend(mapping_out.unmapped_reactions)
+        return mapping_out
 
     def get_available_options(self) -> dict:
         return {
