@@ -93,7 +93,7 @@ class HdbscanClusterCalculator(ClusterCalculator):
             )
             raise OnlyNoiseClustering
         s_score = compute_silhouette_score(dist_matrix, clustering.labels_)
-        print("The Silhouette score is {:.3f}".format(round(s_score, 3)))
+        print(f"The Silhouette score is {round(s_score, 3):.3f}")
         return (
             (clustering, s_score, dist_matrix)
             if save_dist_matrix is True
@@ -122,7 +122,7 @@ class AgglomerativeClusterCalculator(ClusterCalculator):
             f"The number of clusters with the best Silhouette score is {best_n_cluster}"
         )
 
-        print("The Silhouette score is {:.3f}".format(round(s_score, 3)))
+        print(f"The Silhouette score is {round(s_score, 3):.3f}")
         return (
             (clustering, s_score, dist_matrix)
             if save_dist_matrix is True

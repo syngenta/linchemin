@@ -7,6 +7,7 @@ from rdkit.Chem import rdChemReactions
 
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.interfaces.facade import facade, facade_helper
+from linchemin.cgu.translate import translator
 
 
 @unittest.mock.patch("linchemin.cgu.translate.ibm_dict_to_iron")
@@ -341,6 +342,7 @@ def test_routes_sanity_checks():
         BipartiteSynGraph(route_isolated_nodes),
         None,
     ]
+
     checked_routes, meta = facade("routes_sanity_checks", routes, checks=None)
     assert len(checked_routes) == len(routes) - meta["invalid_routes"]
     assert [isinstance(r, BipartiteSynGraph) for r in checked_routes]

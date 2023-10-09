@@ -5,14 +5,16 @@ import pytest
 
 import linchemin.cheminfo.depiction as cid
 import linchemin.cheminfo.functions as cif
-from linchemin.cheminfo.constructors import (BadMapping,
-                                             ChemicalEquationConstructor,
-                                             MoleculeConstructor,
-                                             PatternConstructor,
-                                             RatamConstructor,
-                                             TemplateConstructor,
-                                             UnavailableMolIdentifier,
-                                             calculate_molecular_hash_values)
+from linchemin.cheminfo.constructors import (
+    BadMapping,
+    ChemicalEquationConstructor,
+    MoleculeConstructor,
+    PatternConstructor,
+    RatamConstructor,
+    TemplateConstructor,
+    UnavailableMolIdentifier,
+    calculate_molecular_hash_values,
+)
 from linchemin.cheminfo.models import Template
 from linchemin.utilities import create_hash
 

@@ -59,4 +59,3 @@ the facade helper function:
     from linchemin.interfaces.facade import facade_helper
 
     facade_helper(functionality='routes_sanity_checks')
-

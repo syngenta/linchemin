@@ -1,8 +1,11 @@
 import pytest
 
 from linchemin.cgu.route_sanity_check import (
-    CyclicRouteError, IsolatedNodesError, get_available_route_sanity_checks,
-    route_checker)
+    CyclicRouteError,
+    IsolatedNodesError,
+    get_available_route_sanity_checks,
+    route_checker,
+)
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 
@@ -90,6 +93,7 @@ def test_cycle_checker():
 
 
 def test_isolated_nodes():
+    """Currently this particular issue is directly solved while building the SynGraph object!"""
     reactions = [
         {
             "output_string": "Cl[C:2]([CH3:1])=[O:3].[CH3:4][OH:5]>>[CH3:1][C:2](=[O:3])[O:5][CH3:4]",
@@ -110,22 +114,22 @@ def test_isolated_nodes():
     ]
     route = MonopartiteReacSynGraph(reactions)
     # if the fix_issues option is set to False, an error is raised if the route contains isolated nodes
-    with pytest.raises(IsolatedNodesError) as e:
-        route_checker(
-            route,
-            "isolated_nodes_check",
-            fix_issue=False,
-        )
-        assert "IsolatedNodesError" in str(e.type)
-    checked_route = route_checker(route, "isolated_nodes_check", fix_issue=True)
-    assert len(checked_route.graph) == 2
-    assert len(checked_route.graph) != len(route.graph)
-    assert checked_route.uid != route.uid
+    # with pytest.raises(IsolatedNodesError) as e:
+    #     route_checker(
+    #         route,
+    #         "isolated_nodes_check",
+    #         fix_issue=False,
+    #     )
+    #     assert "IsolatedNodesError" in str(e.type)
+    # checked_route = route_checker(route, "isolated_nodes_check", fix_issue=True)
+    # assert len(checked_route.graph) == 2
+    # assert len(checked_route.graph) != len(route.graph)
+    # assert checked_route.uid != route.uid
     ce = ChemicalEquationConstructor().build_from_reaction_string(
         "[CH3:5][O:4][C:3]([CH3:2])=[O:1]>>[CH3:2][C:3]([OH:4])=[O:1]", "smiles"
     )
-    assert ce in route.graph
-    assert ce not in checked_route.graph
+    assert ce not in route.graph
+    # assert ce not in checked_route.graph
 
 
 def test_helper():

@@ -4,8 +4,11 @@ from typing import Type, Union
 
 import linchemin.cheminfo.functions as cif
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
-                                    MonopartiteReacSynGraph)
+from linchemin.cgu.syngraph import (
+    BipartiteSynGraph,
+    MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
+)
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 from linchemin.cheminfo.functions import Descriptors
 from linchemin.utilities import console_logger
@@ -58,9 +61,9 @@ class StepDescriptor(metaclass=abc.ABCMeta):
     def extract_all_atomic_paths(desired_product, all_transformations: list) -> list:
         """To identify the atomic paths starting from the desired product."""
         # identify all the atom transformations that involve atoms of the desired product
-        target_transformations = set(
+        target_transformations = {
             at for at in all_transformations if at.product_uid == desired_product.uid
-        )
+        }
         all_atomic_paths = []
         # One path is created from each mapped atom in the desired product to the corresponding atom in a leaf
         for t in target_transformations:

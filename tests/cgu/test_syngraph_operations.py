@@ -4,10 +4,13 @@ import unittest
 import pytest
 
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
-from linchemin.cgu.syngraph_operations import (add_reaction_to_syngraph,
-                                               extract_reactions_from_syngraph,
-                                               find_path, merge_syngraph,
-                                               remove_reaction_from_syngraph)
+from linchemin.cgu.syngraph_operations import (
+    add_reaction_to_syngraph,
+    extract_reactions_from_syngraph,
+    find_path,
+    merge_syngraph,
+    remove_reaction_from_syngraph,
+)
 from linchemin.cgu.translate import translator
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 

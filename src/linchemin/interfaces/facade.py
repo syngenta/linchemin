@@ -9,32 +9,53 @@ import pandas as pd
 from linchemin import settings
 from linchemin.cgu.convert import Converter, converter
 from linchemin.cgu.route_sanity_check import (
-    get_available_route_sanity_checks, route_checker)
-from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
-                                    MonopartiteReacSynGraph, SynGraph)
-from linchemin.cgu.syngraph_operations import (extract_reactions_from_syngraph,
-                                               merge_syngraph,
-                                               remove_reaction_from_syngraph)
-from linchemin.cgu.translate import (TranslationError,
-                                     get_available_data_models,
-                                     get_input_formats, get_output_formats,
-                                     translator)
-from linchemin.cheminfo.atom_mapping import (get_available_mappers,
-                                             perform_atom_mapping,
-                                             pipeline_atom_mapping)
+    get_available_route_sanity_checks,
+    route_checker,
+)
+from linchemin.cgu.syngraph import (
+    BipartiteSynGraph,
+    MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
+    SynGraph,
+)
+from linchemin.cgu.syngraph_operations import (
+    extract_reactions_from_syngraph,
+    merge_syngraph,
+    remove_reaction_from_syngraph,
+)
+from linchemin.cgu.translate import (
+    TranslationError,
+    get_available_data_models,
+    get_input_formats,
+    get_output_formats,
+    translator,
+)
+from linchemin.cheminfo.atom_mapping import (
+    get_available_mappers,
+    perform_atom_mapping,
+    pipeline_atom_mapping,
+    MappingOutput,
+)
 from linchemin.configuration.defaults import DEFAULT_FACADE
-from linchemin.rem.clustering import (ClusteringError, clusterer,
-                                      get_available_clustering,
-                                      get_clustered_routes_metrics)
-from linchemin.rem.graph_distance import (GraphDistanceError,
-                                          compute_distance_matrix,
-                                          get_available_ged_algorithms,
-                                          get_ged_parameters)
-from linchemin.rem.route_descriptors import (DescriptorError,
-                                             descriptor_calculator,
-                                             find_duplicates,
-                                             get_available_descriptors,
-                                             is_subset)
+from linchemin.rem.clustering import (
+    ClusteringError,
+    clusterer,
+    get_available_clustering,
+    get_clustered_routes_metrics,
+)
+from linchemin.rem.graph_distance import (
+    GraphDistanceError,
+    compute_distance_matrix,
+    get_available_ged_algorithms,
+    get_ged_parameters,
+)
+from linchemin.rem.route_descriptors import (
+    DescriptorError,
+    descriptor_calculator,
+    find_duplicates,
+    get_available_descriptors,
+    is_subset,
+)
 
 """
 Module containing high level functionalities/"user stories" to work in stream; it provides a simplified interface for the user.
@@ -753,7 +774,7 @@ class DuplicatesFacade(Facade):
         list: The list of duplicates
         """
         routes1 = routes[: len(routes) // 2]
-        routes2 = routes[len(routes) // 2:]
+        routes2 = routes[len(routes) // 2 :]
         return find_duplicates(routes1, routes2)
 
     def get_available_options(self) -> dict:
@@ -955,29 +976,48 @@ class AtomMappingFacade(Facade):
         out_syngraphs: List = []
         out_syngraph_type = Converter.out_datamodels[out_data_model]
         tot_success_rate: Union[float, int] = 0
+        exceptions = []
         for route in routes:
             source = route.source
+            route_id = route.uid
             reaction_list = extract_reactions_from_syngraph(route)
-            if mapper is None:
-                # the full pipeline is used
-                mapping_out = pipeline_atom_mapping(reaction_list)
-            else:
-                # the selected mapper is used
-                mapping_out = perform_atom_mapping(reaction_list, mapper)
-            if mapping_out.success_rate != 1:
-                # if not all the reactions are mapped, a warning is raised and
-                # the output graph is built using all the mapped and the unmapped reactions (so that it is complete)
-                mapping_out.mapped_reactions.extend(mapping_out.unmapped_reactions)
-            mapped_route = out_syngraph_type(mapping_out.mapped_reactions)
-            mapped_route.source = source
-            out_syngraphs.append(mapped_route)
+            mapping_out = self.map_reaction_strings(mapper, reaction_list)
+            try:
+                mapped_route = out_syngraph_type(mapping_out.mapped_reactions)
+                mapped_route.source = source
+                out_syngraphs.append(mapped_route)
+            except Exception as e:
+                exceptions.append({"route_uid": route_id, "exception": e})
+
             tot_success_rate += mapping_out.success_rate
 
         tot_success_rate = float(tot_success_rate / len(routes))
 
-        meta = {"mapper": mapper, "mapping_success_rate": tot_success_rate}
+        meta = {
+            "mapper": mapper,
+            "mapping_success_rate": tot_success_rate,
+            "exception": exceptions,
+            "nr_invalid_routes": len(routes) - len(out_syngraphs),
+        }
 
         return out_syngraphs, meta
+
+    @staticmethod
+    def map_reaction_strings(
+        mapper: Union[None, str], reaction_list: List
+    ) -> MappingOutput:
+        """To perform the mapping of the reaction strings"""
+        if mapper is None:
+            # the full pipeline is used
+            mapping_out = pipeline_atom_mapping(reaction_list)
+        else:
+            # the selected mapper is used
+            mapping_out = perform_atom_mapping(reaction_list, mapper)
+        if mapping_out.success_rate != 1:
+            # if not all the reactions are mapped, a warning is raised and
+            # the output graph is built using all the mapped and the unmapped reactions (so that it is complete)
+            mapping_out.mapped_reactions.extend(mapping_out.unmapped_reactions)
+        return mapping_out
 
     def get_available_options(self) -> dict:
         return {

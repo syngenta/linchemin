@@ -4,8 +4,10 @@ from typing import List, Tuple, Union
 
 import linchemin.utilities as utilities
 from linchemin.cgu.iron import Iron
-from linchemin.cheminfo.constructors import (ChemicalEquationConstructor,
-                                             MoleculeConstructor)
+from linchemin.cheminfo.constructors import (
+    ChemicalEquationConstructor,
+    MoleculeConstructor,
+)
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 
 """
@@ -126,7 +128,7 @@ class SynGraph(ABC):
 
     def get_unique_nodes(self) -> set:
         """To get the set of unique nodes included in a SynGraph instance"""
-        return set(parent for parent in self.graph)
+        return {parent for parent in self.graph}
 
     def set_source(self, source):
         """To set the source attribute of a SynGraph instance"""
@@ -154,7 +156,7 @@ class SynGraph(ABC):
             if connections:
                 text = text + "{} -> {} \n".format(r, *connections)
             else:
-                text = text + "{}\n".format(r)
+                text = text + f"{r}\n"
         return text
 
     def add_node(self, nodes_tup: tuple) -> None:
@@ -211,6 +213,17 @@ class SynGraph(ABC):
 
         for root in roots:
             self.add_node((root, []))
+
+    def find_parent_node(
+        self, child_node: Union[Molecule, ChemicalEquation]
+    ) -> Union[set, None]:
+        """To identify the parent node of a given child node"""
+        if parent_node := {
+            parent for parent, children in self if child_node in children
+        }:
+            return parent_node
+        else:
+            return None
 
 
 class BipartiteSynGraph(SynGraph):
@@ -292,6 +305,16 @@ class BipartiteSynGraph(SynGraph):
             if reac not in connections and isinstance(reac, Molecule)
         ]
 
+    def get_reaction_roots(self) -> list:
+        """To get the list of ChemicalEquation nodes producing the molecule roots"""
+        mol_roots = self.get_roots()
+        reaction_roots = set()
+        for m in mol_roots:
+            reaction_roots.update(
+                [parent for parent, children in self if m in children]
+            )
+        return list(reaction_roots)
+
     def remove_isolated_ces(self) -> None:
         """To remove ChemicalEquation nodes and their reactants/products if they form isolated sequences.
         This happens when a ChemicalEquation produces the reagents of another"""
@@ -301,27 +324,44 @@ class BipartiteSynGraph(SynGraph):
             for node in self.get_unique_nodes()
             if isinstance(node, ChemicalEquation)
         ]
-        reaction_roots = []
-        for m in mol_roots:
-            reaction_roots.extend(
-                [parent for parent, children in self if m in children]
-            )
+        reaction_roots = self.get_reaction_roots()
+        leaves = self.get_leaves()
+        if len(mol_roots) > 1:
+            for m in mol_roots:
+                # identifying the molecule root that is reagent of another reaction
+                if [ce for ce in all_ces if m.uid in ce.role_map["reagents"]]:
+                    # identifying the chemical equation that has the reagent as product and removing it
+                    ce_to_remove = next(
+                        r for r in reaction_roots if m.uid in r.role_map["products"]
+                    )
+                    nodes_to_remove = [m, ce_to_remove]
+                    reactants = [
+                        mol
+                        for h, mol in ce_to_remove.catalog.items()
+                        if h in ce_to_remove.role_map["reactants"]
+                    ]
+                    nodes_to_remove.extend(reactants)
+                    nodes_to_remove = self.find_dangling_sequence(
+                        reactants, leaves, nodes_to_remove
+                    )
+                    [self.remove_node(n.uid) for n in nodes_to_remove]
 
-        for m in mol_roots:
-            # identifying the molecule root that is reagent of another reaction
-            if [ce for ce in all_ces if m.uid in ce.role_map["reagents"]]:
-                # identifying the chemical equation that has the reagent as product and removing it
-                ce_to_remove = next(
-                    r for r in reaction_roots if m.uid in r.role_map["products"]
-                )
-                self.remove_node(m.uid)
-                self.remove_node(ce_to_remove.uid)
-                nodes_to_remove = [
-                    mol
-                    for h, mol in ce_to_remove.catalog.items()
-                    if h in ce_to_remove.role_map["reactants"]
-                ]
-                [self.remove_node(n.uid) for n in nodes_to_remove]
+    def find_dangling_sequence(self, reactants, leaves, nodes_to_remove):
+        """To identify the nodes that are part of a disconnected sequence of nodes."""
+        while intermediates := {r for r in reactants if r not in leaves}:
+            for intermediate in intermediates:
+                parent_ces = self.find_parent_node(intermediate)
+                nodes_to_remove.extend(parent_ces)
+                for parent in parent_ces:
+                    reactants = [
+                        mol
+                        for h, mol in parent.catalog.items()
+                        if h in parent.role_map["reactants"]
+                    ]
+                    nodes_to_remove.extend(reactants)
+
+        else:
+            return nodes_to_remove
 
 
 class MonopartiteReacSynGraph(SynGraph):
@@ -388,65 +428,64 @@ class MonopartiteReacSynGraph(SynGraph):
         connections = []
         for connection_set in self.graph.values():
             connections.extend(iter(connection_set))
-        return [tup[0] for tup in self if tup[0] not in connections]
+        return list({tup[0] for tup in self if tup[0] not in connections})
 
     def get_molecule_roots(self) -> list:
         """To get the list of Molecules roots in a MonopartiteReacSynGraph."""
         reaction_roots = self.get_roots()
-        mol_roots = [
+        mol_roots = {
             m
             for reaction in reaction_roots
             for h, m in reaction.catalog.items()
             if h in reaction.role_map["products"]
-        ]
-        return mol_roots
+        }
+        return list(mol_roots)
 
     def get_molecule_leaves(self) -> list:
         """To get the list of Molecule leaves in a MonopartiteReacSynGraph."""
         all_reactants = set()
         all_products = set()
-        for parent, children in self:
+        unique_ces = self.get_unique_nodes()
+        for ce in unique_ces:
             all_reactants.update(
-                {
-                    mol
-                    for h, mol in parent.catalog.items()
-                    if h in parent.role_map["reactants"]
-                }
+                {mol for h, mol in ce.catalog.items() if h in ce.role_map["reactants"]}
             )
             all_products.update(
-                {
-                    mol
-                    for h, mol in parent.catalog.items()
-                    if h in parent.role_map["products"]
-                }
+                {mol for h, mol in ce.catalog.items() if h in ce.role_map["products"]}
             )
 
-            for child in children:
-                all_reactants.update(
-                    {
-                        mol
-                        for h, mol in child.catalog.items()
-                        if h in child.role_map["reactants"]
-                    }
-                )
-                all_products.update(
-                    {
-                        mol
-                        for h, mol in child.catalog.items()
-                        if h in child.role_map["products"]
-                    }
-                )
         return [m for m in all_reactants if m not in all_products]
 
     def remove_isolated_ces(self) -> None:
-        """To remove isolate nodes from the SynGraph instance"""
-        isolated_nodes = []
-        if len(self.graph) > 1:
-            for parent, children in self:
-                if children == set() and not [p for p, c in self if parent in c]:
-                    isolated_nodes.append(parent)
-        for i in isolated_nodes:
-            self.remove_node(i.uid)
+        """To remove sequences of nodes if they form isolated branches.
+        This happens when a ChemicalEquation produces the reagents of another"""
+        mol_roots = self.get_molecule_roots()
+        all_ces = self.get_unique_nodes()
+        reaction_roots = self.get_roots()
+        reaction_leaves = self.get_leaves()
+        if len(mol_roots) > 1:
+            for m in mol_roots:
+                # identifying the molecule root that is reagent of another reaction
+                if [ce for ce in all_ces if m.uid in ce.role_map["reagents"]]:
+                    # identifying the chemical equation that has the reagent as product and removing it
+                    ce_to_remove = next(
+                        r for r in reaction_roots if m.uid in r.role_map["products"]
+                    )
+                    nodes_to_remove = [ce_to_remove]
+                    nodes_to_remove = self.find_dangling_sequence(
+                        ce_to_remove, reaction_leaves, nodes_to_remove
+                    )
+                    [self.remove_node(n.uid) for n in nodes_to_remove]
+
+    def find_dangling_sequence(self, ce_to_remove, leaves, nodes_to_remove):
+        """To identify the nodes that are part of a disconnected sequence of nodes."""
+        while ce_to_remove not in leaves:
+            if parent_nodes := self.find_parent_node(ce_to_remove):
+                nodes_to_remove.extend(parent_nodes)
+                for parent_node in parent_nodes:
+                    ce_to_remove = parent_node
+        else:
+            return nodes_to_remove
 
 
 class MonopartiteMolSynGraph(SynGraph):

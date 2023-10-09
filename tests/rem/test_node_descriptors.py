@@ -1,8 +1,7 @@
 import pytest
 
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
-from linchemin.rem.node_descriptors import (NoMapping,
-                                            node_descriptor_calculator)
+from linchemin.rem.node_descriptors import NoMapping, node_descriptor_calculator
 
 
 def test_factory():
@@ -115,7 +114,7 @@ def test_hypsicity():
         },
         # redox isomerization of
         9: {
-            "smiles": "[CH3:6][O:5][CH2:4]\[CH:3]=[CH:2]\[CH3:1]>>[CH3:1][CH2:2]\[CH:3]=[CH:4]\[O:5][CH3:6]",
+            "smiles": r"[CH3:6][O:5][CH2:4]\[CH:3]=[CH:2]\[CH3:1]>>[CH3:1][CH2:2]\[CH:3]=[CH:4]\[O:5][CH3:6]",
             "expected": 0.0,
         },
     }

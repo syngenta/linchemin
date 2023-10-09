@@ -1,12 +1,17 @@
 import json
 import unittest
 
-from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
-                                    MonopartiteReacSynGraph)
+from linchemin.cgu.syngraph import (
+    BipartiteSynGraph,
+    MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
+)
 from linchemin.cgu.syngraph_operations import merge_syngraph
 from linchemin.cgu.translate import translator
-from linchemin.cheminfo.constructors import (ChemicalEquationConstructor,
-                                             MoleculeConstructor)
+from linchemin.cheminfo.constructors import (
+    ChemicalEquationConstructor,
+    MoleculeConstructor,
+)
 
 
 def test_bipartite_syngraph_instance(az_path):
@@ -310,14 +315,37 @@ def test_node_removal():
 
 
 def test_isolated_ce_removal():
-    reactions = [
-        "c1ccc(C[O:13][C:11]([CH2:10][C@H:9]([NH:8][C:6]([O:5][C:2]([CH3:1])([CH3:3])[CH3:4])=[O:7])[CH2:14][c:15]2[cH:16][c:17]([F:18])[c:19]([F:20])[cH:21][c:22]2[F:23])=[O:12])cc1>CO.[Pd]>[CH3:1][C:2]([CH3:3])([CH3:4])[O:5][C:6](=[O:7])[NH:8][C@@H:9]([CH2:10][C:11](=[O:12])[OH:13])[CH2:14][c:15]1[cH:16][c:17]([F:18])[c:19]([F:20])[cH:21][c:22]1[F:23]",
-        "CC(C)(C)OC(=O)O[C:6]([O:5][C:2]([CH3:1])([CH3:3])[CH3:4])=[O:7].[NH2:8][C@@H:9]([CH2:10][C:11](=[O:12])[N:13]1[CH2:14][CH2:15][n:16]2[c:17]([n:18][n:19][c:20]2[C:21]([F:22])([F:23])[F:24])[CH2:25]1)[CH2:26][c:27]1[cH:28][c:29]([F:30])[cH:31][cH:32][c:33]1[F:34]>ClCCl>[CH3:1][C:2]([CH3:3])([CH3:4])[O:5][C:6](=[O:7])[NH:8][C@@H:9]([CH2:10][C:11](=[O:12])[N:13]1[CH2:14][CH2:15][n:16]2[c:17]([n:18][n:19][c:20]2[C:21]([F:22])([F:23])[F:24])[CH2:25]1)[CH2:26][c:27]1[cH:28][c:29]([F:30])[cH:31][cH:32][c:33]1[F:34]",
-        "CC(C)(C)OC(=O)[NH:1][C@@H:2]([CH2:3][C:4](=[O:5])[N:6]1[CH2:7][CH2:8][n:9]2[c:10]([n:11][n:12][c:13]2[C:14]([F:15])([F:16])[F:17])[CH2:18]1)[CH2:19][c:20]1[cH:21][c:22]([F:23])[c:24]([F:25])[cH:26][c:27]1[F:28]>ClCCl.O=C(O)C(F)(F)F>[NH2:1][C@@H:2]([CH2:3][C:4](=[O:5])[N:6]1[CH2:7][CH2:8][n:9]2[c:10]([n:11][n:12][c:13]2[C:14]([F:15])([F:16])[F:17])[CH2:18]1)[CH2:19][c:20]1[cH:21][c:22]([F:23])[c:24]([F:25])[cH:26][c:27]1[F:28]",
-        "[CH3:1][C:2]([CH3:3])([CH3:4])[O:5][C:6](=[O:7])[NH:8][C@@H:9]([CH2:10][C:11](=[O:12])[N:13]1[CH2:14][CH2:15][n:16]2[c:17]([n:18][n:19][c:20]2[C:21]([F:22])([F:23])[F:24])[CH2:25]1)[CH2:26][c:27]1[cH:28][c:29]([F:30])[cH:31][cH:32][c:33]1[F:34]>CC(C)(C)OC(=O)N[C@@H](CC(=O)O)Cc1cc(F)c(F)cc1F>F[c:31]1[c:29]([F:30])[cH:28][c:27]([CH2:26][C@@H:9]([NH:8][C:6]([O:5][C:2]([CH3:1])([CH3:3])[CH3:4])=[O:7])[CH2:10][C:11](=[O:12])[N:13]2[CH2:14][CH2:15][n:16]3[c:17]([n:18][n:19][c:20]3[C:21]([F:22])([F:23])[F:24])[CH2:25]2)[c:33]([F:34])[cH:32]1",
+    route_isolated_nodes = [
+        {
+            "output_string": "Cl[C:2]([CH3:1])=[O:3].[CH3:4][OH:5]>>[CH3:1][C:2](=[O:3])[O:5][CH3:4]",
+            "query_id": "0",
+        },
+        {
+            "output_string": "[CH3:5][O:4][C:3]([CH3:2])=[O:1]>>[CH3:2][C:3]([OH:4])=[O:1]",
+            "query_id": "1",
+        },
+        {
+            "output_string": "[CH3:4][C:5](Cl)=[O:6].CC(O)=O.[CH3:1][CH2:2][OH:3]>>[CH3:1][CH2:2][O:3][C:5]([CH3:4])=[O:6]",
+            "query_id": "2",
+        },
+        {
+            "output_string": "O=[C:2](OC[CH3:4])[CH3:1].[Li][CH3:3]>>[CH2:1]=[C:2]([CH3:3])[CH3:4]",
+            "query_id": "3",
+        },
     ]
-    d = [{"query_id": n, "output_string": s} for n, s in enumerate(reactions)]
-    bp_syngraph = BipartiteSynGraph(d)
+    cec = ChemicalEquationConstructor()
+    removed_ces = [
+        cec.build_from_reaction_string(
+            "Cl[C:2]([CH3:1])=[O:3].[CH3:4][OH:5]>>[CH3:1][C:2](=[O:3])[O:5][CH3:4]",
+            "smiles",
+        ),
+        cec.build_from_reaction_string(
+            "[CH3:5][O:4][C:3]([CH3:2])=[O:1]>>[CH3:2][C:3]([OH:4])=[O:1]", "smiles"
+        ),
+    ]
+    bp_syngraph = BipartiteSynGraph(route_isolated_nodes)
     assert len(bp_syngraph.get_roots()) == 1
-    mpr_syngraph = MonopartiteReacSynGraph(d)
+    assert all(removed_ces) not in bp_syngraph
+    mpr_syngraph = MonopartiteReacSynGraph(route_isolated_nodes)
     assert len(mpr_syngraph.get_roots()) == 1
+    assert all(removed_ces) not in mpr_syngraph

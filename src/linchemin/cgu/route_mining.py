@@ -3,8 +3,11 @@ from typing import List, Tuple, Union
 
 from linchemin import settings
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import (BipartiteSynGraph, MonopartiteMolSynGraph,
-                                    MonopartiteReacSynGraph)
+from linchemin.cgu.syngraph import (
+    BipartiteSynGraph,
+    MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
+)
 from linchemin.cgu.syngraph_operations import merge_syngraph
 from linchemin.cgu.translate import nx, translator
 from linchemin.cheminfo.constructors import MoleculeConstructor
@@ -40,7 +43,7 @@ class RouteMiner:
         else:
             logger.error("Only syngraph objects can be used.")
             raise TypeError
-        if isinstance(root, str):
+        if isinstance(root, str) or root is None:
             self.root = root
         else:
             logger.error("The input target molecule should be in smiles (string) form.")

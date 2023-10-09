@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "linchemin"
-version = "2.2.6"
+version = "2.2.7"
 description = "Toolkit to create, manipulate, and query networks of Chemical Reactions and Chemicals"
 license = { file = "LICENSE" }
 authors = [
@@ -54,6 +54,7 @@ dev = [
         "bumpver",
         "flake8==6.0.0",
         "isort==5.12.0",
+        "black== 23.9.1",
         "pre-commit==3.2.*",
         "pytest-cov",
         "pytest",
@@ -74,7 +75,7 @@ py_version = "38"
 skip_gitignore = true
 
 [tool.bumpver]
-current_version = "2.2.6"
+current_version = "2.2.7"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "Bump version {old_version} -> {new_version}"
 commit = true
