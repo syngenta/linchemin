@@ -137,6 +137,150 @@ class StepDescriptorsFactory:
         return step_descriptor()
 
 
+@StepDescriptorsFactory.register_step_descriptor("step_bond_efficiency")
+class StepBondEfficiency(StepDescriptor):
+    bond_orders = {
+        cif.Chem.BondType.SINGLE: 1.0,
+        cif.Chem.BondType.DOUBLE: 2.0,
+        cif.Chem.BondType.TRIPLE: 3.0,
+        cif.Chem.BondType.AROMATIC: 1.5,
+        cif.Chem.BondType.UNSPECIFIED: 0.0,
+    }
+
+    def compute_step_descriptor(
+        self, unique_reactions: set, all_transformations: list, target, step
+    ) -> DescriptorCalculationOutput:
+        if (
+            disconnection_bonds := step.disconnection.new_bonds
+            + step.disconnection.modified_bonds
+        ):
+            if target.uid in step.role_map["products"]:
+                return self.final_step_bonds(step, target, disconnection_bonds)
+
+            all_atomic_paths = self.extract_all_atomic_paths(
+                target, all_transformations
+            )
+            out = DescriptorCalculationOutput()
+            out.descriptor_value = 0
+            step_desired_product = next(
+                mol for h, mol in step.catalog.items() if h in step.role_map["products"]
+            )
+            for bond in disconnection_bonds:
+                (ap1, ap2) = self.find_bond_atomic_paths(
+                    all_atomic_paths, bond, step_desired_product
+                )
+                if ap1 is not None and ap2 is not None:
+                    a1_target = ap1[0].prod_atom_id
+                    a2_target = ap2[0].prod_atom_id
+                    if target_bond_order := self.get_bond_order(
+                        target, a1_target, a2_target
+                    ):
+                        step_bond_order = self.get_bond_order(
+                            step_desired_product, *bond
+                        )
+                        out = self.populate_output(
+                            target_bond_order, step_bond_order, bond, out
+                        )
+                else:
+                    out.additional_info[bond] = f"not present in the target"
+                    out.descriptor_value += 6
+        else:
+            out = self.handle_absence_of_disconnection_bonds()
+        return out
+
+    def final_step_bonds(self, step, target, disconnection_bonds):
+        """To compute the bond efficiency if the considered step is the last 'root' step"""
+
+        out = DescriptorCalculationOutput()
+        out.descriptor_value = 0
+        for bond in disconnection_bonds:
+            (a1_prod, a2_prod) = bond
+            a1_at = next(
+                at
+                for at in step.mapping.atom_transformations
+                if at.prod_atom_id == a1_prod
+            )
+            a1_reac = a1_at.react_atom_id
+            reactant = next(
+                mol for h, mol in step.catalog.items() if mol.uid == a1_at.reactant_uid
+            )
+            a2_reac = next(
+                at.react_atom_id
+                for at in step.mapping.atom_transformations
+                if at.prod_atom_id == a2_prod
+            )
+            target_bond_order = self.get_bond_order(target, a1_prod, a2_prod)
+            reactant_bond_order = self.get_bond_order(reactant, a1_reac, a2_reac)
+            out = self.populate_output(
+                target_bond_order, reactant_bond_order, bond, out
+            )
+
+        return out
+
+    def find_bond_atomic_paths(
+        self, all_atomic_paths: list, new_bond: tuple, step_desired_product
+    ) -> tuple:
+        """To identifiy the atomic paths related to the atoms invovled in the new bond"""
+        (a1, a2) = new_bond
+        ap1 = next(
+            (
+                ap
+                for ap in all_atomic_paths
+                if self.atomic_path_contains_atom(ap, a1, step_desired_product.uid)
+            ),
+            None,
+        )
+        ap2 = next(
+            (
+                ap
+                for ap in all_atomic_paths
+                if self.atomic_path_contains_atom(ap, a2, step_desired_product.uid)
+            ),
+            None,
+        )
+        return ap1, ap2
+
+    def atomic_path_contains_atom(self, atomic_path, atom_id, step_id) -> bool:
+        """To check wether an atomic path passes through the specified atom"""
+        if next(
+            (
+                at
+                for at in atomic_path
+                if at.prod_atom_id == atom_id and at.product_uid == step_id
+            ),
+            None,
+        ):
+            return True
+        return False
+
+    def get_bond_order(self, molecule, a1, a2) -> Union[int, None]:
+        """To get the order of the bond in the input molecule between the input atoms"""
+        if bond := molecule.rdmol_mapped.GetBondBetweenAtoms(a1, a2).GetBondType():
+            return self.bond_orders[bond]
+        return None
+
+    def handle_absence_of_disconnection_bonds(self):
+        """To populate the output when there are no new or modified bonds in the considered step"""
+        out = DescriptorCalculationOutput()
+        out.descriptor_value = 0
+        out.additional_info["info"] = "no new bonds in the selected step"
+        return out
+
+    def populate_output(
+        self,
+        target_bond_order: int,
+        step_bond_order: int,
+        bond: tuple,
+        out: DescriptorCalculationOutput,
+    ) -> DescriptorCalculationOutput:
+        """To add information related to a specifi bond to the output object"""
+        out.additional_info[bond] = {}
+        out.descriptor_value += target_bond_order - step_bond_order
+        out.additional_info[bond]["step_bond_order"] = step_bond_order
+        out.additional_info[bond]["target_bond_order"] = target_bond_order
+        return out
+
+
 @StepDescriptorsFactory.register_step_descriptor("step_effectiveness")
 class StepEffectiveness(StepDescriptor):
     """Subclass to compute the atom effectiveness of the step. Currently computed as the ratio between the number
@@ -153,15 +297,12 @@ class StepEffectiveness(StepDescriptor):
             1
             for ap in all_atomic_paths
             if list(
-                filter(
-                    lambda at: at.reactant_uid in list(step.role_map["reactants"]), ap
-                )
+                filter(lambda at: at.reactant_uid in step.role_map["reactants"], ap)
             )
         )
         reactants = [
             reac for h, reac in step.catalog.items() if h in step.role_map["reactants"]
         ]
-        # n_atoms_reactants = sum(r.GetNumAtoms() for r.rdmol_mapped in reactants)
         n_atoms_reactants = 0
         for reactant in reactants:
             stoich = next(
@@ -170,7 +311,6 @@ class StepEffectiveness(StepDescriptor):
                 if h == reactant.uid
             )
             n_atoms_reactants += reactant.rdmol_mapped.GetNumAtoms() * stoich
-        # out.descriptor_value = contributing_atoms / n_atoms_prod
         out.descriptor_value = contributing_atoms / n_atoms_reactants
 
         out.additional_info["contributing_atoms"] = contributing_atoms
