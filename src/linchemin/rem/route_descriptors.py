@@ -76,6 +76,22 @@ class RouteDescriptor(metaclass=abc.ABCMeta):
         """
         pass
 
+    @staticmethod
+    def check_input_graph(
+        graph: Union[
+            BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+        ],
+    ) -> MonopartiteReacSynGraph:
+        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
+            return converter(graph, "monopartite_reactions")
+        elif isinstance(graph, MonopartiteReacSynGraph):
+            return graph
+        else:
+            logger.error(
+                f"{type(graph)} is not supported. Only SynGraph objects are accepted."
+            )
+            raise WrongGraphType
+
 
 class NrBranches(RouteDescriptor):
     """Subclass of DescriptorCalculator representing the number of "AND" branches in a SynRoute."""
@@ -94,16 +110,7 @@ class NrBranches(RouteDescriptor):
         if graph is None:
             logger.error("The input route is None.")
             raise InvalidInput
-
-        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
-            mp_graph = converter(graph, "monopartite_reactions")
-        elif isinstance(graph, MonopartiteReacSynGraph):
-            mp_graph = graph
-        else:
-            logger.error(
-                f"{type(graph)} is not supported. Only SynGraph objects are accepted."
-            )
-            raise WrongGraphType
+        mp_graph = self.check_input_graph(graph)
 
         branching_nodes = set()
         for reac, connections in mp_graph:
@@ -135,15 +142,7 @@ class Branchedness(RouteDescriptor):
         """Takes a SynGraph and returns the "branchedness" computed as the number of branching nodes weighted by their
         distance from the root (the closer to the root, the better). 0 indicates a linear SynGraph
         """
-        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
-            mp_graph = converter(graph, "monopartite_reactions")
-        elif isinstance(graph, MonopartiteReacSynGraph):
-            mp_graph = graph
-        else:
-            logger.error(
-                f"{type(graph)} is not supported. SynGraph objects are accepted."
-            )
-            raise WrongGraphType
+        mp_graph = self.check_input_graph(graph)
 
         branching_nodes = set()
         for reac, connections in mp_graph:
@@ -181,15 +180,9 @@ class LongestSequence(RouteDescriptor):
     ) -> int:
         """Takes a SynGraph and returns the length of the longest sequence of ChemicalEquation between the SynRoot
         and the SynLeaves."""
-        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
-            mp_graph = converter(graph, "monopartite_reactions")
-        elif isinstance(graph, MonopartiteReacSynGraph):
-            mp_graph = graph
-        else:
-            logger.error(
-                f"{type(graph)} is not supported. Only SynGraph objects are accepted."
-            )
-            raise WrongGraphType
+        mp_graph = self.check_input_graph(graph)
+        if len(mp_graph.graph) == 1:
+            return 1
 
         root = mp_graph.get_roots()
         leaves = mp_graph.get_leaves()
@@ -213,15 +206,7 @@ class NrReactionSteps(RouteDescriptor):
         ],
     ) -> int:
         """Takes a SynGraph and returns the number of ReactionStep nodes in it."""
-        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
-            mp_graph = converter(graph, "monopartite_reactions")
-        elif isinstance(graph, MonopartiteReacSynGraph):
-            mp_graph = graph
-        else:
-            logger.error(
-                f"{type(graph)} is not supported. Only Syngraph objects are accepted."
-            )
-            raise WrongGraphType
+        mp_graph = self.check_input_graph(graph)
 
         return len(mp_graph.graph)
 
@@ -299,15 +284,7 @@ class AvgBranchingFactor(RouteDescriptor):
     ) -> float:
         """Takes a SynGraph and returns the average branching factor as the ratio between the number of non-root
         reaction nodes and the number of non-leaf reaction nodes."""
-        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
-            mp_graph = converter(graph, "monopartite_reactions")
-        elif isinstance(graph, MonopartiteReacSynGraph):
-            mp_graph = graph
-        else:
-            logger.error(
-                f"{type(graph)} is not supported. Only SynGraph objects are accepted."
-            )
-            raise WrongGraphType
+        mp_graph = self.check_input_graph(graph)
 
         root_reactions = mp_graph.get_roots()
         nr_non_root_nodes = len(mp_graph.graph) - len(root_reactions)
@@ -333,17 +310,9 @@ class CDScore(RouteDescriptor):
     ) -> float:
         """Takes a SynGraph and returns the average CDScore computing the score for each reaction involved."""
 
-        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
-            mp_graph = converter(graph, "monopartite_reactions")
-        elif isinstance(graph, MonopartiteReacSynGraph):
-            mp_graph = graph
-        else:
-            logger.error(
-                f"{type(graph)} is not supported. Only SynGraph objects are accepted."
-            )
-            raise WrongGraphType
+        mp_graph = self.check_input_graph(graph)
 
-        # Collect all unique reaction invovled in the route
+        # Collect all unique reaction involved in the route
         unique_reactions = mp_graph.get_unique_nodes()
 
         route_score = 0

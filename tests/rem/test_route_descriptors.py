@@ -39,6 +39,15 @@ def test_longest_sequence(mit_path):
     longest_seq_mp = descriptor_calculator(mp_syngraph, "longest_seq")
     assert longest_seq_mp == longest_seq
 
+    r = [
+        {
+            "query_id": 0,
+            "output_string": "CC(=O)O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+        }
+    ]
+    single_reaction_syngraph = MonopartiteReacSynGraph(r)
+    assert descriptor_calculator(single_reaction_syngraph, "longest_seq") == 1
+
 
 def test_metric_selector_nr_steps(az_path):
     """To test that the NrReactionSteps object is returned as expected."""

@@ -70,7 +70,6 @@ def get_route_uids(route_graph):
 
 def compare_routes(expected_route, route_graph):
     extracted_route = get_route_uids(route_graph)
-
     return sorted(expected_route["nodes"]) == sorted(extracted_route["nodes"]) and all(
         e for e in extracted_route["edges"] if e in expected_route["edges"]
     )

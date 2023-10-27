@@ -55,19 +55,28 @@ def test_atom_effectiveness():
         "step_effectiveness", syngraph, route_smiles[0]["output_string"]
     )
     assert round(out.descriptor_value, 2) == 0.92
-    assert out.additional_info["contributing_atoms"] == 12
+    contributing_atoms = 0
+    for atoms in out.additional_info["contributing_atoms"].values():
+        contributing_atoms += len(atoms)
+    assert contributing_atoms == 12
 
     out = step_descriptor_calculator(
         "step_effectiveness", syngraph, route_smiles[1]["output_string"]
     )
     assert round(out.descriptor_value, 2) == 0.96
-    assert out.additional_info["contributing_atoms"] == 24
+    contributing_atoms = 0
+    for atoms in out.additional_info["contributing_atoms"].values():
+        contributing_atoms += len(atoms)
+    assert contributing_atoms == 24
 
     out = step_descriptor_calculator(
         "step_effectiveness", syngraph, route_smiles[2]["output_string"]
     )
     assert round(out.descriptor_value, 2) == 0.97
-    assert out.additional_info["contributing_atoms"] == 34
+    contributing_atoms = 0
+    for atoms in out.additional_info["contributing_atoms"].values():
+        contributing_atoms += len(atoms)
+    assert contributing_atoms == 34
 
 
 def test_step_hypsicity():
@@ -133,4 +142,7 @@ def test_step_bond_efficiency():
         assert out.descriptor_value == expected["value"]
         assert len(out.additional_info) == expected["n_bonds"]
         if n == 0:
-            assert "not present in the target" in out.additional_info.values()
+            assert all(
+                "not present in the target" in d.values()
+                for d in out.additional_info.values()
+            )

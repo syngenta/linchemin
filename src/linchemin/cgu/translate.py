@@ -949,14 +949,7 @@ class Sparrow(Graph):
     @staticmethod
     def get_molecules(chemical_equation: ChemicalEquation, role: str) -> List[str]:
         """To get a list of Molecules' smiles with a given role"""
-        mols = [
-            reactant.smiles
-            for reactant in [
-                mol
-                for h, mol in chemical_equation.catalog.items()
-                if h in chemical_equation.role_map[role]
-            ]
-        ]
+        mols = [reactant.smiles for reactant in chemical_equation.get_reactants()]
         return mols
 
     @staticmethod

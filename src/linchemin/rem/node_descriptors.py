@@ -45,14 +45,7 @@ class CEHypsicity(ChemicalEquationDescriptor):
             raise NoMapping
 
         # select the desired product and add the oxidation number property to its atoms
-        desired_product = next(
-            (
-                prod
-                for h, prod in reaction.catalog.items()
-                if h in reaction.role_map["products"]
-            ),
-            None,
-        )
+        desired_product = reaction.get_products()[0]
         cif.compute_oxidation_numbers(desired_product.rdmol_mapped)
         desired_product_at = [
             at
@@ -62,7 +55,7 @@ class CEHypsicity(ChemicalEquationDescriptor):
         # identify the involved reactants and add the oxidation number property to their atoms
         reactants_uid = [at.reactant_uid for at in desired_product_at]
         reactants = [
-            mol for h, mol in reaction.catalog.items() if mol.uid in reactants_uid
+            mol for mol in reaction.get_reactants() if mol.uid in reactants_uid
         ]
         for r in reactants:
             cif.compute_oxidation_numbers(r.rdmol_mapped)
@@ -125,14 +118,7 @@ class CEAtomEfficiency(ChemicalEquationDescriptor):
             raise NoMapping
 
         # compute the number of mapped atoms in the desired product
-        desired_product = next(
-            (
-                prod
-                for h, prod in reaction.catalog.items()
-                if h in reaction.role_map["products"]
-            ),
-            None,
-        )
+        desired_product = reaction.get_products()[0]
         n_atoms_prod = len(
             [
                 a
@@ -141,12 +127,7 @@ class CEAtomEfficiency(ChemicalEquationDescriptor):
             ]
         )
         # compute the number of atoms in all the reactants
-        reactants = [
-            reac
-            for h, reac in reaction.catalog.items()
-            if h in reaction.role_map["reactants"]
-        ]
-        # n_atoms_reactants = sum(r.GetNumAtoms() for r.rdmol_mapped in reactants)
+        reactants = reaction.get_reactants()
         n_atoms_reactants = 0
         for reactant in reactants:
             stoich = next(
@@ -168,22 +149,13 @@ class CDNodeScore(ChemicalEquationDescriptor):
         """
 
         # Retrieve list of products and reactants of the input reaction
-        products = [
-            prod.rdmol
-            for h, prod in reaction.catalog.items()
-            if h in reaction.role_map["products"]
-        ]
-        reactants = [
-            reac.rdmol
-            for h, reac in reaction.catalog.items()
-            if h in reaction.role_map["reactants"]
-        ]
-
+        products = reaction.get_products()
+        reactants = reaction.get_reactants()
         if len(reactants) == 1:
             return 1
 
-        prod_n_atoms = [p.GetNumAtoms() for p in products]
-        reacs_n_atoms = [r.GetNumAtoms() for r in reactants]
+        prod_n_atoms = [p.rdmol_mapped.GetNumAtoms() for p in products]
+        reacs_n_atoms = [r.rdmol_mapped.GetNumAtoms() for r in reactants]
         scale_factor = prod_n_atoms[0] / len(reactants)
         abs_error = [abs(r - scale_factor) for r in reacs_n_atoms]
         return 1 / (1 + sum(abs_error) / len(abs_error))
