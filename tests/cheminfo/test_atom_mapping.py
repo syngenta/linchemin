@@ -1,18 +1,19 @@
-from linchemin.cheminfo.atom_mapping import (
-    pipeline_atom_mapping,
-    perform_atom_mapping,
-    get_available_mappers,
-)
-from linchemin.cgu.syngraph import MonopartiteReacSynGraph
-from linchemin.cgu.syngraph_operations import (
-    merge_syngraph,
-    extract_reactions_from_syngraph,
-)
-from linchemin.cgu.translate import translator
-
-import pytest
 import json
 import unittest.mock
+
+import pytest
+
+from linchemin.cgu.syngraph import MonopartiteReacSynGraph
+from linchemin.cgu.syngraph_operations import (
+    extract_reactions_from_syngraph,
+    merge_syngraph,
+)
+from linchemin.cgu.translate import translator
+from linchemin.cheminfo.atom_mapping import (
+    get_available_mappers,
+    perform_atom_mapping,
+    pipeline_atom_mapping,
+)
 
 
 def test_basic_factory(capfd):

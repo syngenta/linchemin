@@ -19,10 +19,10 @@ repos:
         args: [--branch, main]
       - id: trailing-whitespace
         exclude: '^docs/source/reference/generated/.*\.rst'
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+  - repo: https://github.com/ambv/black
+    rev: 23.9.1
     hooks:
-      - id: isort
+      - id: black
         files: '.*\.pyi?$'
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.3.1

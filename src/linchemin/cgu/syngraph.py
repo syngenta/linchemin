@@ -1,8 +1,7 @@
 import copy
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import List, Union, Tuple
-
+from typing import List, Tuple, Union
 
 import linchemin.utilities as utilities
 from linchemin.cgu.iron import Iron
@@ -130,7 +129,7 @@ class SynGraph(ABC):
 
     def get_unique_nodes(self) -> set:
         """To get the set of unique nodes included in a SynGraph instance"""
-        return set(parent for parent in self.graph)
+        return {parent for parent in self.graph}
 
     def set_source(self, source):
         """To set the source attribute of a SynGraph instance"""
@@ -158,7 +157,7 @@ class SynGraph(ABC):
             if connections:
                 text = text + "{} -> {} \n".format(r, *connections)
             else:
-                text = text + "{}\n".format(r)
+                text = text + f"{r}\n"
         return text
 
     def add_node(self, nodes_tup: tuple) -> None:

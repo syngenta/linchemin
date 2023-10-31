@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Union
 
 from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
-    MonopartiteMolSynGraph,
     BipartiteSynGraph,
+    MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
 )
 from linchemin.rem.route_descriptors import descriptor_calculator
 

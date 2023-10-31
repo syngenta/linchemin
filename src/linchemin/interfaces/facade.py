@@ -2,24 +2,25 @@ from __future__ import annotations
 
 import multiprocessing as mp
 from abc import ABC, abstractmethod
-from typing import List, Union, Tuple, Dict
+from typing import Dict, List, Tuple, Union
 
 import pandas as pd
+
 from linchemin import settings
 from linchemin.cgu.convert import Converter, converter
 from linchemin.cgu.route_sanity_check import (
-    route_checker,
     get_available_route_sanity_checks,
+    route_checker,
 )
 from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
     SynGraph,
 )
 from linchemin.cgu.syngraph_operations import (
-    merge_syngraph,
     extract_reactions_from_syngraph,
+    merge_syngraph,
     remove_reaction_from_syngraph,
 )
 from linchemin.cgu.translate import (

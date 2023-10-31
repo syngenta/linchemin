@@ -1,13 +1,14 @@
 import datetime
 import os
 from abc import ABC, abstractmethod
-from typing import List, Union, Tuple, Type
+from typing import List, Tuple, Type, Union
+
+import networkx as nx
+import pydot
 
 import linchemin.cheminfo.depiction as cid
 import linchemin.cheminfo.functions as cif
-import networkx as nx
-import pydot
-from linchemin.IO import io as lio
+from linchemin import settings
 from linchemin.cgu.convert import converter
 from linchemin.cgu.iron import Direction, Edge, Iron, Node
 from linchemin.cgu.syngraph import (
@@ -16,8 +17,8 @@ from linchemin.cgu.syngraph import (
     MonopartiteReacSynGraph,
 )
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
+from linchemin.IO import io as lio
 from linchemin.utilities import console_logger
-from linchemin import settings
 
 """
 Module containing functions and classes to transform a graph from an input format to a different output format.

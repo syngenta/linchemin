@@ -1,11 +1,11 @@
 from collections import defaultdict
-from typing import Union, Tuple, Sequence
+from typing import Sequence, Tuple, Union
 
 from linchemin.cgu.convert import converter
 from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
-    MonopartiteReacSynGraph,
     MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
 )
 from linchemin.cheminfo.models import Disconnection
 
@@ -111,5 +111,5 @@ class DisconnectionGraph:
             if connections:
                 text = text + "{} -> {} \n".format(r, *connections)
             else:
-                text = text + "{}\n".format(r)
+                text = text + f"{r}\n"
         return text

@@ -13,10 +13,10 @@ class ResponseHandler:
     """
 
     def __init__(
-            self,
-            response: requests.models.Response,
-            success_status_code: int,
-            on_success: Callable[[requests.models.Response], Any],
+        self,
+        response: requests.models.Response,
+        success_status_code: int,
+        on_success: Callable[[requests.models.Response], Any],
     ):
         """
         Args:
@@ -51,10 +51,12 @@ class ResponseHandler:
         # Success: must be the adequate status code, there must be no
         # error in the response body and the response must not be None.
         # All other cases are considered to be an error.
-        if (successful_status
-                and not error_in_response_dict
-                and self._payload is not None
-                and self._response_dict is not None):
+        if (
+            successful_status
+            and not error_in_response_dict
+            and self._payload is not None
+            and self._response_dict is not None
+        ):
             return self.on_success(self.response)
 
         self._print_error_logs()

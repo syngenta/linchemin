@@ -5,13 +5,11 @@ import pytest
 
 from linchemin.cgu.route_mining import RouteFinder, mine_routes
 from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
 )
-from linchemin.cgu.translate import nx
-from linchemin.cgu.translate import translator
-
+from linchemin.cgu.translate import nx, translator
 
 # def test_route_extractor():
 #     nodes = [{"query_id": 0, "output_string": "CCN.CCOC(=O)CC>>CCNC(=O)CC"}]

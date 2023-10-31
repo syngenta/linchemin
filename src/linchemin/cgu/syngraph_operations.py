@@ -2,16 +2,14 @@ import copy
 from abc import ABC, abstractmethod
 from typing import List, Union
 
+import linchemin.utilities as utilities
 from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
 )
-from linchemin.cheminfo.models import Molecule, ChemicalEquation
-from linchemin.cheminfo.constructors import (
-    ChemicalEquationConstructor,
-)
-import linchemin.utilities as utilities
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
 
 """Module containing functions and classes to perform operations on SynGraph instances"""
 

@@ -1,5 +1,5 @@
 import abc
-from typing import Union, List
+from typing import List, Union
 
 import hdbscan
 import numpy as np
@@ -8,7 +8,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 
 from linchemin import settings
-from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.rem.graph_distance import compute_distance_matrix
 from linchemin.rem.route_descriptors import descriptor_calculator
 from linchemin.utilities import console_logger
@@ -93,7 +93,7 @@ class HdbscanClusterCalculator(ClusterCalculator):
             )
             raise OnlyNoiseClustering
         s_score = compute_silhouette_score(dist_matrix, clustering.labels_)
-        print("The Silhouette score is {:.3f}".format(round(s_score, 3)))
+        print(f"The Silhouette score is {round(s_score, 3):.3f}")
         return (
             (clustering, s_score, dist_matrix)
             if save_dist_matrix is True
@@ -122,7 +122,7 @@ class AgglomerativeClusterCalculator(ClusterCalculator):
             f"The number of clusters with the best Silhouette score is {best_n_cluster}"
         )
 
-        print("The Silhouette score is {:.3f}".format(round(s_score, 3)))
+        print(f"The Silhouette score is {round(s_score, 3):.3f}")
         return (
             (clustering, s_score, dist_matrix)
             if save_dist_matrix is True
@@ -247,8 +247,7 @@ def clusterer(
     )
 
 
-def compute_silhouette_score(dist_matrix: np.array,
-                             clusterer_labels) -> float:
+def compute_silhouette_score(dist_matrix: np.array, clusterer_labels) -> float:
     """To compute the silhouette score for the clustering of a distance matrix.
 
     Parameters:
@@ -265,8 +264,7 @@ def compute_silhouette_score(dist_matrix: np.array,
     return silhouette_score(dist_matrix, clusterer_labels, metric="precomputed")
 
 
-def optimize_agglomerative_cluster(dist_matrix: np.array,
-                                   linkage: str) -> tuple:
+def optimize_agglomerative_cluster(dist_matrix: np.array, linkage: str) -> tuple:
     """
     To optimize the number of clusters for the AgglomerativeClustering method.
 
@@ -303,8 +301,7 @@ def optimize_agglomerative_cluster(dist_matrix: np.array,
     return best_clustering, max_score, best_n_cluster
 
 
-def get_clustered_routes_metrics(syngraphs: list,
-                                 clustering_output) -> pd.DataFrame:
+def get_clustered_routes_metrics(syngraphs: list, clustering_output) -> pd.DataFrame:
     """
     To compute the metrics of the routes in the input list grouped by cluster.
 

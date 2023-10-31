@@ -1,7 +1,7 @@
 import abc
 import multiprocessing as mp
 from functools import partial
-from typing import List, Union, Tuple
+from typing import List, Tuple, Union
 
 import networkx as nx
 import numpy as np

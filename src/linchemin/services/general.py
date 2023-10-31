@@ -7,7 +7,7 @@ from linchemin.services.callbacks import default_on_success
 from linchemin.services.decorators import response_handling
 
 
-class ServiceRoute():
+class ServiceRoute:
     def __init__(self, base_url: Optional[str] = None, api_version: str = "v1") -> None:
         """
         Initialize the routes of the service.
@@ -44,16 +44,16 @@ class ServiceRoute():
         self._update_routes()
 
 
-class NamerxnServiceSDK():
+class NamerxnServiceSDK:
     """
     Python wrapper  to access the REST API requests of the namerxn service.
     """
 
     def __init__(
-            self,
-            api_key: Optional[str] = None,
-            project_id: Optional[str] = None,
-            base_url: Optional[str] = None,
+        self,
+        api_key: Optional[str] = None,
+        project_id: Optional[str] = None,
+        base_url: Optional[str] = None,
     ):
         """
         NamerxnServiceSDK constructor.
@@ -92,29 +92,31 @@ class NamerxnServiceSDK():
     @response_handling(success_status_code=201, on_success=default_on_success)
     def submit(self):
         headers = {
-            'accept': 'application/json',
+            "accept": "application/json",
             # Already added when you pass json= but not when you pass data=
             # 'Content-Type': 'application/json',
         }
 
         params = {
-            'classification_code': 'namerxn',
-            'inp_fmt': 'smiles',
-            'out_fmts': 'smiles',
-            'mapping_style': 'matching',
+            "classification_code": "namerxn",
+            "inp_fmt": "smiles",
+            "out_fmts": "smiles",
+            "mapping_style": "matching",
         }
 
         json_data = [
             {
-                'input_string': 'CC(Cl)=O.CN>>CNC(C)=O',
-                'query_id': '1',
+                "input_string": "CC(Cl)=O.CN>>CNC(C)=O",
+                "query_id": "1",
             },
         ]
 
-        response = requests.post('http://127.0.0.1:8002/run_batch/',
-                                 params=params,
-                                 headers=headers,
-                                 json=json_data)
+        response = requests.post(
+            "http://127.0.0.1:8002/run_batch/",
+            params=params,
+            headers=headers,
+            json=json_data,
+        )
         print(response.json())
         print(response.status_code)
         return response
@@ -138,6 +140,6 @@ class Service(ABC):
     pass
 
 
-if __name__ == '__main__':
-    sdk = NamerxnServiceSDK(base_url='http://127.0.0.1:8002')
+if __name__ == "__main__":
+    sdk = NamerxnServiceSDK(base_url="http://127.0.0.1:8002")
     sdk.submit()

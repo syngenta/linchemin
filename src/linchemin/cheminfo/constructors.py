@@ -1204,7 +1204,7 @@ def calculate_disconnection_hash_values(disconnection: Disconnection) -> dict:
     }
 
     """
-    | separates properties and is followed by the name and a:  
+    | separates properties and is followed by the name and a:
     """
     changes_str = "|".join(
         [f'{k}:{",".join(map(str, v))}' for k, v in changes_map.items()]

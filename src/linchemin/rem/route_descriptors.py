@@ -1,12 +1,12 @@
 import abc
 from collections import defaultdict
-from typing import Union, List
+from typing import List, Union
 
 from linchemin.cgu.convert import converter
 from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
-    MonopartiteReacSynGraph,
     MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
 )
 from linchemin.cgu.syngraph_operations import find_path
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
