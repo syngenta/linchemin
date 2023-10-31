@@ -62,6 +62,7 @@ def test_workflow_metric(mock_dataframe, mock_csv, ibm2_path):
     routes, meta = facade(
         "translate", "syngraph", out.routes_list, "noc", out_data_model="bipartite"
     )
+    assert out.descriptors.configuration
     mock_csv.assert_called_with(routes, "routes.csv")
     mock_dataframe.assert_called_with(out.descriptors, "descriptors.csv")
 

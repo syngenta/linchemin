@@ -130,7 +130,7 @@ class TranslationStep(WorkflowStep):
 
 class DescriptorsStep(WorkflowStep):
     """Handler handling the descriptors functionality of facade
-    If 'compute_descriptors' is in 'functionalities', the selected descriptors are copmuted and written to the file
+    If 'compute_descriptors' is in 'functionalities', the selected descriptors are computed and written to the file
     'descriptors.csv'
     """
 
