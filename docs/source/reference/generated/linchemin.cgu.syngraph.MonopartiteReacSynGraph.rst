@@ -24,8 +24,9 @@
       ~MonopartiteReacSynGraph.get_molecule_leaves
       ~MonopartiteReacSynGraph.get_molecule_roots
       ~MonopartiteReacSynGraph.get_roots
+      ~MonopartiteReacSynGraph.get_unique_nodes
       ~MonopartiteReacSynGraph.initialize_with_iron
-      ~MonopartiteReacSynGraph.remove_isolate_nodes
+      ~MonopartiteReacSynGraph.remove_isolated_ces
       ~MonopartiteReacSynGraph.remove_node
       ~MonopartiteReacSynGraph.set_source
    

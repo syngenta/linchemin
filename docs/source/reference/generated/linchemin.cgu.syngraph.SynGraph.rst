@@ -22,8 +22,8 @@
       ~SynGraph.find_reactants_products
       ~SynGraph.get_leaves
       ~SynGraph.get_roots
+      ~SynGraph.get_unique_nodes
       ~SynGraph.initialize_with_iron
-      ~SynGraph.remove_isolate_nodes
       ~SynGraph.remove_node
       ~SynGraph.set_source
    

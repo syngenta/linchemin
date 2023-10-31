@@ -23,8 +23,9 @@
       ~BipartiteSynGraph.find_reactants_products
       ~BipartiteSynGraph.get_leaves
       ~BipartiteSynGraph.get_roots
+      ~BipartiteSynGraph.get_unique_nodes
       ~BipartiteSynGraph.initialize_with_iron
-      ~BipartiteSynGraph.remove_isolate_nodes
+      ~BipartiteSynGraph.remove_isolated_ces
       ~BipartiteSynGraph.remove_node
       ~BipartiteSynGraph.set_source
    

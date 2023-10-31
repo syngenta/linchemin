@@ -61,7 +61,7 @@ Syngraph Operations
 
 
     merge_syngraph
-    remove_nodes_from_syngraph
+    remove_reaction_from_syngraph
     extract_reactions_from_syngraph
 
 Convert
