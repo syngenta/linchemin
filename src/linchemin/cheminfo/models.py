@@ -10,7 +10,8 @@ Module containing the definition of all relevant cheminformatics classes
 
 @dataclass
 class Molecule:
-    """ Class holding information of a chemical compound """
+    """Class holding information of a chemical compound"""
+
     smiles: str = field(default_factory=str)
     """ A string indicating the canonical smiles of the molecule"""
     molecular_identity_property_name: str = field(default_factory=str)
@@ -33,16 +34,22 @@ class Molecule:
         return type(self) == type(other) and self.__hash__() == other.__hash__()
 
     def __str__(self) -> str:
-        return f'{self.smiles}'
+        return f"{self.smiles}"
 
     def to_dict(self) -> dict:
-        """ To return a dictionary with all the attributes of the Molecule instance """
-        return {'type': 'Molecule', 'uid': self.uid, 'smiles': self.smiles, 'hash_map': self.hash_map}
+        """To return a dictionary with all the attributes of the Molecule instance"""
+        return {
+            "type": "Molecule",
+            "uid": self.uid,
+            "smiles": self.smiles,
+            "hash_map": self.hash_map,
+        }
 
 
 @dataclass
 class Disconnection:
-    """ Class holding information of a disconnection """
+    """Class holding information of a disconnection"""
+
     molecule: Union[Molecule, None] = None
     rdmol: Union[cif.Mol, None] = None
     rdmol_fragmented: Union[cif.Mol, None] = None
@@ -61,19 +68,22 @@ class Disconnection:
         return type(self) == type(other) and self.__hash__() == other.__hash__()
 
     def __str__(self) -> str:
-        return f'{self.identity_property}'
+        return f"{self.identity_property}"
 
     def to_dict(self) -> dict:
-        return {'type': 'Disconnection', 'uid': self.uid,
-                'hash_map': self.hash_map,
-                }
+        return {
+            "type": "Disconnection",
+            "uid": self.uid,
+            "hash_map": self.hash_map,
+        }
 
 
 @dataclass
 class Pattern:
-    """ Class holding information about a molecular pattern """
+    """Class holding information about a molecular pattern"""
+
     rdmol_mapped: Union[cif.Mol, None] = None
-    identity_property_name: str = 'smarts'
+    identity_property_name: str = "smarts"
     rdmol: Union[cif.Mol, None] = None
     smarts: str = field(default_factory=str)
     hash_map: dict = field(default_factory=dict)
@@ -87,22 +97,30 @@ class Pattern:
         return type(self) == type(other) and self.__hash__() == other.__hash__()
 
     def __str__(self) -> str:
-        return f'{self.smarts}'
+        return f"{self.smarts}"
 
     def to_dict(self) -> dict:
-        return {'type': 'Molecule', 'uid': self.uid, 'smarts': self.smarts, 'hash_map': self.hash_map}
+        return {
+            "type": "Molecule",
+            "uid": self.uid,
+            "smarts": self.smarts,
+            "hash_map": self.hash_map,
+        }
 
 
 @dataclass
 class Template:
-    """ Class holding information of a reaction template """
+    """Class holding information of a reaction template"""
+
     pattern_catalog: dict = field(default_factory=dict)
     role_map: dict = field(default_factory=dict)
     stoichiometry_coefficients: dict = field(default_factory=dict)
     rdchiral_data: dict = field(default_factory=dict)
     hash_map: dict = field(default_factory=dict)
     uid: int = field(default_factory=int)
-    rdrxn: cif.rdChemReactions.ChemicalReaction = field(default=cif.rdChemReactions.ChemicalReaction)
+    rdrxn: cif.rdChemReactions.ChemicalReaction = field(
+        default=cif.rdChemReactions.ChemicalReaction
+    )
     smarts: str = field(default_factory=str)
     identity_property: str = field(default_factory=str)
 
@@ -113,32 +131,42 @@ class Template:
         return type(self) == type(other) and self.__hash__() == other.__hash__()
 
     def __str__(self) -> str:
-        return f'{self.smarts}'
+        return f"{self.smarts}"
 
     def to_dict(self) -> dict:
-        return {'type': 'Template', 'uid': self.uid,
-                'smarts': self.smarts,
-                'hash_map': self.hash_map,
-                'role_map': self.role_map,
-                'rdchiral_data': self.rdchiral_data,
-                'stoichiometry_coefficients': self.stoichiometry_coefficients}
+        return {
+            "type": "Template",
+            "uid": self.uid,
+            "smarts": self.smarts,
+            "hash_map": self.hash_map,
+            "role_map": self.role_map,
+            "rdchiral_data": self.rdchiral_data,
+            "stoichiometry_coefficients": self.stoichiometry_coefficients,
+        }
 
     def build_reaction_smiles(self) -> str:
-        return '>'.join(['.'.join([self.role_map.get(uid).smiles for uid in self.role_map[role]]) for role in
-                         ['reactants', 'reagents', 'products']])
+        return ">".join(
+            [
+                ".".join([self.role_map.get(uid).smiles for uid in self.role_map[role]])
+                for role in ["reactants", "reagents", "products"]
+            ]
+        )
 
     def build_rdrxn(self, use_atom_mapping=True):
-        return cif.build_rdrxn(catalog=self.pattern_catalog,
-                               role_map=self.role_map,
-                               stoichiometry_coefficients=self.stoichiometry_coefficients,
-                               use_reagents=True,
-                               use_smiles=False,
-                               use_atom_mapping=use_atom_mapping)
+        return cif.build_rdrxn(
+            catalog=self.pattern_catalog,
+            role_map=self.role_map,
+            stoichiometry_coefficients=self.stoichiometry_coefficients,
+            use_reagents=True,
+            use_smiles=False,
+            use_atom_mapping=use_atom_mapping,
+        )
 
 
 @dataclass
 class Ratam:
-    """ Dataclass holding information of a reaction atom-to-atom mapping """
+    """Dataclass holding information of a reaction atom-to-atom mapping"""
+
     full_map_info: dict = field(default_factory=dict)
     """ A dictionary mapping Molecule identifiers to a list of mapping dictionary in the form {atom_id: atom_map_number}"""
     atom_transformations: list = field(default_factory=list)
@@ -147,13 +175,14 @@ class Ratam:
                                                        'map_num']) """
 
     def diagnosis(self):
-        """ To perform a diagnostic process on the atom mapping"""
+        """To perform a diagnostic process on the atom mapping"""
         pass
 
 
 @dataclass
 class ChemicalEquation:
-    """ Dataclass holding information of a chemical reaction """
+    """Dataclass holding information of a chemical reaction"""
+
     catalog: dict = field(default_factory=dict)
     """ A dictionary mapping the unique identifiers to the Molecule instances involved in the reaction """
     role_map: dict = field(default_factory=dict)
@@ -183,31 +212,51 @@ class ChemicalEquation:
         return type(self) == type(other) and self.__hash__() == other.__hash__()
 
     def __str__(self) -> str:
-        return f'{self.smiles}'
+        return f"{self.smiles}"
 
     def build_reaction_smiles(self, use_reagents) -> str:
-        """ To build a reaction smiles from the smiles of the involved Molecule instances """
+        """To build a reaction smiles from the smiles of the involved Molecule instances"""
         if use_reagents:
-            return '>'.join(['.'.join([self.catalog.get(uid).smiles for uid in self.role_map[role]]) for role in
-                             ['reactants', 'reagents', 'products']])
+            return ">".join(
+                [
+                    ".".join(
+                        [self.catalog.get(uid).smiles for uid in self.role_map[role]]
+                    )
+                    for role in ["reactants", "reagents", "products"]
+                ]
+            )
         else:
-            return '>>'.join(['.'.join([self.catalog.get(uid).smiles for uid in self.role_map[role]]) for role in
-                             ['reactants', 'products']])
+            return ">>".join(
+                [
+                    ".".join(
+                        [self.catalog.get(uid).smiles for uid in self.role_map[role]]
+                    )
+                    for role in ["reactants", "products"]
+                ]
+            )
 
     def to_dict(self) -> dict:
-        """ To return a dictionary with all the attributes of the ChemicalEquation instance """
-        return {'type': 'ChemicalEquation',
-                'uid': self.uid, 'smiles': self.smiles,
-                'hash_map': self.hash_map, 'roles': self.role_map,
-                'stoichiometry_coefficients': self.stoichiometry_coefficients,
-                'template': self.template.to_dict() if self.template else None,
-                'disconnection': self.disconnection.to_dict() if self.disconnection else None}
+        """To return a dictionary with all the attributes of the ChemicalEquation instance"""
+        return {
+            "type": "ChemicalEquation",
+            "uid": self.uid,
+            "smiles": self.smiles,
+            "hash_map": self.hash_map,
+            "roles": self.role_map,
+            "stoichiometry_coefficients": self.stoichiometry_coefficients,
+            "template": self.template.to_dict() if self.template else None,
+            "disconnection": self.disconnection.to_dict()
+            if self.disconnection
+            else None,
+        }
 
     def build_rdrxn(self, use_reagents, use_atom_mapping=True):
-        """ To build an rdkit ChemicalReaction object from the ChemicalEquation instance """
-        return cif.build_rdrxn(catalog=self.catalog,
-                               role_map=self.role_map,
-                               stoichiometry_coefficients=self.stoichiometry_coefficients,
-                               use_reagents=use_reagents,
-                               use_smiles=False,
-                               use_atom_mapping=use_atom_mapping)
+        """To build an rdkit ChemicalReaction object from the ChemicalEquation instance"""
+        return cif.build_rdrxn(
+            catalog=self.catalog,
+            role_map=self.role_map,
+            stoichiometry_coefficients=self.stoichiometry_coefficients,
+            use_reagents=use_reagents,
+            use_smiles=False,
+            use_atom_mapping=use_atom_mapping,
+        )

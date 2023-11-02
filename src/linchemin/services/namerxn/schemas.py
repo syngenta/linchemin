@@ -5,20 +5,20 @@ from pydantic import BaseModel
 
 
 class ReactionFormat(Enum):
-    SMILES = 'smiles'
-    RXNBLOCK = 'rxnblock'
+    SMILES = "smiles"
+    RXNBLOCK = "rxnblock"
 
 
 class ReactionMappingStyle(Enum):
-    MATCHING = 'matching'
-    COMPLETE = 'complete'
-    COMPLETER = 'completer'
-    NOMAP = 'nomap'
+    MATCHING = "matching"
+    COMPLETE = "complete"
+    COMPLETER = "completer"
+    NOMAP = "nomap"
 
 
 class ClassificationCode(Enum):
     # FILBERT = 'filbert'
-    NAMERXN = 'namerxn'
+    NAMERXN = "namerxn"
     # NAMERXN_FILBERT = 'namerxn_filbert'
 
 
@@ -49,8 +49,8 @@ class QueryReactionString(BaseModel):
     class Config:
         schema_extra = {
             "example": {
-                'input_string': 'CC(Cl)=O.CN>>CNC(C)=O',
-                'query_id': '1',
+                "input_string": "CC(Cl)=O.CN>>CNC(C)=O",
+                "query_id": "1",
             }
         }
 
@@ -70,7 +70,7 @@ class ResultsReactionString(BaseModel):
                 "query_id": "1",
                 "confidence": None,
                 "success": True,
-                "notes": {}
+                "notes": {},
             }
         }
 
@@ -84,18 +84,12 @@ class Metadata(BaseModel):
     class Config:
         schema_extra = {
             "example": {
-                "ci_toolkit": {
-                    "name": "RDKit",
-                    "version": "2022.09.1"
-                },
-                "a2a_mapper": {
-                    "name": "namrxn",
-                    "version": "3.4.0"
-                },
+                "ci_toolkit": {"name": "RDKit", "version": "2022.09.1"},
+                "a2a_mapper": {"name": "namrxn", "version": "3.4.0"},
                 "reaction_classification_library": {
                     "name": "namrxn",
-                    "version": "3.4.0"
-                }
+                    "version": "3.4.0",
+                },
             }
         }
 
@@ -112,11 +106,7 @@ class ReactionClassInfoInp(BaseModel):
     parameter_fields: ClassVar[List[str]] = None
 
     class Config:
-        schema_extra = {
-            "example": {
-                'namerxn_class_number': '2.3.1'
-            }
-        }
+        schema_extra = {"example": {"namerxn_class_number": "2.3.1"}}
 
 
 class ReactionClassInfoOut(BaseModel):
@@ -128,18 +118,12 @@ class ReactionClassInfoOut(BaseModel):
         schema_extra = {
             "example": {
                 "metadata": {
-                    "ci_toolkit": {
-                        "name": "RDKit",
-                        "version": "2022.09.1"
-                    },
-                    "a2a_mapper": {
-                        "name": "namrxn",
-                        "version": "3.4.0"
-                    },
+                    "ci_toolkit": {"name": "RDKit", "version": "2022.09.1"},
+                    "a2a_mapper": {"name": "namrxn", "version": "3.4.0"},
                     "reaction_classification_library": {
                         "name": "namrxn",
-                        "version": "3.4.0"
-                    }
+                        "version": "3.4.0",
+                    },
                 },
                 "output": {
                     "namerxn_class_L1_name": "Acylation and related processes",
@@ -153,9 +137,9 @@ class ReactionClassInfoOut(BaseModel):
                     "namerxn_version": "3.4.0",
                     "rxno_link": "",
                     "rxno_number": "",
-                    "wiki": ""
+                    "wiki": "",
                 },
-                "outcome": {}
+                "outcome": {},
             }
         }
 
@@ -167,22 +151,24 @@ class RunBatchInp(BaseModel):
     out_fmt: str
     mapping_style: str
 
-    query_data_field: ClassVar[str] = 'query_data'
-    parameter_fields: ClassVar[List[str]] = ['classification_code', 'inp_fmt', 'out_fmt', 'mapping_style']
+    query_data_field: ClassVar[str] = "query_data"
+    parameter_fields: ClassVar[List[str]] = [
+        "classification_code",
+        "inp_fmt",
+        "out_fmt",
+        "mapping_style",
+    ]
 
     class Config:
         schema_extra = {
             "example": {
-                'inp_fmt': 'smiles',
-                'out_fmt': 'smiles',
-                'classification_code': 'namerxn',
-                'mapping_style': 'matching',
-                'query_data': [
-                    {
-                        "input_string": "CC(Cl)=O.CN.CC#N>>CNC(C)=O.O",
-                        "query_id": "1"
-                    }
-                ]
+                "inp_fmt": "smiles",
+                "out_fmt": "smiles",
+                "classification_code": "namerxn",
+                "mapping_style": "matching",
+                "query_data": [
+                    {"input_string": "CC(Cl)=O.CN.CC#N>>CNC(C)=O.O", "query_id": "1"}
+                ],
             }
         }
 
@@ -197,24 +183,18 @@ class RunBatchOut(BaseModel):
         schema_extra = {
             "example": {
                 "metadata": {
-                    "ci_toolkit": {
-                        "name": "RDKit",
-                        "version": "2022.09.1"
-                    },
-                    "a2a_mapper": {
-                        "name": "namrxn",
-                        "version": "3.4.0"
-                    },
+                    "ci_toolkit": {"name": "RDKit", "version": "2022.09.1"},
+                    "a2a_mapper": {"name": "namrxn", "version": "3.4.0"},
                     "reaction_classification_library": {
                         "name": "namrxn",
-                        "version": "3.4.0"
-                    }
+                        "version": "3.4.0",
+                    },
                 },
                 "query_parameters": {
                     "classification_code": "namerxn",
                     "inp_fmt": "smiles",
                     "out_fmt": "smiles",
-                    "mapping_style": "matching"
+                    "mapping_style": "matching",
                 },
                 "output": {
                     "successes_list": [
@@ -224,32 +204,39 @@ class RunBatchOut(BaseModel):
                             "output_string": "CC#N.Cl[C:2]([CH3:1])=[O:3].[CH3:4][NH2:5]>>O.[CH3:1][C:2](=[O:3])[NH:5][CH3:4]",
                             "success": True,
                             "confidence": None,
-                            "notes": {}
+                            "notes": {},
                         }
                     ],
-                    "failure_list": []
+                    "failure_list": [],
                 },
-                "outcome": {}
+                "outcome": {},
             }
         }
 
 
 endpoint_info_map = {
-    'metadata': {'ep_url': 'metadata',
-                 'input_schema': None,
-                 'output_schema': Metadata,
-                 'request_method': 'get', },
-    'all_class_info': {'ep_url': 'all_class_info',
-                       'input_schema': None,
-                       'output_schema': AllReactionClassInfoOut,
-                       'request_method': 'get'},
-    'class_info': {'ep_url': 'class_info',
-                   'input_schema': ReactionClassInfoInp,
-                   'output_schema': ReactionClassInfoOut,
-                   'request_method': 'get'
-                   },
-    'run_batch': {'ep_url': 'run_batch',
-                  'input_schema': RunBatchInp,
-                  'output_schema': RunBatchOut,
-                  'request_method': 'post'}
+    "metadata": {
+        "ep_url": "metadata",
+        "input_schema": None,
+        "output_schema": Metadata,
+        "request_method": "get",
+    },
+    "all_class_info": {
+        "ep_url": "all_class_info",
+        "input_schema": None,
+        "output_schema": AllReactionClassInfoOut,
+        "request_method": "get",
+    },
+    "class_info": {
+        "ep_url": "class_info",
+        "input_schema": ReactionClassInfoInp,
+        "output_schema": ReactionClassInfoOut,
+        "request_method": "get",
+    },
+    "run_batch": {
+        "ep_url": "run_batch",
+        "input_schema": RunBatchInp,
+        "output_schema": RunBatchOut,
+        "request_method": "post",
+    },
 }
