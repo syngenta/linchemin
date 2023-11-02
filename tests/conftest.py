@@ -32,6 +32,13 @@ def mit_path():
 
 
 @pytest.fixture
+def trees_path():
+    conftest_path = Path(__file__)
+    data_path = conftest_path.parent / "test_file"
+    return data_path.joinpath("trees.json")
+
+
+@pytest.fixture
 def cli():
     conftest_path = Path(__file__)
     data_path = conftest_path.parent.parent

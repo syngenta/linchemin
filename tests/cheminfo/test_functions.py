@@ -826,6 +826,8 @@ def test_mapping_diagnosis():
         if uid == chemical_equations.get(2).role_map["products"][0]
     ][0]
     fragments2 = mapping_diagnosis(chemical_equations.get(2), desired_prod2)
+    print(chemical_equations.get(2))
+    print(fragments2)
     assert len(fragments2) == 1
     assert "." not in fragments2[0]
 

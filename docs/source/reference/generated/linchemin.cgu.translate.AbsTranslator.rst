@@ -14,7 +14,9 @@
    .. autosummary::
    
       ~AbsTranslator.__init__
+      ~AbsTranslator.build_iron_node
       ~AbsTranslator.from_iron
+      ~AbsTranslator.get_node_info
       ~AbsTranslator.to_iron
    
    

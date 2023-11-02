@@ -244,3 +244,7 @@ def test_mol_fp_factory():
     parameters = {"fpSize": 1024, "countSimulation": True}
     fp_rdkit_params = compute_mol_fingerprint(rdmol, "rdkit", parameters=parameters)
     assert fp_rdkit_params != fp_rdkit
+    fp_morgan = compute_mol_fingerprint(rdmol, "morgan")
+    assert fp_morgan != fp_rdkit
+    fp_topological = compute_mol_fingerprint(rdmol, "topological")
+    assert fp_topological != fp_rdkit

@@ -1,5 +1,11 @@
 from abc import ABC, abstractmethod
+from typing import Union
 
+from linchemin.cgu.syngraph import (
+    BipartiteSynGraph,
+    MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
+)
 from linchemin.rem.route_descriptors import descriptor_calculator
 
 """
@@ -49,14 +55,23 @@ class ScoreFactory:
         return calculator().compute_score(syngraph)
 
 
-def route_scorer(syngraph, score: str):
-    """Gives access to ScoreFactory.
+def route_scorer(
+    syngraph: Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph],
+    score: str,
+) -> float:
+    """
+    To compute a route score.
 
-    :param:
-        syngraph: a Syngraph/MonopartiteSynGraph instance
-        score: a string indicating the score to be computed
+    Parameters:
+    -------------
+    syngraph: Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]
+        The route for which the score should be computed
+    score: str
+        The name of the score to be computed
 
-    :return:
+    Returns:
+    ----------
+    score: float
         a float between 0 and 1 (0 being 'bad' and 1 being 'good')
     """
     score_selector = ScoreFactory()

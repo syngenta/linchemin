@@ -3,8 +3,8 @@ import unittest.mock
 
 import pytest
 
-from linchemin.cgu.syngraph import (
-    MonopartiteReacSynGraph,
+from linchemin.cgu.syngraph import MonopartiteReacSynGraph
+from linchemin.cgu.syngraph_operations import (
     extract_reactions_from_syngraph,
     merge_syngraph,
 )
@@ -52,27 +52,9 @@ def test_namerxn_service(mock_namerxn_endpoint, ibm1_path):
     mock_namerxn_endpoint.assert_called()
     assert out is not None
     s = MonopartiteReacSynGraph(out.mapped_reactions)
-    # disc1 = set()
     for parent, children in s.graph.items():
         assert parent.disconnection is not None
         assert parent.template is not None
-    # With test file ibm2_path, even if the reactions are all mapped, some disconnections remain None;
-    # the code below is used to debug -> The issue is due to deprotection reaction, where the new bond is with an H
-    # and not detected by the current system
-    #     print('***')
-    #     print(parent.smiles)
-    #     print(parent.disconnection)
-    #     print(parent.template)
-    #     disc1.add(parent.template)
-    # out2 = perform_atom_mapping('rxnmapper', reaction_list)
-    # s2 = MonopartiteReacSynGraph(out2.mapped_reactions)
-    # disc2 = set()
-    # for parent, children in s2.graph.items():
-    #     print('***')
-    #     print(parent.smiles)
-    #     print(parent.disconnection)
-    #     print(parent.template)
-    #     disc2.add(parent.template)
 
 
 @unittest.mock.patch("linchemin.services.rxnmapper.service.EndPoint.submit")

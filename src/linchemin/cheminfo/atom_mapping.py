@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import List, Union
 
+from linchemin import settings
 from linchemin.services.namerxn import service
 from linchemin.services.rxnmapper import service as rxn_service
 from linchemin.utilities import console_logger
@@ -58,10 +59,11 @@ class NameRxnMapper(Mapper):
 
     info = "NextMove reaction classifier. Needs credentials"
 
-    def map_chemical_equations(self, reactions_list: List[dict]):
+    def map_chemical_equations(self, reactions_list: List[dict]) -> MappingOutput:
         # print('NameRxn mapper is called')
         out = MappingOutput()
-        namerxn_service = service.NamerxnService(base_url="http://127.0.0.1:8004/")
+        base_url = f"{settings.SERVICES.namerxn.url}:{settings.SERVICES.namerxn.port}"
+        namerxn_service = service.NamerxnService(base_url=base_url)
         input_dict = {
             "inp_fmt": "smiles",
             "out_fmt": "smiles",
@@ -77,7 +79,7 @@ class NameRxnMapper(Mapper):
             {"query_id": d["query_id"], "output_string": d["output_string"]}
             for d in out_request["output"]["successes_list"]
         ]
-        out.unmapped_reactions = out_request["output"]["failure_list"]
+        out.unmapped_reactions = out_request["output"]["failures_list"]
         # To check the reaction classification
         # for d in out_request['output']['successes_list']:
         #     print(d['output_string'])
@@ -89,7 +91,7 @@ class NameRxnMapper(Mapper):
 #     """ Class for the Chematica atom mapper """
 #     info = 'Atom mapper developed in the Chematica software'
 #
-#     def map_chemical_equations(self, reactions_list: List[dict]):
+#     def map_chemical_equations(self, reactions_list: list[dict]):
 #         # print('Chematica mapper is called')
 #         out = MappingOutput()
 #         out.unmapped_reactions = reactions_list
@@ -105,12 +107,13 @@ class RxnMapper(Mapper):
 
     info = "Atom mapper developed by IBM"
 
-    def map_chemical_equations(self, reactions_list: List[dict]):
+    def map_chemical_equations(self, reactions_list: List[dict]) -> MappingOutput:
         # print('RxnMapper mapper is called')
         out = MappingOutput()
-        rxnmapper_service = rxn_service.RxnMapperService(
-            base_url="http://127.0.0.1:8002/"
+        base_url = (
+            f"{settings.SERVICES.rxnmapper.url}:{settings.SERVICES.rxnmapper.port}"
         )
+        rxnmapper_service = rxn_service.RxnMapperService(base_url=base_url)
         input_dict = {
             "classification_code": "namerxn",
             "inp_fmt": "smiles",
@@ -125,7 +128,7 @@ class RxnMapper(Mapper):
             {"query_id": d["query_id"], "output_string": d["output_string"]}
             for d in out_request["output"]["successes_list"]
         ]
-        out.unmapped_reactions = out_request["output"]["failure_list"]
+        out.unmapped_reactions = out_request["output"]["failures_list"]
         return out
 
 
@@ -137,7 +140,7 @@ class MapperFactory:
         "rxnmapper": {"value": RxnMapper, "info": RxnMapper.info},
     }
 
-    def call_mapper(self, mapper_name, reactions_list):
+    def call_mapper(self, mapper_name: str, reactions_list: list):
         """Takes a string indicating a mapper and calls it"""
         if mapper_name not in self.mappers:
             logger.error(
@@ -150,12 +153,33 @@ class MapperFactory:
 
 
 def perform_atom_mapping(reactions_list: List[dict], mapper_name: str) -> MappingOutput:
-    """Gives access to the mapper factory.
+    """
+    To map a list of reaction smiles
 
-    :param:
-        reactions_list: a list of dictionaries with the reaction strings to be mapped
+    Parameters:
+    -----------
+    reactions_list:  List[dict]
+        The list of dictionaries with the reaction strings to be mapped in the form [{'query_id': n, 'input_string': s}]
 
-        mapper_name: a string indicating the name of the mapper to be used
+    mapper_name: str
+        the name of the mapper to be used.
+
+    Returns:
+    ---------
+    mapped reactions: MappingOutput
+        Its attributes contain (i) the mapped reaction strings (ii) the reaction strings that remained unmapped
+
+    Raises:
+    -------
+    UnavailableMapper: if the selected mapper is not available
+
+    Example:
+    --------
+    >>> reactions = [{'query_id': 0, 'input_string': 'CN.CC(O)=O>O>CNC(C)=O'},
+    >>> {'query_id': 1, 'input_string': 'CC(O)=O.CN>O>CNC(C)=O'},
+    >>> {'query_id': 2, 'input_string': 'CC(O)=O.CN>>CNC(C)=O'}]
+    >>> out = perform_atom_mapping(reactions, 'rxnmapper')
+    >>> mapped_reactions = out.mapped_reactions
     """
     factory = MapperFactory()
     return factory.call_mapper(mapper_name, reactions_list)
@@ -239,15 +263,25 @@ class MappingBuilder:
         return FirstMapping().mapping(out)
 
 
-def pipeline_atom_mapping(reactions_list: List[dict] = None) -> MappingOutput:
-    """Facade function to start the atom-to-atom mapping pipeline.
+def pipeline_atom_mapping(reactions_list: List[dict]) -> MappingOutput:
+    """
+    To perform the atom mapping of a list of reaction smiles with a pipeline of tools.
 
-    :param:
-         reactions_list: a list of dictionaries containing the reaction strings to be mapped and their id in the
-                         form [{'query_id': n, 'input_string': unmapped_reaction_string}]
+    Parameters:
+    ------------
+    reactions_list:
+        The list of dictionaries containing the reaction strings to be mapped and their id in the
+                 form [{'query_id': n, 'input_string': unmapped_reaction_string}]
 
-    :return:
-        out: a MappingOutput instance
+    Returns:
+    ----------
+    out: MappingOutput. Its attributes contain the mapped/unmapped reaction smiles and additional information.
+
+    Example:
+    --------
+    >>> reactions = [{'query_id': 0, 'input_string': 'CN.CC(O)=O>O>CNC(C)=O'}]
+    >>> out = pipeline_atom_mapping(reactions)
+    >>> mapped_reactions = out.mapped_reactions
     """
     return MappingBuilder().initiate_mapping(reactions_list)
 

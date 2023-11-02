@@ -1,7 +1,12 @@
 from collections import defaultdict
+from typing import Sequence, Tuple, Union
 
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
+from linchemin.cgu.syngraph import (
+    BipartiteSynGraph,
+    MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
+)
 from linchemin.cheminfo.models import Disconnection
 
 
@@ -15,26 +20,35 @@ class DisconnectionGraph:
     """Class representing a DisconnectionGraph, a graph object whose nodes are instances of the Disconnection class.
 
     Attributes:
-
-        graph: a dictionary of sets
+    ------------
+    graph: a dictionary of sets
     """
 
-    def __init__(self, syngraph=None):
+    def __init__(
+        self,
+        syngraph: Union[
+            MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph, None
+        ] = None,
+    ):
         """
         Parameters:
-            syngraph: an instance of one of the subclasses of SynGraph (optional, default: None), whose
-                      ChemicalEquation nodes are mapped
+        -----------
+        syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph, None]
+            The input SynGraph with mapped ChemicalEquationans (default None --> an empty graph is created)
         """
         self.graph = defaultdict(set)
 
         if syngraph is not None:
-            if type(syngraph) not in [MonopartiteReacSynGraph, BipartiteSynGraph]:
+            if not isinstance(
+                syngraph,
+                (MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph),
+            ):
                 raise TypeError(
                     "Invalid input type. Only MonopartiteReacSynGraph and BipartiteSynGraph objects"
                     "can be used to build a DisconnectionGraph."
                 )
 
-            if type(syngraph) == BipartiteSynGraph:
+            if isinstance(syngraph, (MonopartiteMolSynGraph, BipartiteSynGraph)):
                 syngraph = converter(syngraph, "monopartite_reactions")
 
             for parent, children in syngraph.graph.items():
@@ -52,11 +66,24 @@ class DisconnectionGraph:
                 children_disc = [child.disconnection for child in children]
                 self.add_disc_node((parent_disc, children_disc))
 
-    def add_disc_node(self, nodes_tup: tuple):
-        """To add a 'parent' node and its 'children' nodes to a DisconnectionGraph instance.
+    def add_disc_node(self, nodes_tup: Tuple[Disconnection, Sequence]) -> None:
+        """
+        To add a 'parent' node and its 'children' nodes to a DisconnectionGraph instance.
 
-        Format of the input tuple: (parent_node, [child1, child2, ...])
-        Only disconnections instances are accepted as nodes.
+        Parameters:
+        -----------
+        nodes_tup: Tuple[Disconnection, Sequence]
+            The parent node and its children to be added
+            Format of the input tuple: (parent_node, [child1, child2, ...])
+
+        Returns:
+        ---------
+        None
+
+        Raises:
+        --------
+        TypeError: if the input nodes are not Dissconnection objects
+
         """
         if type(nodes_tup[0]) is not Disconnection or any(
             type(n) != Disconnection for n in nodes_tup[1]

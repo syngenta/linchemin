@@ -46,11 +46,23 @@ Syngraph
 
     SynGraph
     SynGraph.add_node
+    SynGraph.remove_node
     BipartiteSynGraph
     MonopartiteReacSynGraph
     MonopartiteMolSynGraph
-    extract_reactions_from_syngraph
 
+
+Syngraph Operations
+^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: linchemin.cgu.syngraph_operations
+.. autosummary::
+    :toctree: generated
+
+
+    merge_syngraph
+    remove_reaction_from_syngraph
+    extract_reactions_from_syngraph
 
 Convert
 ^^^^^^^^^
@@ -62,6 +74,15 @@ Convert
 
     converter
 
+
+Route Mining
+^^^^^^^^^^^^^
+
+.. automodule:: linchemin.cgu.route_mining
+.. autosummary::
+    :toctree: generated
+
+    mine_routes
 
 Interfaces
 ----------

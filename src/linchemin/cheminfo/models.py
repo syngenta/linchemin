@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Union
+from typing import List, Union
 
 import linchemin.cheminfo.functions as cif
 
@@ -13,19 +13,19 @@ class Molecule:
     """Class holding information of a chemical compound"""
 
     smiles: str = field(default_factory=str)
-    """ A string indicating the canonical smiles of the molecule"""
+    """ (str) The canonical smiles of the molecule"""
     molecular_identity_property_name: str = field(default_factory=str)
-    """A string indicating the name of the property definying the identity of the molecule"""
+    """(str) The name of the property definying the identity of the molecule"""
     uid: int = field(default_factory=int)
-    """ The integer obtained by hashing the identity property of the molecule"""
+    """ (int) The unique identifier of the molecule """
     hash_map: dict = field(default_factory=dict)
-    """ A dictionary mapping various properties (smiles, inchi_key, ety..) with their values"""
+    """ (dict) The dictionary mapping various properties (smiles, inchi_key, ety..) with their values"""
     rdmol: Union[cif.Mol, None] = field(default=None)
-    """ An unmapped RDKit Molecule object"""
+    """ (Union[cif.Mol, None]) The unmapped RDKit Molecule object"""
     rdmol_mapped: Union[cif.Mol, None] = field(default=None)
-    """ A mapped RDKit Molecule object (if any) """
+    """ (Union[cif.Mol, None]) The mapped RDKit Molecule object (if any) """
     identity_property: str = field(default_factory=str)
-    """ The identity property of the molecule"""
+    """ (str) The identity property of the molecule"""
 
     def __hash__(self) -> int:
         return self.uid
@@ -76,6 +76,19 @@ class Disconnection:
             "uid": self.uid,
             "hash_map": self.hash_map,
         }
+
+    def extract_info(self) -> dict:
+        """To extract a dictionary containing the ids of atoms and bonds involved in the disconnection"""
+        if bonds := [
+            self.rdmol.GetBondBetweenAtoms(*atoms_pair).GetIdx()
+            for atoms_pair in self.new_bonds + self.modified_bonds
+        ]:
+            return {
+                "disconnection_bonds": bonds,
+                "disconnection_atoms": self.reacting_atoms,
+            }
+        else:
+            return {"disconnection_atoms": self.reacting_atoms}
 
 
 @dataclass
@@ -168,11 +181,11 @@ class Ratam:
     """Dataclass holding information of a reaction atom-to-atom mapping"""
 
     full_map_info: dict = field(default_factory=dict)
-    """ A dictionary mapping Molecule identifiers to a list of mapping dictionary in the form {atom_id: atom_map_number}"""
+    """ (dict) The dictionary mapping Molecule uids to a list of dictionaries mapping atom ids with map number"""
     atom_transformations: list = field(default_factory=list)
-    """ a list of AtomTransformations namedtuples corresponding to the transformations of mapped atoms.
-        AtomTransformation = namedtuple('AtomTransformation', ['product_uid', 'reactant_uid', 'prod_atom_id', 'react_atom_id',
-                                                       'map_num']) """
+    """ (list) The list of AtomTransformations namedtuples corresponding to the transformations of mapped atoms.
+        AtomTransformation = namedtuple('AtomTransformation', ['product_uid', 'reactant_uid', 'prod_atom_id',
+        'react_atom_id', 'map_num']) """
 
     def diagnosis(self):
         """To perform a diagnostic process on the atom mapping"""
@@ -181,29 +194,34 @@ class Ratam:
 
 @dataclass
 class ChemicalEquation:
-    """Dataclass holding information of a chemical reaction"""
+    """
+    Dataclass holding information of a chemical reaction
+    """
 
     catalog: dict = field(default_factory=dict)
-    """ A dictionary mapping the unique identifiers to the Molecule instances involved in the reaction """
+    """(dict) The catalog of the Molecule instances invlived in the chemical reaction."""
     role_map: dict = field(default_factory=dict)
-    """ A dictionary mapping each role (reactants, reagents, products) to a sorted list of Molecule's uids"""
+    """ (dict) The dictionary mapping the uid of the involved Molecules to their roles (reactants, reagents and
+    products)."""
     stoichiometry_coefficients: dict = field(default_factory=dict)
-    """ A nested dictionary mapping each role to a dictionary containing the uids of the Molecules with that role
+    """ (dict) The dictionary mapping each role to a dictionary containing the uids of the Molecules with that role
         and their stoichiometry coefficients {'role': {uid: n}}"""
     hash_map: dict = field(default_factory=dict)
-    """ A dictionary mapping various properties with their values"""
+    """ (dict) The dictionary mapping properties with hash value derived from them"""
     uid: int = field(default_factory=int)
-    """ The integer obtained by hashing the chemical identity identity property """
+    """ (int) The integer representing the unique identifier of the reaction."""
     rdrxn: Union[cif.rdChemReactions.ChemicalReaction, None] = None
-    """ An RDKit ChemicalReaction object """
+    """ (Union[cif.rdChemReactions.ChemicalReaction, None]) The RDKit ChemicalReaction object corresponding to the
+    ChemicalEquation (default None)"""
     smiles: str = field(default_factory=str)
-    """ The standardized smiles of the reaction"""
+    """ (str) The SMILES representation of the reaction."""
     mapping: Union[Ratam, None] = field(default=None)
-    """ A Ratam instance (if the ChemicalEquation is mapped)"""
+    """ (Union[Ratam, None]) The Ratam object with the information about the atom mapping (default None, if the
+    ChemicalEquation is not mapped)."""
     template: Union[Template, None] = field(default=None)
-    """ A Template instance (if the ChemicalEquation is mapped)"""
+    """ (Union[Template, None]) The Template object (default None, if the ChemicalEquation is not mapped)."""
     disconnection: Union[Disconnection, None] = field(default=None)
-    """ A Disconnection instance (if the ChemicalEquation is mapped)"""
+    """ (Union[Disconnection, None]) The Disconnection object (default None, if the ChemicalEquation is not mapped)."""
 
     def __hash__(self) -> int:
         return self.uid
@@ -214,7 +232,7 @@ class ChemicalEquation:
     def __str__(self) -> str:
         return f"{self.smiles}"
 
-    def build_reaction_smiles(self, use_reagents) -> str:
+    def build_reaction_smiles(self, use_reagents: bool) -> str:
         """To build a reaction smiles from the smiles of the involved Molecule instances"""
         if use_reagents:
             return ">".join(
@@ -250,7 +268,9 @@ class ChemicalEquation:
             else None,
         }
 
-    def build_rdrxn(self, use_reagents, use_atom_mapping=True):
+    def build_rdrxn(
+        self, use_reagents: bool, use_atom_mapping=True
+    ) -> cif.rdChemReactions.ChemicalReaction:
         """To build an rdkit ChemicalReaction object from the ChemicalEquation instance"""
         return cif.build_rdrxn(
             catalog=self.catalog,

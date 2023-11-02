@@ -1,11 +1,16 @@
 import abc
 from collections import defaultdict
-from typing import Union
+from typing import List, Union
 
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph, SynGraph
-from linchemin.cheminfo.models import ChemicalEquation
-from linchemin.rem.node_metrics import node_score_calculator
+from linchemin.cgu.syngraph import (
+    BipartiteSynGraph,
+    MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
+)
+from linchemin.cgu.syngraph_operations import find_path
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
+from linchemin.rem.node_descriptors import node_descriptor_calculator
 from linchemin.utilities import console_logger
 
 """
@@ -29,7 +34,7 @@ class UnavailableDescriptor(DescriptorError):
 
 
 class WrongGraphType(DescriptorError):
-    """Raised if the input gaph object is not of the required type."""
+    """Raised if the input graph object is not of the required type."""
 
     pass
 
@@ -51,15 +56,22 @@ class DescriptorCalculator(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def compute_descriptor(
-        self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]
-    ):
-        """Calculates the descriptor for the given graph.
+        self,
+        graph: Union[
+            BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+        ],
+    ) -> Union[int, float, list]:
+        """
+        Calculates the descriptor for the given graph.
 
-        :param:
-            graph: a graph object
-                It is the graph for which the descriptor should be computed
+        Parameters:
+        -----------
+        graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]
+            The graph for which the descriptor should be computed
 
-        :return:
+        Returns:
+        --------
+        dscriptor: Union[int, float, list]
             the value of the descriptor
         """
         pass
@@ -71,7 +83,10 @@ class NrBranches(DescriptorCalculator):
     info = "Computes the number of branches in the input SynGraph"
 
     def compute_descriptor(
-        self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]
+        self,
+        graph: Union[
+            BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+        ],
     ) -> int:
         """Takes a SynGraph and returns the number of ChemicalEquation nodes that are "parents" of more than one
         node. 0 corresponds to a linear route."""
@@ -80,13 +95,13 @@ class NrBranches(DescriptorCalculator):
             logger.error("The input route is None.")
             raise InvalidInput
 
-        if isinstance(graph, BipartiteSynGraph):
+        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
             mp_graph = converter(graph, "monopartite_reactions")
         elif isinstance(graph, MonopartiteReacSynGraph):
             mp_graph = graph
         else:
             logger.error(
-                f"{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted."
+                f"{type(graph)} is not supported. Only SynGraph objects are accepted."
             )
             raise WrongGraphType
 
@@ -112,18 +127,21 @@ class Branchedness(DescriptorCalculator):
     )
 
     def compute_descriptor(
-        self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]
-    ):
+        self,
+        graph: Union[
+            BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+        ],
+    ) -> float:
         """Takes a SynGraph and returns the "branchedness" computed as the number of branching nodes weighted by their
         distance from the root (the closer to the root, the better). 0 indicates a linear SynGraph
         """
-        if isinstance(graph, BipartiteSynGraph):
+        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
             mp_graph = converter(graph, "monopartite_reactions")
         elif isinstance(graph, MonopartiteReacSynGraph):
             mp_graph = graph
         else:
             logger.error(
-                f"{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted."
+                f"{type(graph)} is not supported. SynGraph objects are accepted."
             )
             raise WrongGraphType
 
@@ -156,17 +174,20 @@ class LongestSequence(DescriptorCalculator):
     info = "Computes the longest linear sequence in the input SynGraph"
 
     def compute_descriptor(
-        self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]
+        self,
+        graph: Union[
+            BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+        ],
     ) -> int:
         """Takes a SynGraph and returns the length of the longest sequence of ChemicalEquation between the SynRoot
         and the SynLeaves."""
-        if isinstance(graph, BipartiteSynGraph):
+        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
             mp_graph = converter(graph, "monopartite_reactions")
         elif isinstance(graph, MonopartiteReacSynGraph):
             mp_graph = graph
         else:
             logger.error(
-                f"{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted."
+                f"{type(graph)} is not supported. Only SynGraph objects are accepted."
             )
             raise WrongGraphType
 
@@ -187,16 +208,19 @@ class NrReactionSteps(DescriptorCalculator):
     info = "Computes the number of chemical reactions in the input SynGraph"
 
     def compute_descriptor(
-        self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]
+        self,
+        graph: Union[
+            BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+        ],
     ) -> int:
         """Takes a SynGraph and returns the number of ReactionStep nodes in it."""
-        if isinstance(graph, BipartiteSynGraph):
+        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
             mp_graph = converter(graph, "monopartite_reactions")
         elif isinstance(graph, MonopartiteReacSynGraph):
             mp_graph = graph
         else:
             logger.error(
-                f"{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted."
+                f"{type(graph)} is not supported. Only Syngraph objects are accepted."
             )
             raise WrongGraphType
 
@@ -209,13 +233,20 @@ class PathFinder(DescriptorCalculator):
     info = "Computes all the paths between the SynRoots and the SynLeaves in the input SynGraph"
 
     def compute_descriptor(
-        self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]
+        self,
+        graph: Union[
+            BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+        ],
     ) -> list:
         """Takes a SynGraph/MonopartiteSynGraph and returns all the paths between the SynRoot and the SynLeaves
         (only ReactionStep nodes)."""
-        if not isinstance(graph, (BipartiteSynGraph, MonopartiteReacSynGraph)):
+        if isinstance(graph, MonopartiteMolSynGraph):
+            graph = converter(graph, "monopartite_reactions")
+        elif isinstance(graph, (BipartiteSynGraph, MonopartiteReacSynGraph)):
+            graph = graph
+        else:
             logger.error(
-                f"{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted."
+                f"{type(graph)} is not supported. Only Syngraph objects are accepted."
             )
             raise WrongGraphType
 
@@ -242,7 +273,10 @@ class Convergence(DescriptorCalculator):
     )
 
     def compute_descriptor(
-        self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]
+        self,
+        graph: Union[
+            BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+        ],
     ) -> float:
         """Takes a SynGraph and returns its convergence as the ratio between the longest linear sequence and the
         number of steps computed in the monopartite representation."""
@@ -259,17 +293,20 @@ class AvgBranchingFactor(DescriptorCalculator):
     info = "Computes the average branching factor of the input SynGraph"
 
     def compute_descriptor(
-        self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]
+        self,
+        graph: Union[
+            BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+        ],
     ) -> float:
         """Takes a SynGraph and returns the average branching factor as the ratio between the number of non-root
         reaction nodes and the number of non-leaf reaction nodes."""
-        if isinstance(graph, BipartiteSynGraph):
+        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
             mp_graph = converter(graph, "monopartite_reactions")
         elif isinstance(graph, MonopartiteReacSynGraph):
             mp_graph = graph
         else:
             logger.error(
-                f"{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted."
+                f"{type(graph)} is not supported. Only SynGraph objects are accepted."
             )
             raise WrongGraphType
 
@@ -290,17 +327,20 @@ class CDScore(DescriptorCalculator):
     info = "Computes the Convergent Disconnection Score of the input SynGraph"
 
     def compute_descriptor(
-        self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]
+        self,
+        graph: Union[
+            BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+        ],
     ) -> float:
         """Takes a SynGraph and returns the average CDScore computing the score for each reaction involved."""
 
-        if isinstance(graph, BipartiteSynGraph):
+        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
             mp_graph = converter(graph, "monopartite_reactions")
         elif isinstance(graph, MonopartiteReacSynGraph):
             mp_graph = graph
         else:
             logger.error(
-                f"{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted."
+                f"{type(graph)} is not supported. Only SynGraph objects are accepted."
             )
             raise WrongGraphType
 
@@ -313,7 +353,7 @@ class CDScore(DescriptorCalculator):
 
         route_score = 0
         for reaction in unique_reactions:
-            score = node_score_calculator(reaction, "cdscore")
+            score = node_descriptor_calculator(reaction, "cdscore")
             route_score += score
 
         return route_score / len(unique_reactions)
@@ -328,19 +368,20 @@ class AtomEfficiency(DescriptorCalculator):
     )
 
     def compute_descriptor(
-        self, graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph]
+        self,
+        graph: Union[
+            BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+        ],
     ) -> float:
         """Takes a SynGraph and returns its atom efficiency"""
-        if isinstance(graph, BipartiteSynGraph):
+        if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
             root = graph.get_roots()[0]
             leaves = graph.get_leaves()
         elif isinstance(graph, MonopartiteReacSynGraph):
             root = graph.get_molecule_roots()[0]
             leaves = graph.get_molecule_leaves()
         else:
-            logger.error(
-                f"{type(graph)} is not supported. Only BipartiteSynGraph and MonopartiteReacSynGraph are accepted."
-            )
+            logger.error(f"{type(graph)} is not supported. Only Syngraph are accepted.")
             raise WrongGraphType
         target_n_atoms = root.rdmol.GetNumAtoms()
         all_atoms_leaves = sum(leaf.rdmol.GetNumAtoms() for leaf in leaves)
@@ -351,8 +392,9 @@ class DescriptorsCalculatorFactory:
     """DescriptorCalculator Factory to give access to the descriptors.
 
     Attributes:
-        route_descriptors: a dictionary
-            It maps the strings representing the 'name' of a descriptor to the correct DescriptorCalculator subclass
+    ------------
+    route_descriptors: a dictionary
+        It maps the strings representing the 'name' of a descriptor to the correct DescriptorCalculator subclass
     """
 
     route_descriptors = {
@@ -380,74 +422,143 @@ class DescriptorsCalculatorFactory:
         return calculator().compute_descriptor(graph)
 
 
-def descriptor_calculator(graph, descriptor: str):
-    """Gives access to the routes descriptors factory.
+def descriptor_calculator(
+    graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph],
+    descriptor: str,
+):
+    """
+    To compute a route descriptor.
 
-    :param:
-        graph: a graph object
-            The single route for which the descriptor must be computed
-        descriptor: a string
-            It indicates the descriptor to be computed
+    Parameters:
+    ------------
+    graph: Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]
+        The route in SynGraph format for which the descriptor must be computed
+    descriptor: str
+        The descriptor to be computed
 
-    :return:
-        The value of the selected descriptor for the input graph
+    Returns:
+    ---------
+    The value of the selected descriptor for the input graph
+
+    Raises:
+    -------
+    UnavailableDescriptor: if the selected descriptor is not available
+
+    WrongGraphType: if the input graph is not a SynGraph object
+
+    Example:
+    --------
+    >>> graph = json.loads(open(az_path).read())
+    >>> syngraph = translator('az_retro', graph[4], 'syngraph', out_data_model='bipartite')
+    >>> n_steps = descriptor_calculator(syngraph, 'nr_steps')
     """
     descriptor_selector = DescriptorsCalculatorFactory()
     return descriptor_selector.select_route_descriptor(graph, descriptor)
 
 
 def get_available_descriptors():
-    """Returns the list of the available descriptors"""
+    """
+    Returns the available options for the 'descriptor_calculator' function.
+
+    Returns:
+    --------
+    available options: dict
+        The dictionary listing arguments, options and default values of the 'descriptor_calculator' function
+
+    Example:
+    --------
+    >>> options = get_available_descriptors()
+
+    """
     return {
         f: additional_info["info"]
         for f, additional_info in DescriptorsCalculatorFactory.route_descriptors.items()
     }
 
 
-def find_path(
-    graph: SynGraph, leaf: str, root: str, path: Union[list, None] = None
-) -> list:
-    """Returns the path between two nodes in a SynGraph.
+# def find_path(
+#     graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph],
+#     leaf: Union[Molecule, ChemicalEquation],
+#     root: Union[Molecule, ChemicalEquation],
+#     path: Union[list, None] = None,
+# ) -> list:
+#     """
+#     To find a path between two nodes in a SynGraph.
+#
+#     Parameters:
+#     ------------
+#     graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph]
+#         The graph of interest
+#     leaf:  Union[Molecule, ChemicalEquation]
+#         The node at which the path should end
+#     root: Union[Molecule, ChemicalEquation]
+#         The node at which the path should start
+#     path: Optional[Union[list, None]]
+#         The list of Molecule/ChemicalEquation instances already discovered along the path (default None)
+#
+#     Returns:
+#     --------
+#     path: list
+#         The path as list of Molecule and/or ChemicalEquation
+#
+#     Example:
+#     ---------
+#     >>> path = find_path(syngraph, leaf_mol, root_mol)
+#     """
+#     if path is None:
+#         path = []
+#     path += [leaf]
+#     if leaf == root:
+#         return path
+#     for node in graph.graph[leaf]:
+#         if node not in path:
+#             if newpath := find_path(graph, node, root, path):
+#                 return newpath
 
-    :param:
-        graph: a SynGraph
-        leaf: the smiles of one SynLeaf
-        root: the smiles of the SynRoot
-        path: a list of smiles (default: empty list)
 
-    :return:
-        path/newpath: a list of smiles
+def is_subset(
+    syngraph1: Union[
+        BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+    ],
+    syngraph2: Union[
+        BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
+    ],
+) -> bool:
     """
-    if path is None:
-        path = []
-    path += [leaf]
-    if leaf == root:
-        return path
-    for node in graph.graph[leaf]:
-        if node not in path:
-            if newpath := find_path(graph, node, root, path):
-                return newpath
-
-
-def is_subset(syngraph1, syngraph2) -> bool:
-    """Returns a boolean indicating whether syngraph1 is a subset of syngraph2. A route R1 is subset of another route
+    To check whether a graph is subset of another. A route R1 is subset of another route
     R2 if (i) the dictionary of R1 SynGraph instace is subset of the dictionary of R2, (ii) R1 and R2 have the
     same roots, (iii) R1 and R2 have different leaves.
 
-    :param:
-        syngraph1, syngraph2: two instances of SynGraph or MonopartiteSynGraph
+    Parameters:
+    ------------
+    syngraph1: Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]
+        The graph that might be subset
+     syngraph2: Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]
+        The graph that might be superset
 
-    :return:
-        a boolean: True if syngraph1 is subset of syngraph2; False otherwise
+    Returns:
+    ---------
+    bool
+        True if syngraph1 is subset of syngraph2; False otherwise
+
+    Raises:
+    --------
+    TypeError: if the input graph are not SynGraph objects
     """
-    if type(syngraph1) == BipartiteSynGraph:
+    if isinstance(syngraph1, (BipartiteSynGraph, MonopartiteMolSynGraph)):
         mp_graph1 = converter(syngraph1, "monopartite_reactions")
-    else:
+    elif isinstance(syngraph1, MonopartiteReacSynGraph):
         mp_graph1 = syngraph1
-    if type(syngraph2) == BipartiteSynGraph:
-        mp_graph2 = converter(syngraph2, "monopartite_reactions")
     else:
+        logger.error("Only SynGraph objects are accepted")
+        raise TypeError
+    if isinstance(syngraph2, (BipartiteSynGraph, MonopartiteMolSynGraph)):
+        mp_graph2 = converter(syngraph2, "monopartite_reactions")
+    elif isinstance(syngraph2, MonopartiteReacSynGraph):
         mp_graph2 = syngraph2
+    else:
+        logger.error("Only SynGraph objects are accepted")
+        raise TypeError
     return (
         mp_graph2.get_leaves() != mp_graph1.get_leaves()
         and mp_graph1.get_roots() == mp_graph2.get_roots()
@@ -455,16 +566,25 @@ def is_subset(syngraph1, syngraph2) -> bool:
     )
 
 
-def find_duplicates(syngraphs1: list, syngraphs2: list):
+def find_duplicates(syngraphs1: list, syngraphs2: list) -> Union[List[tuple], None]:
     """Returns a list of tuples containing the common elements in the two input lists.
 
-    :param:
-        syngraphs1, syngraphs2: two lists of SynGraph objects
+    Parameters:
+    ------------
+    syngraphs1: list
+        A list of SynGraph obejcts
+    syngraphs2: list
+        The second list of SynGraph objects
 
-    :return:
-        duplicates: a list of tuples
-            It contains the id/source of identical routes;
-            if there are no duplicates, nothing is returned and a message appears
+    Returns:
+    -------
+    duplicates: Union[List[tuple], None]
+        It contains the id/source of identical routes; if there are no duplicates, None is returned and a
+        message is written to the screen
+
+    Raises:
+    --------
+    MismatchingGraphType: if the input list contains different types of graph
     """
     if {type(s) for s in syngraphs1} != {type(s) for s in syngraphs2}:
         logger.error("The two input lists should contain graphs of the same type")
@@ -482,15 +602,19 @@ def find_duplicates(syngraphs1: list, syngraphs2: list):
 
 
 def get_nodes_consensus(syngraphs: list) -> dict:
-    """Returns a dictionary of sets with the ChemicalEquation/Molecule instances as keys and the set of route ids
+    """
+    To get a dictionary of sets with the ChemicalEquation/Molecule instances as keys and the set of route ids
     involving the reaction/chemical as value.
 
-    :param:
-          syngraphs: a list of SynGraph objects
+    Parameters:
+    ------------
+    syngraphs: list
+        The list of SynGraph for which node consensus should be computed
 
-    :return:
-        node_consensus: a dictionary of sets
-            It contains the nodes and the ids of the routes that contain them in the form {nodes: {set of route ids}}
+    Returns:
+    ---------
+    node_consensus: dict
+        It contains the nodes and the ids of the routes that contain them in the form {nodes: {set of route ids}}
     """
     node_consensus = defaultdict(set)
     for graph in syngraphs:

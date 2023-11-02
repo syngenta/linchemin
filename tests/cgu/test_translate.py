@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import unittest.mock
 
@@ -7,6 +6,7 @@ import networkx as nx
 import pydot
 import pytest
 
+from linchemin import settings
 from linchemin.cgu.iron import Direction, Edge, Iron, Node
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.cgu.translate import (
@@ -242,122 +242,7 @@ def count_dict_nodes(d, counter=0):
     return counter
 
 
-def test_iron_source_attribute(ibm1_path):
-    """To test that the expected source is correctly assigned to an Iron instance."""
-    graph = json.loads(open(ibm1_path).read())
-    translated_graph = translator(
-        "ibm_retro", graph[0], "iron", out_data_model="monopartite_reactions"
-    )
-
-    assert "ibm" in translated_graph.source
-    assert type(translated_graph) == Iron
-
-
-def test_iron_dot_translation(ibm1_path):
-    print("")
-    graph = json.loads(open(ibm1_path).read())
-    dot_graph = translator(
-        "ibm_retro", graph[2], "pydot", out_data_model="monopartite_molecules"
-    )
-
-    assert type(dot_graph) == pydot.Dot
-
-    syngraph = translator("pydot", dot_graph, "syngraph", "monopartite_molecules")
-    assert len(dot_graph.get_nodes()) == len(syngraph.graph)
-
-    syngraph = translator("pydot", dot_graph, "syngraph", "bipartite")
-    assert syngraph
-
-
-def test_translating_into_nx_returns_nx_object(ibm1_path):
-    """To test that the expected type of object (NetworkX DiGraph) is correctly generated."""
-    graph = json.loads(open(ibm1_path).read())
-    nx_graph = translator(
-        "ibm_retro", graph[1], "networkx", out_data_model="monopartite_molecules"
-    )
-    assert type(nx_graph) == nx.classes.digraph.DiGraph
-
-    syngraph = translator("networkx", nx_graph, "syngraph", "monopartite_reactions")
-    assert syngraph and type(syngraph) == MonopartiteReacSynGraph
-
-
-def test_wrong_format_name(ibm1_path):
-    """To test that the correct exception is raised when an unavailable input format is requested."""
-    with pytest.raises(TranslationError) as ke:
-        graph = json.loads(open(ibm1_path).read())
-        translator("wrong_input_format", graph[1], "iron", out_data_model="bipartite")
-    assert "UnavailableInputFormat" in str(ke.type)
-
-    with pytest.raises(TranslationError) as ke:
-        graph = json.loads(open(ibm1_path).read())
-        translator(
-            "ibm_retro", graph[1], "wrong_output_format", out_data_model="bipartite"
-        )
-    assert "UnavailableOutputFormat" in str(ke.type)
-
-
-def testing_dict_to_iron(az_path, ibm1_path):
-    """To test that a graph in json format is correctly converted in the expected Iron object (json -> Iron)."""
-    all_routes = json.loads(open(az_path).read())
-    route = all_routes[0]
-    prop = {"node_type": "type", "node_smiles": "smiles"}
-    iron_route = az_dict_to_iron(route, prop, iron=None, parent=None)
-    assert iron_route.i_node_number() == 5
-
-    all_routes_ibm = json.loads(open(ibm1_path).read())
-    route_ibm = all_routes_ibm[0]
-    prop = {"node_smiles": "smiles"}
-    iron_route_ibm = ibm_dict_to_iron(route_ibm, prop, iron=None, parent=None)
-    assert iron_route_ibm.i_node_number() == count_dict_nodes(route_ibm, counter=1)
-
-
-def test_translating_into_iron_and_into_nx_returns_isomorphic_graphs(ibm1_path):
-    """To test that a graph in json format is correctly converted in the expected Networkx object
-    (json -> Iron -> Networkx)."""
-    graph = json.loads(open(ibm1_path).read())
-    iron_graph = translator(
-        "ibm_retro", graph[1], "iron", out_data_model="monopartite_molecules"
-    )
-    nx_graph = translator(
-        "ibm_retro", graph[1], "networkx", out_data_model="monopartite_molecules"
-    )
-
-    iron_nodes = iron_graph.i_node_number()
-    nx_nodes = nx_graph.number_of_nodes()
-    assert iron_nodes == nx_nodes
-
-    iron_edges = iron_graph.i_edge_number()
-    nx_edges = nx_graph.number_of_edges()
-    assert iron_edges == nx_edges
-
-    iron_deg_sequence = iron_graph.get_degree_sequence()
-    nx_deg_sequence = sorted([d for n, d in nx_graph.degree()], reverse=True)
-    assert iron_deg_sequence == nx_deg_sequence
-
-
-def test_translating_into_iron_and_into_dot_returns_isomorphic_graphs(az_path):
-    """To test that a graph in json format is correctly converted in the expected Pydot object
-    (json -> Iron -> Dot)."""
-    graph = json.loads(open(az_path).read())
-    # Translate each route in the input graph into a list of routes in the desired format
-    iron_graph = translator(
-        "az_retro", graph[2], "iron", out_data_model="monopartite_molecules"
-    )
-    dot_graph = translator(
-        "az_retro", graph[2], "pydot", out_data_model="monopartite_molecules"
-    )
-
-    iron_nodes = iron_graph.i_node_number()
-    dot_nodes = len(dot_graph.get_nodes())
-    assert iron_nodes == dot_nodes
-
-    iron_edges = iron_graph.i_edge_number()
-    dot_edges = len(dot_graph.get_edges())
-    assert iron_edges == dot_edges
-
-
-def test_none_returned_if_empty_route():
-    """To test that 'None' is returned if an empty route is passed."""
+def test_factory(ibm1_path):
     graph = {}
     with unittest.TestCase().assertLogs(
         "linchemin.cgu.translate", level="WARNING"
@@ -373,6 +258,112 @@ def test_none_returned_if_empty_route():
         "az_retro", graph, "networkx", out_data_model="monopartite_molecules"
     )
     assert t_graph_nx is None
+
+    graph = json.loads(open(ibm1_path).read())
+    with pytest.raises(TranslationError) as ke:
+        translator("wrong_input_format", graph[1], "iron", out_data_model="bipartite")
+    assert "UnavailableFormat" in str(ke.type)
+
+    with pytest.raises(TranslationError) as ke:
+        translator("ibm_retro", graph[1], "pydot", out_data_model="bipartite_reactions")
+    assert "UnavailableDataModel" in str(ke.type)
+
+
+def test_iron_source_attribute(ibm1_path):
+    """To test that the expected source is correctly assigned to an Iron instance."""
+    graph = json.loads(open(ibm1_path).read())
+    translated_graph = translator(
+        "ibm_retro", graph[0], "iron", out_data_model="monopartite_reactions"
+    )
+
+    assert "ibm" in translated_graph.source
+    assert type(translated_graph) == Iron
+
+
+def test_dot_translation(az_path):
+    graph = json.loads(open(az_path).read())
+    dot_graph = translator(
+        "az_retro", graph[2], "pydot", out_data_model="monopartite_molecules"
+    )
+    iron_graph = translator(
+        "az_retro", graph[2], "iron", out_data_model="monopartite_molecules"
+    )
+
+    assert type(dot_graph) == pydot.Dot
+    # the two graphs have the same number of nodes
+    assert iron_graph.i_node_number() == len(dot_graph.get_nodes())
+    # the two graphs have the same number of edges
+    assert iron_graph.i_edge_number() == iron_graph.i_edge_number()
+
+    syngraph = translator("pydot", dot_graph, "syngraph", "monopartite_molecules")
+    assert len(dot_graph.get_nodes()) == len(syngraph.graph)
+
+    syngraph = translator("pydot", dot_graph, "syngraph", "bipartite")
+    assert syngraph
+
+
+def test_nx_translation(ibm1_path, az_path):
+    """To test that the expected type of object (NetworkX DiGraph) is correctly generated."""
+    graph = json.loads(open(ibm1_path).read())
+    nx_graph = translator(
+        "ibm_retro", graph[1], "networkx", out_data_model="monopartite_molecules"
+    )
+    assert type(nx_graph) == nx.classes.digraph.DiGraph
+    for node, data in nx_graph.nodes.items():
+        assert data["label"] == settings.ROUTE_MINING.molecule_node_label
+
+    iron_graph = translator(
+        "ibm_retro", graph[1], "iron", out_data_model="monopartite_molecules"
+    )
+    # the two graphs have the same number of nodes
+    assert iron_graph.i_node_number() == nx_graph.number_of_nodes()
+    # the two graphs have the same number of edges
+    assert iron_graph.i_edge_number() == nx_graph.number_of_edges()
+
+    iron_deg_sequence = iron_graph.get_degree_sequence()
+    nx_deg_sequence = sorted([d for n, d in nx_graph.degree()], reverse=True)
+    assert iron_deg_sequence == nx_deg_sequence
+    for edge, data in nx_graph.in_edges.items():
+        assert data.get("label", None) is None
+    syngraph = translator("networkx", nx_graph, "syngraph", "monopartite_reactions")
+    assert syngraph and type(syngraph) == MonopartiteReacSynGraph
+
+    graph = json.loads(open(az_path).read())
+    nx_graph_bp = translator(
+        "az_retro", graph[1], "networkx", out_data_model="bipartite"
+    )
+    edge_labels = [data["label"] for data in nx_graph_bp.in_edges.values()]
+    assert edge_labels.count(settings.ROUTE_MINING.reactant_edge_label) == 4
+    assert edge_labels.count(settings.ROUTE_MINING.reagent_edge_label) == 0
+    assert edge_labels.count(settings.ROUTE_MINING.product_edge_label) == 2
+
+
+def test_one_node_iron_to_nx(ibm1_path):
+    graph_ibm = json.loads(open(ibm1_path).read())
+    mp_syngraph = translator(
+        "ibm_retro", graph_ibm[0], "syngraph", out_data_model="monopartite_reactions"
+    )
+    one_node_nx = translator(
+        "syngraph", mp_syngraph, "networkx", out_data_model="monopartite_reactions"
+    )
+    assert one_node_nx.number_of_nodes() == 1
+    assert one_node_nx.number_of_edges() == 0
+    assert one_node_nx.graph["source"]
+    for node, data in one_node_nx.nodes.items():
+        assert data["label"] == "CE"
+
+
+def testing_dict_to_iron(az_path, ibm1_path):
+    """To test that a graph in json format is correctly converted in the expected Iron object (json -> Iron)."""
+    all_routes = json.loads(open(az_path).read())
+    route = all_routes[0]
+    iron_route = az_dict_to_iron(route, iron=None, parent=None)
+    assert iron_route.i_node_number() == 5
+
+    all_routes_ibm = json.loads(open(ibm1_path).read())
+    route_ibm = all_routes_ibm[0]
+    iron_route_ibm = ibm_dict_to_iron(route_ibm, iron=None, parent=None)
+    assert iron_route_ibm.i_node_number() == count_dict_nodes(route_ibm, counter=1)
 
 
 def test_syngraph_to_syngraph(az_path):
@@ -417,40 +408,23 @@ def test_iron_to_mp_syngraph(az_path):
     ]
 
 
-def test_one_node_iron_to_nx(ibm1_path):
-    graph_ibm = json.loads(open(ibm1_path).read())
-    mp_syngraph = translator(
-        "ibm_retro", graph_ibm[0], "syngraph", out_data_model="monopartite_reactions"
-    )
-
-    one_node_nx = translator(
-        "syngraph", mp_syngraph, "networkx", out_data_model="monopartite_reactions"
-    )
-    assert one_node_nx.number_of_nodes() == 1
-    assert one_node_nx.number_of_edges() == 0
-    assert one_node_nx.graph["source"]
-
-
 def test_route_depiction(az_path):
     graph_az = json.loads(open(az_path).read())
     syngraph = translator(
         "az_retro", graph_az[0], "syngraph", out_data_model="bipartite"
     )
     translator("syngraph", syngraph, "pydot_visualization", out_data_model="bipartite")
-    fname_png = f"route_{syngraph.source}.png"
+    fname_png = f"route_{syngraph.uid}.png"
     assert os.path.exists(fname_png)
-    fname_dot = f"route_{syngraph.source}.dot"
+    fname_dot = f"route_{syngraph.uid}.dot"
     assert os.path.exists(fname_dot)
     os.remove(fname_png)
     os.remove(fname_dot)
 
 
-def test_get_available_formats():
+def test_get_available_options():
     options = get_available_formats()
     assert type(options) == dict and "syngraph" in options
-
-
-def test_available_data_models():
     options = get_available_data_models()
     assert type(options) == dict and "bipartite" in options
 

@@ -9,9 +9,11 @@ from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.interfaces.facade import facade, facade_helper
 
 
-def test_translate(ibm2_path):
+@unittest.mock.patch("linchemin.cgu.translate.ibm_dict_to_iron")
+def test_translate(mock_os, ibm2_path):
     graph = json.loads(open(ibm2_path).read())
     output, metadata = facade("translate", input_format="ibm_retro", input_list=graph)
+    mock_os.assert_called()
     assert type(output) == list and type(metadata) == dict
     output, metadata = facade(
         "translate",
@@ -20,6 +22,7 @@ def test_translate(ibm2_path):
         out_format="syngraph",
         out_data_model="monopartite_reactions",
     )
+    mock_os.assert_called()
     assert type(output[0]) == MonopartiteReacSynGraph
 
     graph.extend([{}])
@@ -32,7 +35,11 @@ def test_translate(ibm2_path):
     )
 
 
-def test_metrics(ibm2_path):
+@unittest.mock.patch("linchemin.rem.route_descriptors.NrBranches.compute_descriptor")
+@unittest.mock.patch(
+    "linchemin.rem.route_descriptors.NrReactionSteps.compute_descriptor"
+)
+def test_metrics(mock_n_steps, mock_branch, ibm2_path):
     graph = json.loads(open(ibm2_path).read())
     routes, meta = facade(
         "translate",
@@ -42,14 +49,18 @@ def test_metrics(ibm2_path):
         out_data_model="monopartite_reactions",
     )
     descriptors, meta = facade("routes_descriptors", routes)
+    mock_n_steps.assert_called()
+    mock_branch.assert_called()
     assert type(descriptors) == pd.DataFrame
     for n in [5, 6, 7]:
         assert n in descriptors["nr_steps"]
 
     n_steps, meta = facade("routes_descriptors", routes, descriptors=["nr_steps"])
+    mock_n_steps.assert_called()
     assert "nr_branches" not in n_steps.columns.any()
     routes.append(None)
     b, m = facade("routes_descriptors", routes, descriptors=["nr_branches", "metric"])
+    mock_branch.assert_called()
     assert m["invalid_routes"] == 1
     assert m["errors"] is not []
 
@@ -208,7 +219,7 @@ def test_facade_helper_verbose(capfd):
     assert "out_data_model" in out
 
 
-def test_parallelization_read_and_convert(capfd, ibm2_path):
+def test_parallelization_translate(capfd, ibm2_path):
     graph = json.loads(open(ibm2_path).read())
     output, metadata = facade(
         "translate",
@@ -286,3 +297,88 @@ def test_mapping(mock_pipeline, mock_rxnmapper, ibm1_path):
     assert meta["mapping_success_rate"]
     for r in mapped_routes:
         assert type(r) == MonopartiteReacSynGraph
+
+
+def test_routes_sanity_checks():
+    route_cycle = [
+        {
+            "query_id": 0,
+            "output_string": "[CH3:3][C:2]#[N:1].[OH2:4]>>[CH3:3][C:2]([OH:4])=[O:4]",
+        },
+        {
+            "query_id": 1,
+            "output_string": "O[C:2]([CH3:1])=[O:3].[CH3:4][NH2:5]>>[CH3:1][C:2](=[O:3])[NH:5][CH3:4]",
+        },
+        {
+            "query_id": 2,
+            "output_string": "[CH3:5][NH:4][C:2]([CH3:1])=[O:3].[OH2:6]>>[CH3:1][C:2]([OH:6])=[O:3]",
+        },
+        {
+            "query_id": 3,
+            "output_string": "ClP(Cl)[Cl:4].O[C:2]([CH3:1])=[O:3]>>[Cl:4][C:2]([CH3:1])=[O:3]",
+        },
+    ]
+    route_isolated_nodes = [
+        {
+            "output_string": "Cl[C:2]([CH3:1])=[O:3].[CH3:4][OH:5]>>[CH3:1][C:2](=[O:3])[O:5][CH3:4]",
+            "query_id": "0",
+        },
+        {
+            "output_string": "[CH3:5][O:4][C:3]([CH3:2])=[O:1]>>[CH3:2][C:3]([OH:4])=[O:1]",
+            "query_id": "1",
+        },
+        {
+            "output_string": "[CH3:4][C:5](Cl)=[O:6].CC(O)=O.[CH3:1][CH2:2][OH:3]>>[CH3:1][CH2:2][O:3][C:5]([CH3:4])=[O:6]",
+            "query_id": "2",
+        },
+        {
+            "output_string": "O=[C:2](OC[CH3:4])[CH3:1].[Li][CH3:3]>>[CH2:1]=[C:2]([CH3:3])[CH3:4]",
+            "query_id": "3",
+        },
+    ]
+    routes = [
+        BipartiteSynGraph(route_cycle),
+        BipartiteSynGraph(route_isolated_nodes),
+        None,
+    ]
+    checked_routes, meta = facade("routes_sanity_checks", routes, checks=None)
+    assert len(checked_routes) == len(routes) - meta["invalid_routes"]
+    assert [isinstance(r, BipartiteSynGraph) for r in checked_routes]
+    assert meta["invalid_routes"] == 1
+    assert [len(r.get_roots()) == 1 for r in checked_routes]
+
+    checked_routes, meta = facade(
+        "routes_sanity_checks",
+        routes,
+        checks=["cycle_check"],
+        out_data_model="monopartite_reactions",
+    )
+    assert len(checked_routes) == len(routes) - meta["invalid_routes"]
+    assert [isinstance(r, MonopartiteReacSynGraph) for r in checked_routes]
+    assert [len(r.get_roots()) == 1 for r in checked_routes]
+
+    assert facade_helper(functionality="routes_sanity_checks")
+
+
+def test_node_removal(ibm2_path):
+    graph = json.loads(open(ibm2_path).read())
+    routes, meta = facade(
+        "translate",
+        "ibm_retro",
+        graph,
+        out_data_model="monopartite_reactions",
+    )
+
+    with unittest.TestCase().assertLogs(
+        "linchemin.cgu.syngraph_operations", level="WARNING"
+    ) as cm:
+        node_to_remove = "COc1cc(OC)c2c(=O)cc(-c3ccccc3Cl)oc2c1C1=CCN(C)CC1O.Cc1cc(C)nc(C)c1.[Li]I>>CN1CC=C(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1"
+        routes_without_node, meta = facade("node_removal", routes, node_to_remove)
+    unittest.TestCase().assertEqual(len(cm.records), 17)
+    unittest.TestCase().assertIn(
+        "The selected node is not present in the input graph",
+        cm.records[0].getMessage(),
+    )
+    assert len(routes_without_node) == len(routes)
+    assert meta["unchanged_routes"] == 17
+    assert meta["modified_routes"] == 1

@@ -207,7 +207,7 @@ class RunBatchOut(BaseModel):
                             "notes": {},
                         }
                     ],
-                    "failure_list": [],
+                    "failures_list": [],
                 },
                 "outcome": {},
             }

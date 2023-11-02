@@ -3,13 +3,13 @@ import json
 import pytest
 
 from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import MonopartiteReacSynGraph, SynGraph, merge_syngraph
+from linchemin.cgu.syngraph import MonopartiteReacSynGraph, SynGraph
+from linchemin.cgu.syngraph_operations import merge_syngraph
 from linchemin.cgu.translate import translator
 from linchemin.rem.route_descriptors import (
     DescriptorError,
     descriptor_calculator,
     find_duplicates,
-    find_path,
     get_available_descriptors,
     get_nodes_consensus,
     is_subset,
@@ -25,20 +25,6 @@ def test_unavailable_metrics(ibm1_path):
         )
         descriptor_calculator(syngraph, "wrong_metrics")
     assert "UnavailableDescriptor" in str(ke.type)
-
-
-def test_find_path(ibm1_path):
-    """To test that find_path function returns the expected path."""
-    graph = json.loads(open(ibm1_path).read())
-    syngraph = translator("ibm_retro", graph[0], "syngraph", out_data_model="bipartite")
-    root = syngraph.get_roots()
-    leaves = syngraph.get_leaves()
-    path = find_path(syngraph, leaves[0], root[0])
-    assert [item.smiles for item in path] == [
-        "CCN",
-        "CCN.CCOC(=O)CC>>CCNC(=O)CC",
-        "CCNC(=O)CC",
-    ]
 
 
 def test_longest_sequence(az_path):

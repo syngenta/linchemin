@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Union
+from typing import List, Union
 
 import pandas as pd
 
@@ -38,32 +38,33 @@ class NoValidRoute(Exception):
 
 @dataclass
 class WorkflowOutput:
-    """Class to store the outcome of the 'process_routes' function.
+    """
+    Class to store the outcome of the 'process_routes' function.
 
-    Attributes:
-    ------------
-         routes_list: a list of routes as instances of a SynGraph subclass
+     Attributes:
+     ------------
+     routes_list: a list of routes as instances of a SynGraph subclass
 
-         descriptors: a pandas DataFrame containing the routes ids and the computed descriptors (returned only if
-                      the 'compute_descriptors' functionality is activated)
+     descriptors: a pandas DataFrame containing the routes ids and the computed descriptors (returned only if
+                  the 'compute_descriptors' functionality is activated)
 
-         clustering: a tuple with the output of the cluster algorithm and the Silhouette score (returned only if
-                      the 'clustering' or the 'clustering_and_d_matrix' functionalities are activated)
+     clustering: a tuple with the output of the cluster algorithm and the Silhouette score (returned only if
+                  the 'clustering' or the 'clustering_and_d_matrix' functionalities are activated)
 
-         clustered_descriptors: a pandas DataFrame containing the routes ids, the cluster labels and few descriptors
-                                (returned only if the 'clustering' or the 'clustering_and_d_matrix' functionalities
-                                are activated)
+     clustered_descriptors: a pandas DataFrame containing the routes ids, the cluster labels and few descriptors
+                            (returned only if the 'clustering' or the 'clustering_and_d_matrix' functionalities
+                            are activated)
 
-         distance_matrix: a pandas DataFrame containing the GED distance matrix (returned only if the
-                          'distance_matrix' or the 'clustering_and_d_matrix' functionalities are activated)
+     distance_matrix: a pandas DataFrame containing the GED distance matrix (returned only if the
+                      'distance_matrix' or the 'clustering_and_d_matrix' functionalities are activated)
 
-         tree: an instances of a SynGraph subclass obtained from the merging of the input routes (returned only if
-               the 'merging' functionality is activated)
+     tree: an instances of a SynGraph subclass obtained from the merging of the input routes (returned only if
+           the 'merging' functionality is activated)
 
-         reaction_strings: a list of reaction strings (returned only if the 'extracting_reactions' functionality
-                           is activated)
+     reaction_strings: a list of reaction strings (returned only if the 'extracting_reactions' functionality
+                       is activated)
 
-         log: a dictionary containing the exceptions occurred during the process
+     log: a dictionary containing the exceptions occurred during the process
     """
 
     routes_list: list = field(default_factory=list)
@@ -395,21 +396,22 @@ class WorkflowBuilder:
 
 def process_routes(
     input_dict: dict,
-    output_format=settings.WORKFLOW.output_format,
-    mapping=settings.WORKFLOW.mapping,
-    functionalities=settings.WORKFLOW.functionalities,
-    mapper=settings.FACADE.mapper,
-    out_data_model=settings.FACADE.out_data_model,
-    descriptors=settings.FACADE.descriptors,
-    ged_method=settings.FACADE.ged_method,
-    ged_params=settings.FACADE.ged_params,
-    clustering_method=settings.FACADE.clustering_method,
-    parallelization=settings.FACADE.parallelization,
-    n_cpu=settings.FACADE.n_cpu,
-):
-    """Function to start the workflow chain of responsibility: based on the input arguments, only the selected
+    output_format: str = settings.WORKFLOW.output_format,
+    mapping: bool = settings.WORKFLOW.mapping,
+    functionalities: Union[List[str], None] = settings.WORKFLOW.functionalities,
+    mapper: Union[str, None] = settings.FACADE.mapper,
+    out_data_model: str = settings.FACADE.out_data_model,
+    descriptors: List[str] = settings.FACADE.descriptors,
+    ged_method: str = settings.FACADE.ged_method,
+    ged_params: Union[dict, None] = settings.FACADE.ged_params,
+    clustering_method: Union[str, None] = settings.FACADE.clustering_method,
+    parallelization: bool = settings.FACADE.parallelization,
+    n_cpu: int = settings.FACADE.n_cpu,
+) -> WorkflowOutput:
+    """
+    Function process routed predicted by CASP tools: based on the input arguments, only the selected
     functionalities are performed. The mandatory start and stop actions are (i) to read a json file containing the
-    routes predicted by a CASP tool, and (ii) to write the routes as dictionaries in an output file.
+    routes predicted by a CASP tool, and (ii) to write the routes in an output file.
     Possible additional actions are:
         - performing the atom mapping of the reactions involved in the routes
         - computing route descriptors
@@ -418,50 +420,55 @@ def process_routes(
         - merging the routes
         - extracting the reaction strings from the routes
 
-    :param:
-        input_dict: a dictionary
-            It contains the path to the input files and the relative casp names in the form
-            {'file_path': 'casp_name'}
+    Parameters:
+    ------------
+    input_dict: dict
+        The path to the input files and the relative casp names in the form {'file_path': 'casp_name'}
+    output_format: Optional[str]
+        The type of file to which the routes should be written (default 'json')
+    mapping: Optional[bool]
+        Whether the reactions involved in the routes should go through the atom-to-atom mapping (default False)
+    functionalities: Optional[Union[List[str], None]]
+        The list of the functionalities to be performed; if it is None, the input routes are read
+        and written to a file (default None)
+    mapper: Optional[str]
+        The name of the mapping tool to be used; if it is None, the mapping pipeline is used (default None)
+    out_data_model: Optional[str]
+        The data model for the output routes (default 'bipartite')
+    descriptors: Optional[Union[List[str], None]]
+        The list of the descriptos to be computed; if it is None, all the available are calculated (default None)
+    ged_method: Optional[str]
+        The method to be used for graph similarity calculations (default 'nx_ged')
+    ged_params: Optional[Union[dict, None]]
+        The dictionary with the parameters for specifying reaction and molecular fingerprints and similarity functions;
+        if it is None, the default values are used (default None)
+    clustering_method: Optional[Union[str, None]]
+        The clustering algorithm to be used for clustering the routes; if it is None, hdbscan
+        is used when there are more than 15 routes, Agglomerative Clustering otherwise (default None)
+    parallelization: Optional[bool]
+        Whether parallel computing should be used where possible (default False)
+    n_cpu: Optional[int]
+        The number of cpus to be used if parallelization is used (default 8)
 
-        output_format: a string (optional; default: 'json')
-            It indicates which format should be used while writing the routes (csv or json)
+    Returns:
+    ---------
+    output: WorkflowOutput
+        Its attributes store the results of the selected functionalities. The outcomes are also written to files.
 
-        mapping: a boolean (optional; default: False)
-            It indicate whether the reactions involved in the routes should go through the atom-to-atom mapping
+    Raises:
+    --------
+    NoValidRoute: if the input file(s) does not contain any valid route
 
-        functionalities: a list of strings (optional; default: None)
-            It contains the names of the functionalities to be performed; if it is None, the input routes are read
-            and written to a file
+    KeyError: if a selected option is not available
 
-        mapper: a string (optional; default: None)
-            It indicates which mapping tools should be used; if it is None, the mapping pipeline is used
-
-        out_data_model: a string (optional; default: 'monopartite_reactions')
-            It indicates the desired data model for the output routes
-
-        descriptors: a list of strings (optional; default: None)
-            It contains the names of the descriptos to be computed; if it is None, all the available are calculated
-
-        ged_method: a string (optional; default: 'nx_ged')
-            It indicates the method to be used for graph similarity calculations
-
-        ged_params: a dictionary (optional; default: None)
-            It contains the parameters for specifying reaction and molecular fingerprints and similarity functions;
-            if it is None, the default values are used
-
-        clustering_method: a string (optional; default: None)
-            It indicates which clustering algorithm to be used for clustering the routes; if it is None, hdbscan
-            is used when there are more than 15 routes, Agglomerative Clustering otherwise
-
-        parallelization: a boolean (optional, default: False)
-            It indicates whether parallel computing should be used where possible
-
-        n_cpu: an integer (optional; default: 'mp.cpu_count()')
-            It indicates the number of cpus to be used if parallelization is used.
-
-    :return:
-        output: a WorkflowOutput object
-            Its attributes store the results of the selected functionalities. The outcomes are also written to files
+    Example:
+    ---------
+    >>> output = process_routes({'ibmrxn_file.json': 'ibmrxn',  # path to json file from ibmrxn
+    >>>                         'az_file.json': 'az'},         # path to json file from az casp
+    >>>                         functionalities=[              # the functionalities to be activated
+    >>>                            'compute_descriptors',      # calculation of routes descriptors
+    >>>                            'clustering_and_d_matrix',  # calculation of distance matrix and clustering
+    >>>                            'merging'])                 # merging of the routes to obtain a "tree"
 
     """
 
@@ -552,11 +559,11 @@ class GraphMLWriter(SyngraphWriter):
         )
         for nx_route in nx_routes:
             for n, data in nx_route.nodes.items():
-                r_id = data["attributes"]["source"]
-                del nx_route.nodes[n]["attributes"]
+                r_id = data["source"]
+                del nx_route.nodes[n]["properties"]
 
             for n1, n2, d in nx_route.edges(data=True):
-                del d["attributes"]
+                del d["label"]
             fname = ".".join([r_id, "graphml"])
             lio.write_nx_to_graphml(nx_route, fname)
 
@@ -583,19 +590,26 @@ class SyngraphWriterFactory:
 
 
 def write_syngraph(
-    syngraphs: list, out_data_model: str, output_format: str, file_name: str
-):
+    syngraphs: List[
+        Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
+    ],
+    out_data_model: str,
+    output_format: str,
+    file_name: str,
+) -> None:
     """
-    Takes a list of SynGraph instances and writes them to a file
+    To write a list of SynGraph instances to a file
 
-    :param:
-        syngraphs: a list of SynGraph objects
-
-        out_data_model: a string indicating the data model to be used for the output graphs
-
-        output_format: a string indicating the format of the output file
-
-        file_name: a string indicating the name of the output file
+    Parameters:
+    -------------
+    syngraphs: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]
+        The input list of SynGraph objects
+    out_data_model: str
+        The data model to be used for the output graphs
+    output_format: str
+        The format of the output file
+    file_name: str
+        The name of the output file
     """
     SyngraphWriterFactory().select_writer(
         syngraphs, out_data_model, output_format, file_name
@@ -607,12 +621,20 @@ def get_workflow_options(verbose=False):
     """
     Returns the available options for the 'process_routes' function.
 
-    :param:
-        verbose: a boolean (optional; default: False)
-            It indicates whether the information should be printed on the screen
+    Parameters:
+    -----------
+    verbose: Optional[bool]]
+        It indicates whether the information should be printed on the screen (default False)
 
-    :return:
-        a dictionary listing arguments, options and default values of the 'process_routes' function
+    Returns:
+    --------
+    available options: dict
+        The dictionary listing arguments, options and default values of the 'process_routes' function
+
+    Example:
+    --------
+    >>> options = get_workflow_options(verbose=True)
+
     """
     if verbose:
         return print_options()

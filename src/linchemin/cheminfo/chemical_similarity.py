@@ -1,14 +1,17 @@
 from abc import ABC, abstractmethod
+from typing import Union
 
 import linchemin.cheminfo.functions as cif
 from linchemin import settings
+from linchemin.utilities import console_logger
 
 """
 Module containing functions and classes for computing chemical fingerprints and similarity
 """
+logger = console_logger(__name__)
 
 
-def generate_rdkit_fp(params):
+def generate_rdkit_fp(params: dict):
     return cif.rdFingerprintGenerator.GetRDKitFPGenerator(
         minPath=params.get("minPath", 1),
         maxPath=params.get("maxPath", 7),
@@ -18,18 +21,22 @@ def generate_rdkit_fp(params):
     )
 
 
-def generate_morgan_fp(params):
+def generate_morgan_fp(params: dict):
     return cif.rdFingerprintGenerator.GetMorganGenerator(
         radius=params.get("radius", 3),
-        useCountSimulation=params.get("countSimulation", False),
+        countSimulation=params.get("countSimulation", False),
         includeChirality=params.get("includeChirality", False),
         useBondTypes=params.get("useBondTypes", True),
         countBounds=params.get("countBounds", None),
         fpSize=params.get("fpSize", 2048),
+        onlyNonzeroInvariants=params.get("onlyNonzeroInvariants", False),
+        includeRingMembership=params.get("includeRingMembership", True),
+        atomInvariantsGenerator=params.get("atomInvariantsGenerator", None),
+        bondInvariantsGenerator=params.get("bondInvariantsGenerator", None),
     )
 
 
-def generate_topological_fp(params):
+def generate_topological_fp(params: dict):
     return cif.rdFingerprintGenerator.GetTopologicalTorsionGenerator(
         includeChirality=params.get("includeChirality", False),
         torsionAtomCount=params.get("torsionAtomCount", 4),
@@ -46,12 +53,19 @@ class ReactionFingerprint(ABC):
     """Definition of the abstract class for reaction fingerprints"""
 
     @abstractmethod
-    def compute_reac_fingerprint(self, rdrxn, params):
+    def compute_reac_fingerprint(
+        self, rdrxn: cif.rdChemReactions.ChemicalReaction, params: dict
+    ) -> Union[
+        cif.DataStructs.cDataStructs.UIntSparseIntVect,
+        cif.DataStructs.cDataStructs.ExplicitBitVect,
+    ]:
         pass
 
 
 class DiffReactionFingerprint(ReactionFingerprint):
-    def compute_reac_fingerprint(self, rdrxn, params):
+    def compute_reac_fingerprint(
+        self, rdrxn: cif.rdChemReactions.ChemicalReaction, params: dict
+    ) -> cif.DataStructs.cDataStructs.UIntSparseIntVect:
         # Setting the parameters of the reaction fingerprint; if they are not specified, the default parameters as
         # specified in the link below are used:
         # https://github.com/rdkit/rdkit/blob/master/Code/GraphMol/ChemReactions/ReactionFingerprints.cpp#L123
@@ -83,7 +97,9 @@ class DiffReactionFingerprint(ReactionFingerprint):
 
 
 class StructReactionFingerprint(ReactionFingerprint):
-    def compute_reac_fingerprint(self, rdrxn, params):
+    def compute_reac_fingerprint(
+        self, rdrxn: cif.rdChemReactions.ChemicalReaction, params: dict
+    ) -> cif.DataStructs.cDataStructs.ExplicitBitVect:
         # Setting the parameters of the reaction fingerprint; if they are not specified, the default parameters as
         # specified in the link below are used:
         # https://github.com/rdkit/rdkit/blob/master/Code/GraphMol/ChemReactions/ReactionFingerprints.cpp#L123
@@ -114,18 +130,40 @@ class StructReactionFingerprint(ReactionFingerprint):
         )
 
 
-def compute_reaction_fingerprint(rdrxn, fp_name: str, params=None):
-    """To compute the reaction fingerprint with the selected method and the optional parameters.
+def compute_reaction_fingerprint(
+    rdrxn: cif.rdChemReactions.ChemicalReaction,
+    fp_name: str,
+    params: Union[dict, None] = None,
+) -> Union[
+    cif.DataStructs.cDataStructs.UIntSparseIntVect,
+    cif.DataStructs.cDataStructs.ExplicitBitVect,
+]:
+    """
+    To compute the fingerprint of a chemical reaction.
 
-    :param:
-        rdrxn: an rdkit rdChemReactions.ChemicalReaction instance
+    Parameters:
+    -----------
+    rdrxn: rdChemReactions.ChemicalReaction
+        The rdkit ChemicalReaction instance for which the fingerprint should be computed
+    fp_name: str
+        The selected type of fingerprint to be used
+    params: Optional[Union[dict, None]]
+        The dictionary with fingerprint parameters to be used; if it is not provided, the default paremeters are used
+        (default None).
 
-        fp_name: a string representing the selected type of fingerprint to be used
+    Returns:
+    --------
+    fp: the fingerprint of the reaction
 
-        params: an optional dictionary to change the default parameters
+    Raises:
+    -------
+    KeyError: if the selected fingerprint is not available
 
-    :return:
-        fp: the fingerprint of the reaction
+    Example:
+    ---------
+    >>> smiles = 'CN.CC(O)=O>C>CNC(C)=O'
+    >>> rdrxn = cif.rdrxn_from_string(smiles, inp_fmt='smiles')
+    >>> fp1 = compute_reaction_fingerprint(rdrxn, fp_name='structure_fp')
     """
     # control the behavior of fingerprint generation via the parameters
     #  https://www.rdkit.org/docs/source/rdkit.Chem.rdChemReactions.html#rdkit.Chem.rdChemReactions.ReactionFingerprintParams
@@ -137,10 +175,11 @@ def compute_reaction_fingerprint(rdrxn, fp_name: str, params=None):
 
     if fp_name in fingerprint_map:
         return fingerprint_map.get(fp_name).compute_reac_fingerprint(rdrxn, params)
-    else:
-        raise KeyError(
-            f"Invalid fingerprint type: {fp_name} is not available.\nAvailable options are: {fingerprint_map.keys()}"
-        )
+    logger.error(
+        f"Invalid fingerprint type: {fp_name} is not available."
+        f"Available options are: {fingerprint_map.keys()}"
+    )
+    raise KeyError
 
 
 ###########################################################################################
@@ -149,12 +188,16 @@ class MolFingerprint(ABC):
     """Definition of the abstract class for molecular fingerprints"""
 
     @abstractmethod
-    def compute_molecular_fingerprint(self, rdmol, parameters, count_fp_vector):
+    def compute_molecular_fingerprint(
+        self, rdmol: cif.Mol, parameters: Union[dict, None], count_fp_vector: bool
+    ) -> cif.DataStructs.cDataStructs.ExplicitBitVect:
         pass
 
 
 class RDKitMolFingerprint(MolFingerprint):
-    def compute_molecular_fingerprint(self, rdmol, params, count_fp_vector):
+    def compute_molecular_fingerprint(
+        self, rdmol: cif.Mol, params: Union[dict, None], count_fp_vector: bool
+    ) -> cif.DataStructs.cDataStructs.ExplicitBitVect:
         if params is None:
             params = {}
         fpgen = generate_rdkit_fp(params)
@@ -163,7 +206,9 @@ class RDKitMolFingerprint(MolFingerprint):
 
 
 class MorganMolFingerprint(MolFingerprint):
-    def compute_molecular_fingerprint(self, rdmol, params, count_fp_vector):
+    def compute_molecular_fingerprint(
+        self, rdmol: cif.Mol, params: Union[dict, None], count_fp_vector: bool
+    ) -> cif.DataStructs.cDataStructs.ExplicitBitVect:
         if params is None:
             params = {}
         fpgen = generate_morgan_fp(params)
@@ -172,7 +217,9 @@ class MorganMolFingerprint(MolFingerprint):
 
 
 class TopologicalMolFingerprint(MolFingerprint):
-    def compute_molecular_fingerprint(self, rdmol, params, count_fp_vector):
+    def compute_molecular_fingerprint(
+        self, rdmol: cif.Mol, params: Union[dict, None], count_fp_vector: bool
+    ) -> cif.DataStructs.cDataStructs.ExplicitBitVect:
         if params is None:
             params = {}
         fpgen = generate_topological_fp(params)
@@ -181,22 +228,40 @@ class TopologicalMolFingerprint(MolFingerprint):
 
 
 def compute_mol_fingerprint(
-    rdmol, fp_name: str, parameters=None, count_fp_vector=False
-):
-    """Takes a rdmol object, the fingerprint type, an optional dictionary to change the default
-    parameters and a boolean and returns the selected fingerprint of the given rdmol.
+    rdmol: cif.Mol,
+    fp_name: str,
+    parameters: Union[dict, None] = None,
+    count_fp_vector: bool = False,
+) -> cif.DataStructs.cDataStructs.ExplicitBitVect:
+    """
+    To compute the fingerprint of a molecule.
 
-    :param:
-        rdmol: a molecule as rdkit object
+    Parameters:
+    ------------
+    rdmol: Mol
+        The rdkit Mol object for which the fingerprint should be computed
+    fp_name: str
+        The name of the fingerprint generator
+    parameters: Optional[Union[dict, None]]
+        The dictionary with fingerprint parameters to be used; if it is not provided, the default paremeters are used
+        (default None).
+    count_fp_vector: bool
+        Whether the 'GetCountFingerprint' should be used (default False)
 
-        fp_name: a string representing the name of the fingerprint generator
+    Returns:
+    --------
+    fp: the fingerprint of the molecule
 
-        parameters: an optional dictionary
+    Raises:
+    --------
+    KeyError: if the selected fingerprit is not available
 
-        count_fp_vector: an option boolean indicating whether the 'GetCountFingerprint' should be used
-
-    :return:
-        fp: the fingerprint of the molecule
+    Example:
+    ---------
+    >>> smiles = 'CNC(C)=O'
+    >>> rdmol = cif.rdmol_from_string(smiles, inp_fmt='smiles')
+    >>> parameters = {'fpSize': 1024, 'countSimulation': True}
+    >>> fp = compute_mol_fingerprint(rdmol, 'rdkit', parameters=parameters)
     """
     fp_generators_map = {
         "rdkit": RDKitMolFingerprint(),
@@ -208,10 +273,11 @@ def compute_mol_fingerprint(
             rdmol, parameters, count_fp_vector
         )
 
-    else:
-        raise KeyError(
-            f"Invalid fingerprint type: {fp_name} is not available.\nAvailable options are: {fp_generators_map.keys()}"
-        )
+    logger.error(
+        f"Invalid fingerprint type: {fp_name} is not available."
+        f"Available options are: {fp_generators_map.keys()}"
+    )
+    raise KeyError
 
 
 def select_fp_vector(fpgen, count_fp_vector):
@@ -219,17 +285,47 @@ def select_fp_vector(fpgen, count_fp_vector):
 
 
 # Chemical similarity calculation
-def compute_similarity(fp1, fp2, similarity_name: str) -> float:
+def compute_similarity(
+    fp1: Union[
+        cif.DataStructs.cDataStructs.UIntSparseIntVect,
+        cif.DataStructs.cDataStructs.ExplicitBitVect,
+    ],
+    fp2: Union[
+        cif.DataStructs.cDataStructs.UIntSparseIntVect,
+        cif.DataStructs.cDataStructs.ExplicitBitVect,
+    ],
+    similarity_name: str,
+) -> float:
     """
-    Computes the chemical similarity between the input pair of fingerprints using the selected similarity algorithm
+    To compute the chemical similarity between the input pair of fingerprints using the selected similarity algorithm
 
-    :param:
-        fp1, fp2: pair of molecular or reaction fingerprints
+    Parameters:
+    -------------
+    fp1: Union[cif.DataStructs.cDataStructs.UIntSparseIntVect, cif.DataStructs.cDataStructs.ExplicitBitVect]
+        The fingerprint of the first chemical object (molecule or chemical reaction)
+    fp2: Union[cif.DataStructs.cDataStructs.UIntSparseIntVect, cif.DataStructs.cDataStructs.ExplicitBitVect]
+        The fingerprint of the second chemical object (molecule or chemical reaction)
+    similarity_name: str
+        The similarity algorithm
 
-        similarity_name: string indicating the selected similarity algorithm
+    Returns:
+    ---------
+    similarity: float
+        The similarity between the two objects
 
-    :return:
-        a float, output of the similarity algorithm
+    Raises:
+    --------
+    KeyError: if the selected similarity algorithm is not available
+
+    Example:
+    --------
+    >>> smiles1 = 'CN.CC(O)=O>O>CNC(C)=O'
+    >>> smiles2 = 'CN.CC(O)=O>C>CNC(C)=O'
+    >>> rdrxn1 = cif.rdrxn_from_string(smiles1, inp_fmt='smiles')
+    >>> rdrxn2 = cif.rdrxn_from_string(smiles2, inp_fmt='smiles')
+    >>> fp1 = compute_reaction_fingerprint(rdrxn1, fp_name='structure_fp')
+    >>> fp2 = compute_reaction_fingerprint(rdrxn2, fp_name='structure_fp')
+    >>> similarity = compute_similarity(fp1, fp2, similarity_name='tanimoto')
     """
     similarity_map = {
         "tanimoto": cif.DataStructs.TanimotoSimilarity,
@@ -238,7 +334,14 @@ def compute_similarity(fp1, fp2, similarity_name: str) -> float:
         "mcconnaughey": cif.DataStructs.McConnaugheySimilarity,
     }
 
-    metric = similarity_map.get(similarity_name)
+    if similarity_name in similarity_map:
+        metric = similarity_map.get(similarity_name)
+    else:
+        logger.error(
+            f"Invalid similiarity algorithm: {similarity_name} is not available."
+            f"Available options are: {similarity_map.keys()}"
+        )
+        raise KeyError
     # The syntax below is not compatible with count vectors fingerprints generated by GetCountFingerprint and with the
     # difference fingerprints for reactions
     # similarity = DataStructs.FingerprintSimilarity(fp1, fp2, metric=metric)

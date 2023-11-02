@@ -84,7 +84,3 @@ def linchemin_cli(argv=None):
 if __name__ == "__main__":
     print("xx")
     linchemin_cli()
-    # path = "../../../tests/cgu/data/ibmrxn_retro.json"
-    # output, metadata = facade('read_and_convert', path)
-    # helper = facade_helper('read_and_convert')
-    # print(helper)
