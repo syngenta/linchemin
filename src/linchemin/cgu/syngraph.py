@@ -92,11 +92,14 @@ class SynGraph(ABC):
         for parent, children in self:
             if not children:
                 # To take into account isolated nodes
-                tups.append((parent.uid, "x", 0))
+                tups.append(".".join([str(parent.uid), "x", "0"]))
             else:
-                tups.extend((parent.uid, ">", child.uid) for child in children)
-        sorted_tups = sorted(tups, key=lambda x: (x[0], x[-1]))
-        h = utilities.create_hash(str(frozenset(sorted_tups)))
+                tups.extend(
+                    ".".join([str(parent.uid), ">", str(child.uid)])
+                    for child in children
+                )
+        sorted_tups = sorted(tups)
+        h = utilities.create_hash(str(sorted_tups))
         if type(self) == BipartiteSynGraph:
             h = "".join(["BP", str(h)])
         elif type(self) == MonopartiteReacSynGraph:
