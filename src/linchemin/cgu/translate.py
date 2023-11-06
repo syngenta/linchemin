@@ -370,6 +370,75 @@ class Translation:
 
 
 # Graph concrete implementations
+
+
+@DataModelFactory.register_format("reaxys", "Reaxys Retrosynthesis output")
+class ReaxysRT(Graph):
+    as_input = "implemented"
+    as_output = None
+
+    def from_iron(self, graph: Iron) -> Union[dict, None]:
+        pass
+
+    def to_iron(
+        self,
+        graph: Union[dict, None],
+    ) -> Union[Iron, None]:
+        """Translates the output of Reaxys' CASP into an Iron instance"""
+        iron = Iron()
+        steps = graph["rxspm:hasStep"]
+        for step in steps:
+            products_smiles = [
+                mol["rxspm:hasSubstance"]["edm:smiles"]
+                for mol in step["rxspm:hasReaction"]["rxspm:hasProduct"]
+            ]
+            products_ids = self.handle_molecules(products_smiles, iron)
+            starting_materials = [
+                mol["rxspm:hasSubstance"]["edm:smiles"]
+                for mol in step["rxspm:hasReaction"]["rxspm:hasStartingMaterial"]
+            ]
+            reactants_ids = self.handle_molecules(starting_materials, iron)
+            for i in products_ids:
+                self.add_iron_edge(iron, i, reactants_ids)
+
+        return iron
+
+    def handle_molecules(self, molecules: list, iron: Iron) -> list:
+        """To get the iron's id of the nodes corresponding to the input molecules' smiles"""
+        iids = []
+        for mol in molecules:
+            if i := next(
+                (
+                    iid
+                    for iid, node in iron.nodes.items()
+                    if node.properties["node_smiles"] == mol
+                ),
+                None,
+            ):
+                iids.append(i)
+            else:
+                id_n = len(iron.nodes)
+                self.add_iron_node(mol, id_n, iron)
+                iids.append(id_n)
+        return iids
+
+    @staticmethod
+    def add_iron_node(smiles: str, iid: int, iron: Iron) -> None:
+        """To add a new node to an Iron instance"""
+        iron_node = Node(iid=str(iid), properties={"node_smiles": smiles}, labels=[])
+        iron.add_node(str(iid), iron_node)
+
+    @staticmethod
+    def add_iron_edge(iron: Iron, i: int, reactants_ids: List[int]) -> None:
+        """To add a new edge to an Iron instance"""
+        edges = []
+        id_e = len(iron.edges)
+        for sm in reactants_ids:
+            edges.append(build_iron_edge(sm, i, id_e))
+            id_e += 1
+        [iron.add_edge(iron_edge.iid, iron_edge) for iron_edge in edges]
+
+
 @DataModelFactory.register_format("networkx", "Networkx DiGraph object")
 class Networkx(Graph):
     """Translator subclass to handle translations into and from Networkx objects"""
@@ -1559,7 +1628,7 @@ def populate_iron(parent: int, mol: str, iron: Iron) -> Tuple[Iron, int]:
     return iron, id_n
 
 
-def build_iron_edge(id_n1: int, id_n2: int, id_e: int) -> Edge:
+def build_iron_edge(source_node_id: int, target_node_id: int, id_e: int) -> Edge:
     """
     To build an edge object for an Iron instance from the ids of the involved nodes
 
@@ -1576,11 +1645,11 @@ def build_iron_edge(id_n1: int, id_n2: int, id_e: int) -> Edge:
     ---------
     an iron.Edge object
     """
-    d = Direction(f"{id_n1}>{id_n2}")
+    d = Direction(f"{source_node_id}>{target_node_id}")
     return Edge(
         iid=str(id_e),
-        a_iid=str(id_n1),
-        b_iid=str(id_n2),
+        a_iid=str(source_node_id),
+        b_iid=str(target_node_id),
         direction=d,
         properties={},
         labels=[],

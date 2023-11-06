@@ -6,21 +6,28 @@ from linchemin.interfaces.facade import facade
 from linchemin.interfaces.workflows import get_workflow_options, process_routes
 
 
+@unittest.mock.patch("linchemin.cgu.translate.AzRetro.to_iron")
+@unittest.mock.patch("linchemin.cgu.translate.IbmRetro.to_iron")
+@unittest.mock.patch("linchemin.cgu.translate.ReaxysRT.to_iron")
 @unittest.mock.patch("linchemin.IO.io.write_json")
-def test_workflow_basic(mock_os, az_path, ibm2_path):
-    az_file = str(az_path)
-    ibm2_file = str(ibm2_path)
-    input_dict = {az_file: "az"}
+def test_workflow_basic(
+    mock_os, mock_reaxys, mock_ibm, mock_az, az_path, ibm2_path, reaxys_path
+):
+    input_dict = {str(az_path): "az", str(reaxys_path): "reaxys"}
     out = process_routes(input_dict)
     assert out
 
     routes, meta = facade(
         "translate", "syngraph", out.routes_list, "noc", out_data_model="bipartite"
     )
+    mock_reaxys.assert_called()
+    mock_az.assert_called()
     mock_os.assert_called_with(routes, "routes.json")
 
-    input_dict_multicasp = {az_file: "az", ibm2_file: "ibmrxn"}
+    input_dict_multicasp = {str(az_path): "az", str(ibm2_path): "ibmrxn"}
     out = process_routes(input_dict_multicasp)
+    mock_az.assert_called()
+    mock_ibm.assert_called()
     assert out
 
     routes, meta = facade(
@@ -36,7 +43,7 @@ def test_workflow_basic(mock_os, az_path, ibm2_path):
 
     # error raised for invalid output format
     with pytest.raises(KeyError) as ke:
-        input_dict = {az_file: "az"}
+        input_dict = {str(az_path): "az"}
         process_routes(input_dict, output_format="jpg")
     assert "KeyError" in str(ke.type)
 

@@ -19,6 +19,7 @@ from linchemin.cgu.translate import (
     get_output_formats,
     ibm_dict_to_iron,
     translator,
+    ReaxysRT,
 )
 from linchemin.cheminfo.models import ChemicalEquation
 
@@ -625,3 +626,1112 @@ def test_iron_to_sparrow():
     assert sparrow_dict["Compound Nodes"] == []
 
     assert "sparrow" in get_output_formats()
+
+
+def test_reaxys_to_iron():
+    route = {
+        "@id": "rxsp:id-acd758fc-9499-4f91-a1a8-a1a3e9852cfe#id-a4fdb8c8-8591-4305-aafe-2552cdb041cf",
+        "@type": "rxspm:Route",
+        "rxspm:hasStep": [
+            {
+                "@id": "rxsp:id-acd758fc-9499-4f91-a1a8-a1a3e9852cfe#id-fed1acaf-5a37-41e9-956a-27501ab66b31",
+                "@type": "rxspm:Step",
+                "rxspm:hasReaction": {
+                    "@id": "rxsp:reaction/id-43bf5439-4224-42b9-ae47-7d4a9ada0e16",
+                    "@type": "rxspm:Reaction",
+                    "rxspm:hasProduct": [
+                        {
+                            "@id": "rxsp:product/id-237ba3da-54ce-42db-bfb3-dea653580cd2",
+                            "@type": "rxspm:Product",
+                            "rxspm:hasSubstance": {
+                                "@id": "rxsp:substance/id-4cf2b0e5-beb4-420a-8529-1d75ec5df351",
+                                "@type": "edm:Substance",
+                                "edm:smiles": "C[C@H](N=Cc1ccccc1)[C@H](O)c1ccccc1",
+                            },
+                        }
+                    ],
+                    "rxspm:hasStartingMaterial": [
+                        {
+                            "@id": "rxsp:reactant/id-9ea10464-2b1a-4c5d-a9f2-655cd7d3541c",
+                            "@type": "rxspm:StartingMaterial",
+                            "rxspm:hasSubstance": {
+                                "@id": "rxsp:substance/id-6a394a6c-e5c1-495c-9d41-96bb8089d07a",
+                                "@type": "edm:Substance",
+                                "edm:smiles": "C[C@H](N)[C@H](O)c1ccccc1",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:reactant/id-227ba5e1-5298-4732-a203-e2e7ca62a836",
+                            "@type": "rxspm:StartingMaterial",
+                            "rxspm:hasSubstance": {
+                                "@id": "rxsp:substance/id-65de8903-1700-4bf2-b106-c2ed490410e5",
+                                "@type": "edm:Substance",
+                                "edm:smiles": "O=Cc1ccccc1",
+                            },
+                        },
+                    ],
+                    "rxspm:hasExample": [
+                        {
+                            "@id": "rxsp:example/id-fa5603dc-6153-4262-ba29-d99226e7b998",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "2680352",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-febb1787-d7e8-4cd2-8dc2-01ae869e0458",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "2681831",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-cad52a57-bb6c-458a-aec5-63f323c188d1",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "29079193",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-263dff1e-9a8c-4204-89f9-c03f91df28fa",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "2682182",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-83175178-ea60-44a7-821b-023d48483765",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "2680354",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-a5e85803-7ce1-41b8-b574-04d337ec146a",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "8760921",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-2f9e38a8-6c9d-498e-935f-53cdcd4aa203",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "8769043",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-9bc3d086-eabc-42d6-bd6c-3b759ba0b289",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "8769038",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-8df21fb8-7379-4687-bbc4-f8f9d755cd97",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "8770951",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-256f4e43-2753-4744-9ed1-e5bdf512a288",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "25925669",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-eb5430c5-9546-485f-a272-2cfe8cbdebb2",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "1203418",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-aec0d332-572e-48ff-8352-f9bca34ca11d",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "11275549",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-1a326275-02d8-43cc-a09d-22a47e7c10c7",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "8759312",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-11c82e07-0d71-4e35-bf49-dadb6aa94974",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "9465224",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.8095238",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-c509bb93-ec70-4794-84c2-87cdf0a18da5",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "25925663",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.8095238",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-13bcdf98-ffdd-47ba-845d-6b0953bd4239",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "25925667",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.8095238",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-798da0e0-0cae-4b9d-a9d5-879ef920687c",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "25925659",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.8095238",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-2fa2cff8-aac2-46d1-a037-4db235b8b7c0",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "25925665",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.8095238",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-411451ee-8d79-4a30-825c-289f38439be5",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "2950102",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.77272725",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-c62eb01f-5ab7-4ef1-b27a-923f34ebb0f5",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "30853783",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.65217394",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-08607e94-a88d-456e-adab-005fa26c5234",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "1527194",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.65217394",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-eec21e42-fd85-4040-8c41-133225338019",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "29575434",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.31132075",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-38403c81-24dd-4e76-a0a1-ced516ab7776",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "40643236",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.21929824",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-2d225721-f5a3-4b8f-bd03-71b8ccdccce6",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "29575437",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.13864307",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-4d99e02b-a04d-4c90-a58c-f9192e95162b",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "29575444",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.046499476",
+                            },
+                        },
+                    ],
+                },
+                "rxspm:number": {
+                    "@type": "http://www.w3.org/2001/XMLSchema#int",
+                    "@value": "1",
+                },
+                "rxspm:score": {
+                    "@type": "http://www.w3.org/2001/XMLSchema#double",
+                    "@value": "1.0",
+                },
+            },
+            {
+                "@id": "rxsp:id-acd758fc-9499-4f91-a1a8-a1a3e9852cfe#id-d2e53939-533e-4902-92cc-21ecd972e602",
+                "@type": "rxspm:Step",
+                "rxspm:hasReaction": {
+                    "@id": "rxsp:reaction/id-aedc86c0-5a0a-4a01-9c7d-7c5574894a98",
+                    "@type": "rxspm:Reaction",
+                    "rxspm:hasProduct": [
+                        {
+                            "@id": "rxsp:product/id-5e159165-2f17-4f84-a1f8-9a3e6f80d5da",
+                            "@type": "rxspm:Product",
+                            "rxspm:hasSubstance": {
+                                "@id": "rxsp:substance/id-5c89a37b-bc1a-4e89-a584-fec2240cbbd7",
+                                "@type": "edm:Substance",
+                                "edm:smiles": "C[C@H](NCc1ccccc1)[C@H](O)c1ccccc1",
+                            },
+                        }
+                    ],
+                    "rxspm:hasStartingMaterial": [
+                        {
+                            "@id": "rxsp:reactant/id-1ae0a176-10a9-4ae7-a3e5-9f4a622bafcf",
+                            "@type": "rxspm:StartingMaterial",
+                            "rxspm:hasSubstance": {
+                                "@id": "rxsp:substance/id-297b5689-5366-4c44-b768-a795418e97a2",
+                                "@type": "edm:Substance",
+                                "edm:smiles": "C[C@H](N=Cc1ccccc1)[C@H](O)c1ccccc1",
+                            },
+                        }
+                    ],
+                    "rxspm:hasExample": [
+                        {
+                            "@id": "rxsp:example/id-d3475bca-6949-444d-b942-572a93649bdc",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "29079183",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-9ceedff9-2780-4874-b97c-6907b5518f30",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "9208996",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-20da4dcd-53ab-458e-a1f2-a65ffcebbd5d",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "8778516",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-1570a77d-6c84-403c-a60e-cc437f0be061",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "3044702",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.7647059",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-b00029f0-9dcd-4f9a-8905-a75fc945fad8",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "29874820",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.7647059",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-b33e1c0a-91f5-4839-afae-5fb2dd1a6847",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "28492313",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.7647059",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-62eef74c-8872-4370-966d-dc4a039a795c",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "3044701",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.7647059",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-22b0b451-6f1e-4930-8485-4e7fd0e97df7",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "25925632",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.75",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-c3d1e026-3c88-4986-b165-b48584349634",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "25925636",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.57894737",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-b019cc43-b5c3-473a-8c02-0398f9347284",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "11275559",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.57894737",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-4f862510-3179-4dd6-a9e2-c733abe79461",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "1163480",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.57894737",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-25201302-af05-462b-acf6-58cf35e68dd2",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "8780283",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.57894737",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-fcfd6588-c082-4b79-a763-69aa89f9f163",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "8780092",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.57894737",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-cf6b4040-c6b7-480c-a02a-83aaaefbc649",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "8781474",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.57894737",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-5bbdcafc-d2c8-4aa0-8965-0399cfda4a6f",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "3039223",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.57894737",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-169f93a2-53bf-4807-860a-f7a3dc74af75",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "30689165",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.57894737",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-84afe4be-5261-4c05-aaba-c75d2bbcd12a",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "3578120",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.5555556",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-7a7b648d-6d07-44b0-acfe-a222cf92dfed",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "25925629",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.5555556",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-b3229ef2-424b-495e-bb48-e0bcb7bbc0dd",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "25925633",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.5555556",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-bce98d88-8519-4ec3-b128-38e48a587423",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "33358169",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.55",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-b2401d84-147d-4ac1-9145-d8f65391882c",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "3076031",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.55",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-3c9cd04c-09f9-45a5-b92c-77344ee15437",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "5071516",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.55",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-2e201a15-0e84-4f95-9031-64edcceafd08",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "25925641",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.5",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-66b4a540-2788-4463-815a-f452d35be286",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "9489183",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.5",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-9ef48984-f111-4a27-851a-6484facb09fe",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "10171255",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.3859649",
+                            },
+                        },
+                    ],
+                },
+                "rxspm:number": {
+                    "@type": "http://www.w3.org/2001/XMLSchema#int",
+                    "@value": "2",
+                },
+                "rxspm:score": {
+                    "@type": "http://www.w3.org/2001/XMLSchema#double",
+                    "@value": "0.9999",
+                },
+            },
+            {
+                "@id": "rxsp:id-acd758fc-9499-4f91-a1a8-a1a3e9852cfe#id-227086ad-96c5-4b4f-9f58-583be8a2c0e3",
+                "@type": "rxspm:Step",
+                "rxspm:hasReaction": {
+                    "@id": "rxsp:reaction/id-8f3a20b8-ccf4-48cb-a342-f3a23409ac1a",
+                    "@type": "rxspm:Reaction",
+                    "rxspm:hasProduct": [
+                        {
+                            "@id": "rxsp:product/id-f3191531-b007-469f-b7d5-64121859c6ce",
+                            "@type": "rxspm:Product",
+                            "rxspm:hasSubstance": {
+                                "@id": "rxsp:substance/id-9ab93ca4-4975-4a40-af46-cc87c9cc4111",
+                                "@type": "edm:Substance",
+                                "edm:smiles": "C[C@@H]([C@H](O)c1ccccc1)N(C)Cc1ccccc1",
+                            },
+                        }
+                    ],
+                    "rxspm:hasStartingMaterial": [
+                        {
+                            "@id": "rxsp:reactant/id-960fb89a-5213-4db6-a2fe-50474f1110ad",
+                            "@type": "rxspm:StartingMaterial",
+                            "rxspm:hasSubstance": {
+                                "@id": "rxsp:substance/id-58a34bc2-8aff-49e4-b10b-8c58736cd84d",
+                                "@type": "edm:Substance",
+                                "edm:smiles": "C=O",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:reactant/id-54260561-f467-4a8d-8834-e692024df8aa",
+                            "@type": "rxspm:StartingMaterial",
+                            "rxspm:hasSubstance": {
+                                "@id": "rxsp:substance/id-12376f5e-2652-47c2-aa5f-244403ed445d",
+                                "@type": "edm:Substance",
+                                "edm:smiles": "C[C@H](NCc1ccccc1)[C@H](O)c1ccccc1",
+                            },
+                        },
+                    ],
+                    "rxspm:hasExample": [
+                        {
+                            "@id": "rxsp:example/id-440eff2c-f06f-40f0-ba66-8879b512e476",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "36097645",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.84",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-8de1db2a-ab62-41fa-b2ba-4521c9812d82",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "4662100",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.76",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-6fe76939-254c-4415-962c-76b121d1c3ab",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "95554",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6666667",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-94ddd7b5-191b-46ab-a0a0-2b1cae53c622",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "4463564",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.48387095",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-d4fc5670-4c4a-4ba6-aaff-52a725c900d3",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "933395",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.48387095",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-19ef730b-f235-4351-a78d-821dc62270fe",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "934001",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.48387095",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-701c1b9c-978b-4919-8d39-1c5f29487a63",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "934281",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.48387095",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-c3b3a9fa-488b-4970-b698-8156f8767477",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "10189172",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-90d31c24-785c-4847-b44c-6e19fdde7e5b",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "42338762",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-2f36286e-95e6-48ef-ae44-7602a1d54adb",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "41277764",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-a7890b00-9434-4732-9d06-1efb7f69a0a3",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "29033546",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-dc5ab744-5b4a-4a8c-924e-cc4ca5d2cfed",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "933534",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-3f439768-53fe-49cb-90e4-1decfe62f824",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "934069",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-dd5dafb3-1fc6-408d-acd5-85e4a3816f8a",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "934332",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-4a8d5ae3-53b2-4c4e-89d4-7ca8ecef7548",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "23664717",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-c3d6ff56-d149-401e-93a9-707dd69a00fc",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "934068",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-1f4e9fc5-c8c5-4286-8aca-199cd02f0fc4",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "934283",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-cf7a5bd0-f1bd-4b56-9570-1c0058e339fa",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "933293",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-896ac4cb-8bef-43ce-808c-073e9983d874",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "933905",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-fb227bb5-e826-4e6d-b1b1-042ca1d68956",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "933915",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-03495a6e-d38e-4f05-9bc1-02f20c7b5d7b",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "934331",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-c3591378-5cc0-4b39-a0a6-743a889cfe57",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "934765",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-ee3b71a0-0930-471c-a822-0bb019a4ea12",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "934836",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-28643df5-a631-4619-a2d5-6376989fc264",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "933763",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.45454547",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-07681315-9808-4339-8e6e-74084370850b",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "755557",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.4",
+                            },
+                        },
+                    ],
+                },
+                "rxspm:number": {
+                    "@type": "http://www.w3.org/2001/XMLSchema#int",
+                    "@value": "3",
+                },
+                "rxspm:score": {
+                    "@type": "http://www.w3.org/2001/XMLSchema#double",
+                    "@value": "0.9968",
+                },
+            },
+            {
+                "@id": "rxsp:id-acd758fc-9499-4f91-a1a8-a1a3e9852cfe#id-c23caae2-734d-4679-845d-a7eecaf9b20a",
+                "@type": "rxspm:Step",
+                "rxspm:hasReaction": {
+                    "@id": "rxsp:reaction/id-fcc1e8ca-ba09-45a3-bfac-09357733d66c",
+                    "@type": "rxspm:Reaction",
+                    "rxspm:hasProduct": [
+                        {
+                            "@id": "rxsp:product/id-7f4dfb8c-bdcb-4494-8935-92b5737ef660",
+                            "@type": "rxspm:Product",
+                            "rxspm:hasSubstance": {
+                                "@id": "rxsp:substance/id-f13c5458-93ec-4633-a12f-3619c782f21b",
+                                "@type": "edm:Substance",
+                                "edm:smiles": "CN[C@@H](C)[C@H](O)C1=CC=CC=C1",
+                            },
+                        }
+                    ],
+                    "rxspm:hasStartingMaterial": [
+                        {
+                            "@id": "rxsp:reactant/id-383475e5-abfd-4e51-b87d-fcb9df8937bb",
+                            "@type": "rxspm:StartingMaterial",
+                            "rxspm:hasSubstance": {
+                                "@id": "rxsp:substance/id-35214d2a-c86a-4679-bea4-4434c8c1dac9",
+                                "@type": "edm:Substance",
+                                "edm:smiles": "C[C@@H]([C@H](O)c1ccccc1)N(C)Cc1ccccc1",
+                            },
+                        }
+                    ],
+                    "rxspm:hasExample": [
+                        {
+                            "@id": "rxsp:example/id-90172e74-6fcf-466c-82e7-be985b900fb9",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "4619567",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "1.0",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-b1b07b5f-1fb7-403e-8ba8-de6475082430",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "2937932",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.9852941",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-5bd7cdfe-122a-46b9-b43a-1aafca8d3179",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "23674887",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.875",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-5791ce17-15fb-4b50-a02b-819152aa0b07",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "1141755",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.7241379",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-74acda7c-e23d-47f3-96f7-af9f91cbd3aa",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "508723",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.7241379",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-82546ae9-0773-4c5c-a8df-fbcebca29dc4",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "1135400",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.7241379",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-38932392-73d8-4f44-aa87-9137cc4c1329",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "1135822",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.7241379",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-b9f809d9-1953-4374-b28f-18ce0e5e90a7",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "541794",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.71590906",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-f1e11c69-c717-40f7-bf3f-05247eea3eaf",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "4409838",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.71590906",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-499bd0d7-5546-4318-ba52-4b3daa68549a",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "3097624",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.71590906",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-127fcdc8-081e-48bb-a767-f1874467c9de",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "495933",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.70454544",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-02476321-7928-48ac-b731-29ecbe757e9b",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "353589",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6923077",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-1c070132-fb83-4143-8810-5bec74a01b1f",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "4396486",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6923077",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-abf815f1-a31d-43ed-b55b-651271add114",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "4396487",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6923077",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-1c099a63-2353-4f1a-ae5a-df23998760b3",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "7912717",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6847826",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-88534bbf-28ae-4994-a74e-06b8f9877600",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "7912716",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6847826",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-a6de5284-a3de-4c3a-a476-ff0ded8540cc",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "7912721",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6847826",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-1308d4f3-fad1-4bec-b668-9082ae6cdb57",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "2208852",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6847826",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-786a5134-0702-46f6-ba56-a065ab61ce79",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "7912718",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6666667",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-0b4de68f-0c54-4f26-907d-05d30594237e",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "7912722",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6666667",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-689356dc-d179-4be9-84f5-630be6d19b1c",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "8097973",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6666667",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-74dd4e75-ff96-4991-993e-6504da6a4656",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "7994011",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6666667",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-ca746b3d-a7c4-4926-832a-539b97455fcb",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "3724798",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.6333333",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-528dffc0-f423-48d8-9f69-8f9d6e890be3",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "4399579",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.5470086",
+                            },
+                        },
+                        {
+                            "@id": "rxsp:example/id-30647200-471a-4a86-889a-2065b4c0522c",
+                            "@type": "rxspm:Example",
+                            "edm:reaxysRN": "513099",
+                            "edm:similarity": {
+                                "@type": "http://www.w3.org/2001/XMLSchema#double",
+                                "@value": "0.53051645",
+                            },
+                        },
+                    ],
+                },
+                "rxspm:number": {
+                    "@type": "http://www.w3.org/2001/XMLSchema#int",
+                    "@value": "4",
+                },
+                "rxspm:score": {
+                    "@type": "http://www.w3.org/2001/XMLSchema#double",
+                    "@value": "0.9998",
+                },
+            },
+        ],
+        "rxspm:score": {
+            "@type": "http://www.w3.org/2001/XMLSchema#double",
+            "@value": "0.94",
+        },
+        "rxspm:numberOfSteps": {
+            "@type": "http://www.w3.org/2001/XMLSchema#int",
+            "@value": "4",
+        },
+        "rxspm:longestPathLength": {
+            "@type": "http://www.w3.org/2001/XMLSchema#int",
+            "@value": "4",
+        },
+        "rxspm:numberOfStartingMaterials": {
+            "@type": "http://www.w3.org/2001/XMLSchema#int",
+            "@value": "3",
+        },
+    }
+    iron = ReaxysRT().to_iron(route)
+    assert len(iron.edges) == 6
+    assert len(iron.nodes) == 7
+    # testing with factory machinery
+    syngraph = translator("reaxys", route, "syngraph", "monopartite_reactions")
+    assert len(syngraph.graph) == 4

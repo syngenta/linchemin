@@ -10,8 +10,9 @@ from linchemin.interfaces.facade import facade, facade_helper
 from linchemin.cgu.translate import translator
 
 
+@unittest.mock.patch("linchemin.cgu.translate.ReaxysRT.to_iron")
 @unittest.mock.patch("linchemin.cgu.translate.ibm_dict_to_iron")
-def test_translate(mock_os, ibm2_path):
+def test_translate(mock_os, mock_reaxys, ibm2_path, reaxys_path):
     graph = json.loads(open(ibm2_path).read())
     output, metadata = facade("translate", input_format="ibm_retro", input_list=graph)
     mock_os.assert_called()
@@ -34,6 +35,16 @@ def test_translate(mock_os, ibm2_path):
     unittest.TestCase().assertIn(
         "While translating from IBM", cm.records[0].getMessage()
     )
+
+    routes = json.loads(open(reaxys_path).read())
+
+    facade(
+        "translate",
+        input_format="reaxys",
+        input_list=routes,
+        out_data_model="monopartite_reactions",
+    )
+    mock_reaxys.assert_called()
 
 
 @unittest.mock.patch("linchemin.rem.route_descriptors.NrBranches.compute_descriptor")

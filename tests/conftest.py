@@ -39,6 +39,13 @@ def trees_path():
 
 
 @pytest.fixture
+def reaxys_path():
+    conftest_path = Path(__file__)
+    data_path = conftest_path.parent / "test_file"
+    return data_path.joinpath("reaxys_output.json")
+
+
+@pytest.fixture
 def cli():
     conftest_path = Path(__file__)
     data_path = conftest_path.parent.parent
