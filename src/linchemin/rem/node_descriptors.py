@@ -3,6 +3,7 @@ import abc
 import linchemin.cheminfo.functions as cif
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.utilities import console_logger
+from typing import Type
 
 """
 Module containing functions and classes for computing score and metrics of single nodes of a route.
@@ -24,19 +25,85 @@ class BadMapping(Exception):
 
 
 class ChemicalEquationDescriptor(metaclass=abc.ABCMeta):
-    """Definition of the abstract class for NodeScore."""
+    """Definition of the abstract class for ChemicalEquationDescriptor."""
 
     @abc.abstractmethod
-    def compute_descriptor(self, reaction: ChemicalEquation):
+    def compute_ce_descriptor(self, reaction: ChemicalEquation):
         pass
 
 
+class ChemicalEquationDescriptorsFactory:
+    """A factory class for accessing the calculation of ChemicalEquationDescriptors.
+
+    The factory uses a registry of available ChemicalEquationDescriptors. To
+    register a new descriptor, the class should be decorated
+    with the `register_ce_descriptor` decorator.
+    """
+
+    _ce_descriptors = {}
+
+    @classmethod
+    def register_ce_descriptor(cls, name: str):
+        """
+        Decorator for registering a new ChemicalEquation descriptor.
+
+        Parameters:
+        ------------
+        name: str
+            The name of the descriptor to be used as a key in the registry.
+
+        Returns:
+        ----------
+        function: The decorator function.
+        """
+
+        def decorator(ce_descriptor_class: Type[ChemicalEquationDescriptor]):
+            cls._ce_descriptors[name.lower()] = ce_descriptor_class
+            return ce_descriptor_class
+
+        return decorator
+
+    @classmethod
+    def list_ce_descriptors(cls):
+        """List the names of all available ChemicalEquation descriptors.
+
+        Returns:
+        ---------
+        list: The names of the available descriptors.
+        """
+        return list(cls._ce_descriptors.keys())
+
+    @classmethod
+    def get_ce_descriptor_instance(cls, name: str) -> ChemicalEquationDescriptor:
+        """Get an instance of the specified ChemicalEquationDescriptor.
+
+        Parameters:
+        ------------
+        name: str
+            The name of the ChemicalEquation descriptor.
+
+        Returns:
+        ---------
+        ChemicalEquationDescriptor: An instance of the specified ChemicalEquation descriptor.
+
+        Raises:
+        --------
+        KeyError: If the specified descriptor is not registered.
+        """
+        ce_descriptor = cls._ce_descriptors.get(name.lower())
+        if ce_descriptor is None:
+            logger.error(f"ChemicalEquation descriptor '{name}' not found")
+            raise KeyError
+        return ce_descriptor()
+
+
+@ChemicalEquationDescriptorsFactory.register_ce_descriptor("ce_hypsicity")
 class CEHypsicity(ChemicalEquationDescriptor):
     """Subclass to compute the hypsicity of a ChemicalEquation as the absolute value of the change in the oxidation
     state of each atom.
     """
 
-    def compute_descriptor(self, reaction: ChemicalEquation) -> float:
+    def compute_ce_descriptor(self, reaction: ChemicalEquation) -> float:
         """Takes a ChemicalEquation instance and returns its hypsicity, i.e., the change in the oxidation state of
         the atoms"""
 
@@ -106,10 +173,11 @@ class CEHypsicity(ChemicalEquationDescriptor):
         return delta
 
 
-class CEAtomEfficiency(ChemicalEquationDescriptor):
+@ChemicalEquationDescriptorsFactory.register_ce_descriptor("ce_atom_effectiveness")
+class CEAtomEffectiveness(ChemicalEquationDescriptor):
     """Subclass of atom efficiency at ChemicalEquation level"""
 
-    def compute_descriptor(self, reaction: ChemicalEquation) -> float:
+    def compute_ce_descriptor(self, reaction: ChemicalEquation) -> float:
         """Takes a ChemicalEquation instance and computes the atom efficiency as the ratio between the number of
         mapped atoms in the desired product and the number of atom in the reactants.
         """
@@ -139,11 +207,12 @@ class CEAtomEfficiency(ChemicalEquationDescriptor):
         return n_atoms_prod / n_atoms_reactants
 
 
-class CDNodeScore(ChemicalEquationDescriptor):
-    """Subclass of NodeScore representing the Convergent Disconnection Score.
+@ChemicalEquationDescriptorsFactory.register_ce_descriptor("ce_convergence")
+class CEConvergentDisconnection(ChemicalEquationDescriptor):
+    """Subclass to compute the Convergent Disconnection Score.
     https://pubs.acs.org/doi/10.1021/acs.jcim.1c01074"""
 
-    def compute_descriptor(self, reaction: ChemicalEquation) -> float:
+    def compute_ce_descriptor(self, reaction: ChemicalEquation) -> float:
         """Takes a ChemicalEquation instance and compute the Convergent Disconnection Score [0, 1].
         The closer the score is to 1, the more balanced is the reaction.
         """
@@ -161,27 +230,9 @@ class CDNodeScore(ChemicalEquationDescriptor):
         return 1 / (1 + sum(abs_error) / len(abs_error))
 
 
-class ChemicalEquationDescriptorCalculator:
-    """Definition of the ChemicalEquationDescriptorCalculator factory."""
-
-    ce_descriptors = {
-        "cdscore": CDNodeScore,
-        "ce_efficiency": CEAtomEfficiency,
-        "ce_hypsicity": CEHypsicity,
-    }
-
-    def select_ce_descriptor(self, reaction: ChemicalEquation, score: str):
-        """Takes a string indicating a metrics and a SynGraph and returns the value of the metrics"""
-        if score not in self.ce_descriptors:
-            raise KeyError(
-                f"Invalid score. Available node scores are: {self.ce_descriptors.keys()}"
-            )
-
-        calculator = self.ce_descriptors.get(score)
-        return calculator().compute_descriptor(reaction)
-
-
-def node_descriptor_calculator(reaction: ChemicalEquation, score: str) -> float:
+def chemical_equation_descriptor_calculator(
+    reaction: ChemicalEquation, descriptor: str
+) -> float:
     """
     To compute a descriptor of a ChemicalEquation.
 
@@ -189,8 +240,8 @@ def node_descriptor_calculator(reaction: ChemicalEquation, score: str) -> float:
     -------------
     node: ChemicalEquation
         The reaction for which the descriptor should be computed
-    score: str
-        Which score should be computed
+    descriptor: str
+        Which descriptor should be computed
 
     Returns:
     --------
@@ -204,15 +255,18 @@ def node_descriptor_calculator(reaction: ChemicalEquation, score: str) -> float:
 
     Example:
     --------
-    >>> smile = 'CN.CC(O)=O>O>CNC(C)=O'
+    >>> smile = '[CH3:1][C:2]([CH3])=[O:3]>>[CH3:1][C:2]([OH])=[O:3]'
     >>> chemical_equation_constructor = ChemicalEquationConstructor(molecular_identity_property_name='smiles')
     >>> reaction = chemical_equation_constructor2.build_from_reaction_string(reaction_string=smile, inp_fmt='smiles')
-    >>> d = node_descriptor_calculator(reaction, 'ce_efficiency')
+    >>> d = chemical_equation_descriptor_calculator(reaction, 'ce_atom_effectivness')
     """
     if type(reaction) != ChemicalEquation:
         raise TypeError(
-            "Step descriptors can be computed only on ChemicalEquation instances."
+            "ChemicalEquation descriptors can be computed only on ChemicalEquation instances."
         )
 
-    node_descriptor_selector = ChemicalEquationDescriptorCalculator()
-    return node_descriptor_selector.select_ce_descriptor(reaction, score)
+    ce_descriptor = ChemicalEquationDescriptorsFactory.get_ce_descriptor_instance(
+        descriptor
+    )
+
+    return ce_descriptor.compute_ce_descriptor(reaction)

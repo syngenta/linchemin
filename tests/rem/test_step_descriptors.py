@@ -87,7 +87,7 @@ def test_step_hypsicity():
         },
         {
             "query_id": 1,
-            "output_string": "Cl[CH2:4][C:2](=[O:1])[O-:3].[O-:5][c:6]1[cH:7][cH:8][cH:9][cH:10][cH:11]1>[Na+].[Na+]>[O:1]=[C:2]([OH:3])[CH2:4][O:5][c:6]1[cH:7][cH:8][cH:9][cH:10][cH:11]1",
+            "output_string": "Cl[CH2:4][C:2](=[O:1])[O-:3].[Na][O:5][c:6]1[cH:7][cH:8][cH:9][cH:10][cH:11]1>[Na+].[Na+]>[O:1]=[C:2]([OH:3])[CH2:4][O:5][c:6]1[cH:7][cH:8][cH:9][cH:10][cH:11]1",
         },
         {
             "query_id": 2,
@@ -98,7 +98,8 @@ def test_step_hypsicity():
     out = step_descriptor_calculator(
         "step_hypsicity", syngraph, route_smiles[0]["output_string"]
     )
-    assert out.descriptor_value == 0.0
+    assert out.descriptor_value == -4.0
+    assert out.additional_info["contributing_oxidation_numbers"] == [(-1, 1), (-1, 1)]
     out = step_descriptor_calculator(
         "step_hypsicity", syngraph, route_smiles[1]["output_string"]
     )
@@ -107,6 +108,7 @@ def test_step_hypsicity():
         "step_hypsicity", syngraph, route_smiles[2]["output_string"]
     )
     assert out.descriptor_value == -2.0
+    assert len(out.additional_info["contributing_oxidation_numbers"]) == 4
 
 
 def test_step_bond_efficiency():

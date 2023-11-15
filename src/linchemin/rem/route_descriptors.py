@@ -10,7 +10,7 @@ from linchemin.cgu.syngraph import (
 )
 from linchemin.cgu.syngraph_operations import find_path
 from linchemin.cheminfo.models import ChemicalEquation
-from linchemin.rem.node_descriptors import node_descriptor_calculator
+from linchemin.rem.node_descriptors import chemical_equation_descriptor_calculator
 from linchemin.utilities import console_logger
 
 """
@@ -361,22 +361,22 @@ class CDScore(RouteDescriptor):
 
         route_score = 0
         for reaction in unique_reactions:
-            score = node_descriptor_calculator(reaction, "cdscore")
+            score = chemical_equation_descriptor_calculator(reaction, "ce_convergence")
             route_score += score
 
         return route_score / len(unique_reactions)
 
 
-class AtomEfficiency(RouteDescriptor):
-    """Subclass of DescriptorCalculator representing the atom efficiency of a SynGraph."""
+class SimplifiedAtomEffectiveness(RouteDescriptor):
+    """Subclass of DescriptorCalculator representing the simplified atom effectiveness of a SynGraph."""
 
     info = (
-        "Computes the atom efficiency of the input SynGraph, as the ratio between the number of atoms in the "
-        "target and the number of atoms in the starting materials "
+        "Computes the simplified atom effectiveness of the input SynGraph, as the ratio between the number "
+        "of atoms in the target and the number of atoms in the starting materials "
     )
-    title = "Atom Efficiency"
+    title = "Simplified Atom Effectiveness"
     type = "number"
-    fields = ["atom_efficiency"]
+    fields = ["simplified_atom_effectiveness"]
 
     def compute_descriptor(
         self,
@@ -384,7 +384,7 @@ class AtomEfficiency(RouteDescriptor):
             BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
         ],
     ) -> float:
-        """Takes a SynGraph and returns its atom efficiency"""
+        """Takes a SynGraph and returns its simplified atom effectiveness"""
         if isinstance(graph, (BipartiteSynGraph, MonopartiteMolSynGraph)):
             root = graph.get_roots()[0]
             leaves = graph.get_leaves()
@@ -420,7 +420,10 @@ class DescriptorsCalculatorFactory:
         },
         "convergence": {"value": Convergence, "info": Convergence.info},
         "cdscore": {"value": CDScore, "info": CDScore.info},
-        "atom_efficiency": {"value": AtomEfficiency, "info": AtomEfficiency.info},
+        "simplified_atom_effectiveness": {
+            "value": SimplifiedAtomEffectiveness,
+            "info": SimplifiedAtomEffectiveness.info,
+        },
     }
 
     def get_descriptor_instance(self, descriptor: str) -> RouteDescriptor:

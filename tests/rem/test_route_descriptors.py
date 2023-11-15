@@ -251,13 +251,13 @@ def test_branchedness(ibm2_path):
     ).items()
 
 
-def test_atom_efficiency(az_path):
+def test_simplified_atom_effectiveness(az_path):
     graph = json.loads(open(az_path).read())
     az_routes_mp = translator(
         "az_retro", graph[0], "syngraph", out_data_model="monopartite_reactions"
     )
-    ae = descriptor_calculator(az_routes_mp, "atom_efficiency")
+    ae = descriptor_calculator(az_routes_mp, "simplified_atom_effectiveness")
     assert ae == 34.0 / 36.0
-    assert {"title": "Atom Efficiency"}.items() <= get_configuration(
-        "atom_efficiency"
+    assert {"title": "Simplified Atom Effectiveness"}.items() <= get_configuration(
+        "simplified_atom_effectiveness"
     ).items()

@@ -307,8 +307,8 @@ class StepBondEfficiency(StepDescriptor):
 
     @staticmethod
     def populate_output(
-        target_bond_order: int,
-        step_bond_order: int,
+        target_bond_order: float,
+        step_bond_order: float,
         bond: tuple,
         additional_info: dict,
         out: DescriptorCalculationOutput,
@@ -422,6 +422,9 @@ class StepHypsicity(StepDescriptor):
                 ox_nrs.append(ox_nr)
         out.descriptor_value = delta
         out.additional_info["oxidation_numbers"] = ox_nrs
+        out.additional_info["contributing_oxidation_numbers"] = [
+            ox_nr for ox_nr in ox_nrs if ox_nr[0] != ox_nr[1]
+        ]
         return out
 
     @staticmethod
@@ -475,9 +478,11 @@ def step_descriptor_calculator(
     --------
     TypeError: if the input graph is not a SynGraph
 
+    NodeNotPresent: if the selected step does not appear in the input SynGraph
+
     Example:
     ---------
-    >>> out = step_descriptor_calculator('step_effectiveness', route_syngraph, step_ce)
+    >>> out = step_descriptor_calculator('step_effectiveness', route_syngraph, step_smiles)
     """
     if isinstance(route, (BipartiteSynGraph, MonopartiteMolSynGraph)):
         route = converter(route, "monopartite_reactions")
@@ -533,7 +538,7 @@ def find_atom_path(
     all_transformations: List[AtomTransformation],
     path: Union[list, None] = None,
 ) -> List:
-    """To find an 'atomic path' from one of the target atoms to the starting material from which the atom arrives"""
+    """To find an 'atomic path' from an atom in a starting material to the latest compound it ends up in"""
     if path is None:
         path = []
     path += [current_transformation]
