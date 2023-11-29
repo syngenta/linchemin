@@ -802,28 +802,28 @@ class NOC(Graph):
         node_instance: ChemicalEquation, edge_documents: list
     ) -> List[dict]:
         """To build the list of dictionaries with edges information"""
-
+        current_node = "CE" + str(node_instance.uid)
         for item in node_instance.role_map.get("reactants"):
             edge_doc = {
                 "type": "REACTANT",
-                "source": item,
-                "destination": node_instance.uid,
+                "source": "M" + str(item),
+                "destination": current_node,
                 "properties": {},
             }
             edge_documents.append(edge_doc)
         for item in node_instance.role_map.get("reagents"):
             edge_doc = {
                 "type": "REAGENT",
-                "source": item,
-                "destination": node_instance.uid,
+                "source": "M" + str(item),
+                "destination": current_node,
                 "properties": {},
             }
             edge_documents.append(edge_doc)
         for item in node_instance.role_map.get("products"):
             edge_doc = {
                 "type": "PRODUCT",
-                "source": node_instance.uid,
-                "destination": item,
+                "source": current_node,
+                "destination": "M" + str(item),
                 "properties": {},
             }
             edge_documents.append(edge_doc)
@@ -843,17 +843,15 @@ class NOC(Graph):
         node_dict = node_instance.to_dict()
         node_document = {
             "type": node_dict.get("type"),
-            "uid": node_dict.get("uid"),
-            "properties": {
-                **{"smiles": node_dict.get("smiles")},
-                **node_dict.get("hash_map"),
-            },
+            "properties": {"smiles": node_instance.smiles},
         }
-        if (
-            type(node_instance) == ChemicalEquation
-            and node_instance.disconnection is not None
-        ):
-            node_document["disconnection_uid"] = node_instance.disconnection.uid
+        if isinstance(node_instance, ChemicalEquation):
+            node_document["uid"] = "CE" + str(node_dict.get("uid"))
+            if node_instance.disconnection is not None:
+                node_document["disconnection_uid"] = node_instance.disconnection.uid
+        else:
+            node_document["uid"] = "M" + str(node_dict.get("uid"))
+
         node_documents.append(node_document)
         return node_documents
 
