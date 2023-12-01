@@ -65,15 +65,6 @@ def test_metric_selector_nr_steps(az_path):
     }.items() <= NrReactionSteps().get_configuration().items()
 
 
-def test_metric_selector_paths(az_path):
-    """To test that the PathFinder object is returned as expected."""
-    graph = json.loads(open(az_path).read())
-    syngraph = translator("az_retro", graph[2], "syngraph", out_data_model="bipartite")
-    paths = descriptor_calculator(syngraph, "all_paths")
-    assert len(paths) == 3
-    assert {"fields": ["all_paths"]}.items() <= get_configuration("all_paths").items()
-
-
 def test_metric_selector_branching_factor(az_path):
     """To test that the AvgBranchingFactor object is returned as expected."""
     graph = json.loads(open(az_path).read())

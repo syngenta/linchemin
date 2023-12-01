@@ -315,6 +315,11 @@ def is_mapped_molecule(rdmol):
         return True
 
 
+def compute_molecular_weigth(rdmol):
+    """To compute the molecular weigth of the input rdmol"""
+    return Descriptors.ExactMolWt(rdmol)
+
+
 ####################################################################################################
 # RDRXN
 def rdrxn_from_string(

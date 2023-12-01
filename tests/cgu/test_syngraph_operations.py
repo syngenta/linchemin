@@ -10,6 +10,7 @@ from linchemin.cgu.syngraph_operations import (
     find_path,
     merge_syngraph,
     remove_reaction_from_syngraph,
+    find_all_paths,
 )
 from linchemin.cgu.translate import translator
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
@@ -156,6 +157,13 @@ def test_find_path(ibm1_path):
         "CCN.CCOC(=O)CC>>CCNC(=O)CC",
         "CCNC(=O)CC",
     ]
+
+
+def test_all_paths(az_path):
+    graph = json.loads(open(az_path).read())
+    syngraph = translator("az_retro", graph[2], "syngraph", out_data_model="bipartite")
+    all_paths = find_all_paths(syngraph)
+    assert len(all_paths) == 3
 
 
 def test_remove_nodes_from_syngraph():

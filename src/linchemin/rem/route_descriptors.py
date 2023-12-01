@@ -213,11 +213,11 @@ class LongestSequence(RouteDescriptor):
         if len(mp_graph.graph) == 1:
             return 1
 
-        root = mp_graph.get_roots()
+        root = mp_graph.get_roots()[0]
         leaves = mp_graph.get_leaves()
         longest_sequence: list = []
         for leaf in leaves:
-            reaction_path = find_path(mp_graph, leaf, root[0])
+            reaction_path = find_path(mp_graph, leaf, root)
             if len(reaction_path) > len(longest_sequence):
                 longest_sequence = reaction_path
         return len(longest_sequence)
@@ -241,46 +241,6 @@ class NrReactionSteps(RouteDescriptor):
         mp_graph = self.check_input_graph(graph)
 
         return len(mp_graph.graph)
-
-
-class PathFinder(RouteDescriptor):
-    """Subclass of DescriptorCalculator representing the list of paths (ReactionStep nodes only) in a SynGraph."""
-
-    info = "Computes all the paths between the SynRoots and the SynLeaves in the input SynGraph"
-    title = "All paths"
-    type = "list"
-    fields = ["all_paths"]
-
-    def compute_descriptor(
-        self,
-        graph: Union[
-            BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph
-        ],
-    ) -> list:
-        """Takes a SynGraph/MonopartiteSynGraph and returns all the paths between the SynRoot and the SynLeaves
-        (only ReactionStep nodes)."""
-        if isinstance(graph, MonopartiteMolSynGraph):
-            graph = converter(graph, "monopartite_reactions")
-        elif isinstance(graph, (BipartiteSynGraph, MonopartiteReacSynGraph)):
-            graph = graph
-        else:
-            logger.error(
-                f"{type(graph)} is not supported. Only Syngraph objects are accepted."
-            )
-            raise WrongGraphType
-
-        root = graph.get_roots()
-        leaves = graph.get_leaves()
-        all_paths = []
-        for leaf in leaves:
-            path = find_path(graph, leaf, root[0])
-            reaction_path = [
-                step for step in path if isinstance(step, ChemicalEquation)
-            ]
-            if reaction_path not in all_paths:
-                all_paths.append(reaction_path)
-
-        return all_paths
 
 
 class Convergence(RouteDescriptor):
@@ -411,7 +371,6 @@ class DescriptorsCalculatorFactory:
     route_descriptors = {
         "longest_seq": {"value": LongestSequence, "info": LongestSequence.info},
         "nr_steps": {"value": NrReactionSteps, "info": NrReactionSteps.info},
-        "all_paths": {"value": PathFinder, "info": PathFinder.info},
         "nr_branches": {"value": NrBranches, "info": NrBranches.info},
         "branchedness": {"value": Branchedness, "info": Branchedness.info},
         "branching_factor": {

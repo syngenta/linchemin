@@ -281,7 +281,6 @@ class RoutesDescriptorsFacade(Facade):
 
         if descriptors is None:
             descriptors = get_available_descriptors()
-            descriptors.pop("all_paths")
 
         exceptions = []
         checked_routes = [r for r in routes if r is not None]
