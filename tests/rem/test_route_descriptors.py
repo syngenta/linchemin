@@ -12,6 +12,8 @@ from linchemin.rem.route_descriptors import (
     get_available_descriptors,
     get_nodes_consensus,
     is_subset,
+    NrReactionSteps,
+    get_configuration,
 )
 
 
@@ -39,6 +41,18 @@ def test_longest_sequence(mit_path):
     longest_seq_mp = descriptor_calculator(mp_syngraph, "longest_seq")
     assert longest_seq_mp == longest_seq
 
+    r = [
+        {
+            "query_id": 0,
+            "output_string": "CC(=O)O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+        }
+    ]
+    single_reaction_syngraph = MonopartiteReacSynGraph(r)
+    assert descriptor_calculator(single_reaction_syngraph, "longest_seq") == 1
+    assert {"title": "Longest Linear Sequence"}.items() <= get_configuration(
+        "longest_seq"
+    ).items()
+
 
 def test_metric_selector_nr_steps(az_path):
     """To test that the NrReactionSteps object is returned as expected."""
@@ -46,14 +60,9 @@ def test_metric_selector_nr_steps(az_path):
     syngraph = translator("az_retro", graph[4], "syngraph", out_data_model="bipartite")
     n_steps = descriptor_calculator(syngraph, "nr_steps")
     assert n_steps == 3
-
-
-def test_metric_selector_paths(az_path):
-    """To test that the PathFinder object is returned as expected."""
-    graph = json.loads(open(az_path).read())
-    syngraph = translator("az_retro", graph[2], "syngraph", out_data_model="bipartite")
-    paths = descriptor_calculator(syngraph, "all_paths")
-    assert len(paths) == 3
+    assert {
+        "title": "Total N of Steps"
+    }.items() <= NrReactionSteps().get_configuration().items()
 
 
 def test_metric_selector_branching_factor(az_path):
@@ -66,6 +75,9 @@ def test_metric_selector_branching_factor(az_path):
     tree = merge_syngraph(syngraphs)
     avg_branch = descriptor_calculator(tree, "branching_factor")
     assert avg_branch == 1.1428571428571428
+    assert {"title": "Avg Branching Factor"}.items() <= get_configuration(
+        "branching_factor"
+    ).items()
 
 
 def test_nr_branches(az_path):
@@ -78,6 +90,9 @@ def test_nr_branches(az_path):
         graph = None
         descriptor_calculator(graph, "nr_branches")
     assert "InvalidInput" in str(e.type)
+    assert {"title": "N of Branches"}.items() <= get_configuration(
+        "nr_branches"
+    ).items()
 
 
 def test_subset(az_path):
@@ -192,6 +207,7 @@ def test_convergence(az_path):
     n_steps = descriptor_calculator(az_routes_mp, "nr_steps")
     convergence = descriptor_calculator(az_routes_mp, "convergence")
     assert convergence == lls / n_steps
+    assert {"title": "Convergence"}.items() <= get_configuration("convergence").items()
 
 
 def test_cdscores(az_path):
@@ -208,6 +224,9 @@ def test_cdscores(az_path):
         )
         descriptor_calculator(route, "cdscore")
     assert "WrongGraphType" in str(te.type)
+    assert {"title": "Convergent Disconnection Score"}.items() <= get_configuration(
+        "cdscore"
+    ).items()
 
 
 def test_branchedness(ibm2_path):
@@ -218,12 +237,18 @@ def test_branchedness(ibm2_path):
     ]
     assert descriptor_calculator(routes[0], "branchedness") == 0.0
     assert descriptor_calculator(routes[2], "branchedness") == 0.5
+    assert {"title": "Branchedness"}.items() <= get_configuration(
+        "branchedness"
+    ).items()
 
 
-def test_atom_efficiency(az_path):
+def test_simplified_atom_effectiveness(az_path):
     graph = json.loads(open(az_path).read())
     az_routes_mp = translator(
         "az_retro", graph[0], "syngraph", out_data_model="monopartite_reactions"
     )
-    ae = descriptor_calculator(az_routes_mp, "atom_efficiency")
+    ae = descriptor_calculator(az_routes_mp, "simplified_atom_effectiveness")
     assert ae == 34.0 / 36.0
+    assert {"title": "Simplified Atom Effectiveness"}.items() <= get_configuration(
+        "simplified_atom_effectiveness"
+    ).items()

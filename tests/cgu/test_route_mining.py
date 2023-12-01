@@ -62,7 +62,7 @@ def build_graph_from_tree_data(tree_data):
 def get_route_uids(route_graph):
     node_uids = [route_graph.nodes[n]["uid"] for n in route_graph.nodes()]
     edge_uids = [
-        (route_graph.edges[e]["nodes"][0], route_graph.edges[e]["nodes"][1])
+        [route_graph.edges[e]["nodes"][0], route_graph.edges[e]["nodes"][1]]
         for e in route_graph.edges()
     ]
     return {"nodes": sorted(node_uids), "edges": sorted(edge_uids)}
@@ -70,10 +70,9 @@ def get_route_uids(route_graph):
 
 def compare_routes(expected_route, route_graph):
     extracted_route = get_route_uids(route_graph)
-    # print(extracted_route["nodes"], expected_route["nodes"])
-    return sorted(expected_route["nodes"]) == sorted(
-        extracted_route["nodes"]
-    )  # and expected_route["edges"] == extracted_route["edges"]
+    return sorted(expected_route["nodes"]) == sorted(extracted_route["nodes"]) and all(
+        e for e in extracted_route["edges"] if e in expected_route["edges"]
+    )
 
 
 def test_RouteFinder(trees_path):

@@ -1,7 +1,10 @@
 import pytest
 
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
-from linchemin.rem.node_descriptors import NoMapping, node_descriptor_calculator
+from linchemin.rem.node_descriptors import (
+    NoMapping,
+    chemical_equation_descriptor_calculator,
+)
 
 
 def test_factory():
@@ -14,7 +17,7 @@ def test_factory():
         reaction_string=smile1, inp_fmt="smiles"
     )
     with pytest.raises(KeyError) as ke:
-        node_descriptor_calculator(reaction1, "some_score")
+        chemical_equation_descriptor_calculator(reaction1, "some_score")
     assert "KeyError" in str(ke.type)
 
 
@@ -33,15 +36,15 @@ def test_CDScores():
     reaction2 = chemical_equation_constructor2.build_from_reaction_string(
         reaction_string=smile1, inp_fmt="smiles"
     )
-    assert node_descriptor_calculator(reaction1, "cdscore") == 0.5
-    assert node_descriptor_calculator(reaction2, "cdscore") == 0.5
+    assert chemical_equation_descriptor_calculator(reaction1, "ce_convergence") == 0.5
+    assert chemical_equation_descriptor_calculator(reaction2, "ce_convergence") == 0.5
 
     with pytest.raises(TypeError) as te:
-        node_descriptor_calculator(smile2, "cdscore")
+        chemical_equation_descriptor_calculator(smile2, "ce_convergence")
     assert "TypeError" in str(te.type)
 
 
-def test_atom_efficiency():
+def test_atom_effectiveness():
     ce_test_set = {
         # fully efficient reaction (ae = 1)
         0: {
@@ -67,7 +70,7 @@ def test_atom_efficiency():
         ce = chemical_equation_constructor.build_from_reaction_string(
             reaction_string=d["smiles"], inp_fmt="smiles"
         )
-        ae = node_descriptor_calculator(ce, "ce_efficiency")
+        ae = chemical_equation_descriptor_calculator(ce, "ce_atom_effectiveness")
         assert round(ae, 1) == d["expected"]
 
 
@@ -128,8 +131,8 @@ def test_hypsicity():
         )
         if i == 0:
             with pytest.raises(NoMapping) as te:
-                node_descriptor_calculator(ce, "ce_hypsicity")
+                chemical_equation_descriptor_calculator(ce, "ce_hypsicity")
             assert "NoMapping" in str(te.type)
         else:
-            delta = node_descriptor_calculator(ce, "ce_hypsicity")
+            delta = chemical_equation_descriptor_calculator(ce, "ce_hypsicity")
             assert delta == d["expected"]

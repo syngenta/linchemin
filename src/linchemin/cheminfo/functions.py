@@ -315,6 +315,11 @@ def is_mapped_molecule(rdmol):
         return True
 
 
+def compute_molecular_weigth(rdmol):
+    """To compute the molecular weigth of the input rdmol"""
+    return Descriptors.ExactMolWt(rdmol)
+
+
 ####################################################################################################
 # RDRXN
 def rdrxn_from_string(
@@ -602,11 +607,7 @@ def mapping_diagnosis(
     check_product_mapping(
         desired_product, chemical_equation.mapping.atom_transformations
     )
-    reactants = [
-        mol
-        for uid, mol in chemical_equation.catalog.items()
-        if uid in chemical_equation.role_map["reactants"]
-    ]
+    reactants = chemical_equation.get_reactants()
     if unmapped_fragments := check_reactants_mapping(reactants):
         return unmapped_fragments
 

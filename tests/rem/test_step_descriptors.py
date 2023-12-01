@@ -55,30 +55,39 @@ def test_atom_effectiveness():
         "step_effectiveness", syngraph, route_smiles[0]["output_string"]
     )
     assert round(out.descriptor_value, 2) == 0.92
-    assert out.additional_info["contributing_atoms"] == 12
+    contributing_atoms = 0
+    for atoms in out.additional_info["contributing_atoms"].values():
+        contributing_atoms += len(atoms)
+    assert contributing_atoms == 12
 
     out = step_descriptor_calculator(
         "step_effectiveness", syngraph, route_smiles[1]["output_string"]
     )
     assert round(out.descriptor_value, 2) == 0.96
-    assert out.additional_info["contributing_atoms"] == 24
+    contributing_atoms = 0
+    for atoms in out.additional_info["contributing_atoms"].values():
+        contributing_atoms += len(atoms)
+    assert contributing_atoms == 24
 
     out = step_descriptor_calculator(
         "step_effectiveness", syngraph, route_smiles[2]["output_string"]
     )
     assert round(out.descriptor_value, 2) == 0.97
-    assert out.additional_info["contributing_atoms"] == 34
+    contributing_atoms = 0
+    for atoms in out.additional_info["contributing_atoms"].values():
+        contributing_atoms += len(atoms)
+    assert contributing_atoms == 34
 
 
 def test_step_hypsicity():
     route_smiles = [
         {
             "query_id": 0,
-            "output_string": "[OH:2][c:3]1[cH:4][cH:5][cH:6][cH:7][cH:8]1>[Na+:1].[OH-]>[Na+:1].[O-:2][c:3]1[cH:4][cH:5][cH:6][cH:7][cH:8]1",
+            "output_string": "[OH:2][c:3]1[cH:4][cH:5][cH:6][cH:7][cH:8]1.[Na+:1]>[OH-]>[Na:1][O:2][c:3]1[cH:4][cH:5][cH:6][cH:7][cH:8]1",
         },
         {
             "query_id": 1,
-            "output_string": "Cl[CH2:4][C:2](=[O:1])[O-:3].[O-:5][c:6]1[cH:7][cH:8][cH:9][cH:10][cH:11]1>[Na+].[Na+]>[O:1]=[C:2]([OH:3])[CH2:4][O:5][c:6]1[cH:7][cH:8][cH:9][cH:10][cH:11]1",
+            "output_string": "Cl[CH2:4][C:2](=[O:1])[O-:3].[Na][O:5][c:6]1[cH:7][cH:8][cH:9][cH:10][cH:11]1>[Na+].[Na+]>[O:1]=[C:2]([OH:3])[CH2:4][O:5][c:6]1[cH:7][cH:8][cH:9][cH:10][cH:11]1",
         },
         {
             "query_id": 2,
@@ -90,6 +99,7 @@ def test_step_hypsicity():
         "step_hypsicity", syngraph, route_smiles[0]["output_string"]
     )
     assert out.descriptor_value == -4.0
+    assert out.additional_info["contributing_oxidation_numbers"] == [(-1, 1), (-1, 1)]
     out = step_descriptor_calculator(
         "step_hypsicity", syngraph, route_smiles[1]["output_string"]
     )
@@ -98,3 +108,43 @@ def test_step_hypsicity():
         "step_hypsicity", syngraph, route_smiles[2]["output_string"]
     )
     assert out.descriptor_value == -2.0
+    assert len(out.additional_info["contributing_oxidation_numbers"]) == 4
+
+
+def test_step_bond_efficiency():
+    route_smiles = [
+        {
+            "query_id": 0,
+            "output_string": "[OH:2][c:3]1[cH:4][cH:5][cH:6][cH:7][cH:8]1.[Na+:1]>[OH-]>[Na:1][O:2][c:3]1[cH:4][cH:5][cH:6][cH:7][cH:8]1",
+        },
+        {
+            "query_id": 1,
+            "output_string": "Cl[CH2:4][C:2](=[O:1])[O-:3].[O-:5][c:6]1[cH:7][cH:8][cH:9][cH:10][cH:11]1>[Na+].[Na+]>[O:1]=[C:2]([OH:3])[CH2:4][O:5][c:6]1[cH:7][cH:8][cH:9][cH:10][cH:11]1",
+        },
+        {
+            "query_id": 2,
+            "output_string": "Cl[Cl:10].Cl[Cl:13].[O:1]=[C:2]([OH:3])[CH2:4][O:5][c:6]1[cH:7][cH:8][cH:9][cH:11][cH:12]1>>[O:1]=[C:2]([OH:3])[CH2:4][O:5][c:6]1[cH:7][cH:8][c:9]([Cl:10])[cH:11][c:12]1[Cl:13]",
+        },
+        {
+            "query_id": 3,
+            "output_string": "[OH:3][C:2](=[O:1])[CH2:4][O:5][c:6]1[cH:7][cH:8][c:9]([Cl:10])[cH:11][c:12]1[Cl:13]>[H][H]>[OH:3][CH:2]([OH:1])[CH2:4][O:5][c:6]1[cH:7][cH:8][c:9]([Cl:10])[cH:11][c:12]1[Cl:13]",
+        },
+    ]
+    expected_results = {
+        0: {"value": 6, "n_bonds": 1},
+        1: {"value": 0, "n_bonds": 1},
+        2: {"value": 0, "n_bonds": 2},
+        3: {"value": -1, "n_bonds": 1},
+    }
+    syngraph = MonopartiteReacSynGraph(route_smiles)
+    for n, expected in expected_results.items():
+        out = step_descriptor_calculator(
+            "step_bond_efficiency", syngraph, route_smiles[n]["output_string"]
+        )
+        assert out.descriptor_value == expected["value"]
+        assert len(out.additional_info) == expected["n_bonds"]
+        if n == 0:
+            assert all(
+                "not present in the target" in d.values()
+                for d in out.additional_info.values()
+            )

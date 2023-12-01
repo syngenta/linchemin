@@ -92,11 +92,14 @@ class SynGraph(ABC):
         for parent, children in self:
             if not children:
                 # To take into account isolated nodes
-                tups.append((parent.uid, "x", 0))
+                tups.append(".".join([str(parent.uid), "x", "0"]))
             else:
-                tups.extend((parent.uid, ">", child.uid) for child in children)
-        sorted_tups = sorted(tups, key=lambda x: (x[0], x[-1]))
-        h = utilities.create_hash(str(frozenset(sorted_tups)))
+                tups.extend(
+                    ".".join([str(parent.uid), ">", str(child.uid)])
+                    for child in children
+                )
+        sorted_tups = sorted(tups)
+        h = utilities.create_hash(str(sorted_tups))
         if type(self) == BipartiteSynGraph:
             h = "".join(["BP", str(h)])
         elif type(self) == MonopartiteReacSynGraph:
@@ -234,17 +237,10 @@ class BipartiteSynGraph(SynGraph):
     ) -> None:
         """To build a BipartiteSynGraph instance from a list of ChemicalEquation objects"""
         for ch_equation in chemical_equations:
-            products = [
-                prod
-                for h, prod in ch_equation.catalog.items()
-                if h in ch_equation.role_map["products"]
-            ]
+            products = ch_equation.get_products()
+
             self.add_node((ch_equation, products))
-            reactants = [
-                reac
-                for h, reac in ch_equation.catalog.items()
-                if h in ch_equation.role_map["reactants"]
-            ]
+            reactants = ch_equation.get_reactants()
 
             for reactant in reactants:
                 self.add_node((reactant, [ch_equation]))
@@ -335,11 +331,7 @@ class BipartiteSynGraph(SynGraph):
                         r for r in reaction_roots if m.uid in r.role_map["products"]
                     )
                     nodes_to_remove = [m, ce_to_remove]
-                    reactants = [
-                        mol
-                        for h, mol in ce_to_remove.catalog.items()
-                        if h in ce_to_remove.role_map["reactants"]
-                    ]
+                    reactants = ce_to_remove.get_reactants()
                     nodes_to_remove.extend(reactants)
                     nodes_to_remove = self.find_dangling_sequence(
                         reactants, leaves, nodes_to_remove
@@ -353,11 +345,7 @@ class BipartiteSynGraph(SynGraph):
                 parent_ces = self.find_parent_node(intermediate)
                 nodes_to_remove.extend(parent_ces)
                 for parent in parent_ces:
-                    reactants = [
-                        mol
-                        for h, mol in parent.catalog.items()
-                        if h in parent.role_map["reactants"]
-                    ]
+                    reactants = parent.get_reactants()
                     nodes_to_remove.extend(reactants)
 
         else:
@@ -433,12 +421,7 @@ class MonopartiteReacSynGraph(SynGraph):
     def get_molecule_roots(self) -> list:
         """To get the list of Molecules roots in a MonopartiteReacSynGraph."""
         reaction_roots = self.get_roots()
-        mol_roots = {
-            m
-            for reaction in reaction_roots
-            for h, m in reaction.catalog.items()
-            if h in reaction.role_map["products"]
-        }
+        mol_roots = {m for reaction in reaction_roots for m in reaction.get_products()}
         return list(mol_roots)
 
     def get_molecule_leaves(self) -> list:
@@ -447,12 +430,8 @@ class MonopartiteReacSynGraph(SynGraph):
         all_products = set()
         unique_ces = self.get_unique_nodes()
         for ce in unique_ces:
-            all_reactants.update(
-                {mol for h, mol in ce.catalog.items() if h in ce.role_map["reactants"]}
-            )
-            all_products.update(
-                {mol for h, mol in ce.catalog.items() if h in ce.role_map["products"]}
-            )
+            all_reactants.update(set(ce.get_reactants()))
+            all_products.update(set(ce.get_products()))
 
         return [m for m in all_reactants if m not in all_products]
 
@@ -493,16 +472,9 @@ class MonopartiteMolSynGraph(SynGraph):
 
     def builder_from_reaction_list(self, chemical_equations: list):
         for ch_equation in chemical_equations:
-            products = [
-                prod
-                for h, prod in ch_equation.catalog.items()
-                if h in ch_equation.role_map["products"]
-            ]
-            reactants = [
-                reac
-                for h, reac in ch_equation.catalog.items()
-                if h in ch_equation.role_map["reactants"]
-            ]
+            products = ch_equation.get_products()
+            reactants = ch_equation.get_reactants()
+
             for reactant in reactants:
                 self.add_node((reactant, products))
         self.add_molecular_roots()

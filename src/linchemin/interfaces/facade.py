@@ -55,6 +55,7 @@ from linchemin.rem.route_descriptors import (
     find_duplicates,
     get_available_descriptors,
     is_subset,
+    get_configuration,
 )
 
 """
@@ -280,25 +281,25 @@ class RoutesDescriptorsFacade(Facade):
 
         if descriptors is None:
             descriptors = get_available_descriptors()
-            descriptors.pop("all_paths")
 
         exceptions = []
         checked_routes = [r for r in routes if r is not None]
         invalid_routes = len(routes) - len(checked_routes)
         output["route_id"] = [route.uid for route in checked_routes]
+        configuration: List = []
 
-        for m in descriptors:
+        for d in descriptors:
             try:
-                output[m] = [
-                    descriptor_calculator(route, m) for route in checked_routes
+                output[d] = [
+                    descriptor_calculator(route, d) for route in checked_routes
                 ]
-
+                configuration.append(get_configuration(d))
             except DescriptorError as ke:
                 exceptions.append(ke)
 
             except Exception as e:
                 exceptions.append(e)
-
+        output.configuration = configuration
         meta = {
             "descriptors": descriptors,
             "invalid_routes": invalid_routes,

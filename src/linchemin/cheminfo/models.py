@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Union
+from typing import Union, List
 
 import linchemin.cheminfo.functions as cif
 
@@ -276,7 +276,7 @@ class ChemicalEquation:
     def build_rdrxn(
         self, use_reagents: bool, use_atom_mapping=True
     ) -> cif.rdChemReactions.ChemicalReaction:
-        """To build an rdkit ChemicalReaction object from the ChemicalEquation instance"""
+        """To build a rdkit ChemicalReaction object from the ChemicalEquation instance"""
         return cif.build_rdrxn(
             catalog=self.catalog,
             role_map=self.role_map,
@@ -285,6 +285,24 @@ class ChemicalEquation:
             use_smiles=False,
             use_atom_mapping=use_atom_mapping,
         )
+
+    def get_reactants(self) -> List[Molecule]:
+        """To get the list of reactants"""
+        return [
+            mol for h, mol in self.catalog.items() if h in self.role_map["reactants"]
+        ]
+
+    def get_products(self) -> List[Molecule]:
+        """To get the list of products"""
+        return [
+            mol for h, mol in self.catalog.items() if h in self.role_map["products"]
+        ]
+
+    def get_reagents(self) -> List[Molecule]:
+        """To get the list of reagents"""
+        return [
+            mol for h, mol in self.catalog.items() if h in self.role_map["reagents"]
+        ]
 
 
 class Role(Enum):

@@ -97,7 +97,12 @@ class TranslationStep(WorkflowStep):
 
     info = "To translate routes"
 
-    casps = {"ibmrxn": "ibm_retro", "az": "az_retro", "askcos": "mit_retro"}
+    casps = {
+        "ibmrxn": "ibm_retro",
+        "az": "az_retro",
+        "askcos": "mit_retro",
+        "reaxys": "reaxys",
+    }
 
     def perform_step(self, params: dict, output: WorkflowOutput):
         print("Translating the routes in the input file to a list of SynGraph....")
@@ -130,7 +135,7 @@ class TranslationStep(WorkflowStep):
 
 class DescriptorsStep(WorkflowStep):
     """Handler handling the descriptors functionality of facade
-    If 'compute_descriptors' is in 'functionalities', the selected descriptors are copmuted and written to the file
+    If 'compute_descriptors' is in 'functionalities', the selected descriptors are computed and written to the file
     'descriptors.csv'
     """
 

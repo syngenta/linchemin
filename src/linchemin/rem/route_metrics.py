@@ -8,10 +8,11 @@ from linchemin.cgu.syngraph import (
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
 )
-from linchemin.cgu.syngraph_operations import find_path
+from linchemin.cgu.syngraph_operations import find_path, find_all_paths
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.route_descriptors import descriptor_calculator
 from linchemin.utilities import console_logger
+import linchemin.cheminfo.functions as cif
 
 """Module containing functions and classes for computing route metrics that depend on external information"""
 logger = console_logger(__name__)
@@ -123,6 +124,102 @@ class MetricsFactory:
         return metric()
 
 
+@MetricsFactory.register_metrics("starting_materials_amount")
+class StartingMaterialsAmount(RouteMetric):
+    """
+    Subclass to compute the amount of starting materials needed to produce a certain amount of target
+    The external data is expected to have the following format:
+    {'target_amount': n (gr),
+     'yield': {ChemicalEquation.smiles: yield (0 < y < 1}}
+    """
+
+    def compute_metric(
+        self,
+        route: Union[
+            BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
+        ],
+        external_info: dict,
+    ) -> MetricOutput:
+        """To compute the amount of starting materials needed to produce a certain amount of target"""
+        route = self.check_route_format(route)
+        output = MetricOutput()
+        root = route.get_molecule_roots()[0]
+        leaves = route.get_molecule_leaves()
+        target_amount_mol = self.get_target_amount_in_mol(
+            root, external_info["target_amount"]
+        )
+        all_paths = find_all_paths(route)
+        yields = external_info["yield"]
+        quantities = {"starting_materials": {}, "intermediates": {}}
+        for path in all_paths:
+            quantities = self.get_path_quantities(
+                path, yields, root, leaves, target_amount_mol, quantities
+            )
+
+        output.raw_data = quantities
+        return output
+
+    def get_path_quantities(
+        self,
+        path: list,
+        yields: dict,
+        root: Molecule,
+        leaves: list,
+        target_amount_mol: float,
+        quantities: dict,
+    ):
+        """To get the quantities of the reactants in the input path"""
+        while path:
+            step = path.pop(-1)
+            step_yield = yields[step.smiles]
+            reactants = step.get_reactants()
+            product = step.get_products()[0]
+            if product == root:
+                prod_amount = target_amount_mol
+            else:
+                prod_amount = quantities["intermediates"][product.smiles]
+            for reactant in reactants:
+                quantity = self.get_reactant_quantity(
+                    reactant, step, step_yield, prod_amount
+                )
+                if reactant in leaves:
+                    quantities["starting_materials"].update(quantity)
+                else:
+                    quantities["intermediates"].update(quantity)
+        return quantities
+
+    @staticmethod
+    def get_reactant_quantity(
+        reactant: Molecule,
+        step: ChemicalEquation,
+        step_yield: float,
+        prod_amount: float,
+    ) -> dict:
+        """To compute the needed amount of the input reactant"""
+        reactant_mw = cif.compute_molecular_weigth(reactant.rdmol)
+        stoich = step.stoichiometry_coefficients["reactants"][reactant.uid]
+        return {
+            reactant.smiles: round(prod_amount / stoich / step_yield * reactant_mw, 2)
+        }
+
+    @staticmethod
+    def check_route_format(
+        route: Union[
+            BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
+        ],
+    ) -> MonopartiteReacSynGraph:
+        """To ensure that the route is in the expected format"""
+        if isinstance(route, MonopartiteReacSynGraph):
+            return route
+        return converter(route, "monopartite_reactions")
+
+    @staticmethod
+    def get_target_amount_in_mol(target: Molecule, target_amount_gr: float) -> float:
+        """To get the required amount of target in moles"""
+        molecular_weight = cif.compute_molecular_weigth(target.rdmol)
+        return target_amount_gr / molecular_weight
+
+
 @MetricsFactory.register_metrics("reactant_availability")
 class ReactantAvailability(RouteMetric):
     """
@@ -138,6 +235,7 @@ class ReactantAvailability(RouteMetric):
         ],
         external_info: dict,
     ) -> MetricOutput:
+        """To compute the reactant availability metric"""
         route = self.check_route_format(route)
         starting_materials = route.get_leaves()
         data = self.fix_external_info_format(external_info)
@@ -200,6 +298,7 @@ class YieldMetric(RouteMetric):
         ],
         external_data: dict,
     ) -> MetricOutput:
+        """To compute the yield metric"""
         route = self.check_route_format(route)
         output = MetricOutput()
         distance_function = "longest_sequence"

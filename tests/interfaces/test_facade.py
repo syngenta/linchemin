@@ -10,8 +10,9 @@ from linchemin.interfaces.facade import facade, facade_helper
 from linchemin.cgu.translate import translator
 
 
+@unittest.mock.patch("linchemin.cgu.translate.ReaxysRT.to_iron")
 @unittest.mock.patch("linchemin.cgu.translate.ibm_dict_to_iron")
-def test_translate(mock_os, ibm2_path):
+def test_translate(mock_os, mock_reaxys, ibm2_path, reaxys_path):
     graph = json.loads(open(ibm2_path).read())
     output, metadata = facade("translate", input_format="ibm_retro", input_list=graph)
     mock_os.assert_called()
@@ -35,6 +36,16 @@ def test_translate(mock_os, ibm2_path):
         "While translating from IBM", cm.records[0].getMessage()
     )
 
+    routes = json.loads(open(reaxys_path).read())
+
+    facade(
+        "translate",
+        input_format="reaxys",
+        input_list=routes,
+        out_data_model="monopartite_reactions",
+    )
+    mock_reaxys.assert_called()
+
 
 @unittest.mock.patch("linchemin.rem.route_descriptors.NrBranches.compute_descriptor")
 @unittest.mock.patch(
@@ -55,6 +66,10 @@ def test_metrics(mock_n_steps, mock_branch, ibm2_path):
     assert type(descriptors) == pd.DataFrame
     for n in [5, 6, 7]:
         assert n in descriptors["nr_steps"]
+    assert descriptors.configuration
+    assert isinstance(descriptors.configuration, list)
+    # the number of configurations is equal to the number of columns in the df, excluding the column of the route id
+    assert len(descriptors.configuration) == len(descriptors.columns) - 1
 
     n_steps, meta = facade("routes_descriptors", routes, descriptors=["nr_steps"])
     mock_n_steps.assert_called()

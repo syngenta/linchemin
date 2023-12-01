@@ -8,6 +8,7 @@ from linchemin.cgu.syngraph import (
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
 )
+
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 
@@ -349,6 +350,46 @@ def find_path(
         if node not in path:
             if newpath := find_path(route, node, root, path):
                 return newpath
+
+
+def find_all_paths(
+    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph],
+) -> List[list]:
+    """
+    To identify all linear paths in a syngraph
+
+    Parameters:
+    -----------
+    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
+        The syngraph object for which all the linear paths should be searched
+
+    Returns:
+    --------
+    all_paths: List[list]
+        The list of linear paths identified
+
+    Raises:
+    --------
+    TypeError: if the input graph is not a syngraph object
+    """
+    if not isinstance(
+        syngraph, (MonopartiteMolSynGraph, BipartiteSynGraph, MonopartiteReacSynGraph)
+    ):
+        logger.error(
+            f"{type(syngraph)} is not supported. Only Syngraph objects are accepted."
+        )
+        raise TypeError
+
+    root = syngraph.get_roots()
+    leaves = syngraph.get_leaves()
+    all_paths = []
+    for leaf in leaves:
+        path = find_path(syngraph, leaf, root[0])
+        reaction_path = [step for step in path if isinstance(step, ChemicalEquation)]
+        if reaction_path not in all_paths:
+            all_paths.append(reaction_path)
+
+    return all_paths
 
 
 def build_list_of_reactions(syngraph):

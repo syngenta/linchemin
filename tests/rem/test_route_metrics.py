@@ -9,6 +9,7 @@ from linchemin.cheminfo.models import Molecule
 from linchemin.rem.route_metrics import (
     distance_function_calculator,
     route_metric_calculator,
+    StartingMaterialsAmount,
 )
 
 # route from the test file of askcos
@@ -35,11 +36,13 @@ d = [
 def test_basic_factory():
     route = MonopartiteReacSynGraph()
     external_data = {}
+    # if an unavailable metric is chosen, a KeyError is raised
     with pytest.raises(KeyError) as ke:
         route_metric_calculator("wrong_metric", route, external_data)
     assert "KeyError" in str(ke.type)
+    # if the provided route is of the wrong type, a TypeError is raised
     with pytest.raises(TypeError) as ke:
-        route_metric_calculator("wrong_metric", [], external_data)
+        route_metric_calculator("reactant_availability", [], external_data)
     assert "TypeError" in str(ke.type)
 
 
@@ -47,6 +50,7 @@ def test_distance_strategy():
     route = BipartiteSynGraph()
     node = Molecule()
     root = Molecule()
+    # if an unavailable distance function is chosen, a KeyError is raised
     with pytest.raises(KeyError) as ke:
         distance_function_calculator("wrong_function", route, node, root)
     assert "KeyError" in str(ke.type)
@@ -136,3 +140,27 @@ def test_yield_score():
     output_mb = route_metric_calculator("yield", syngraph, external_data)
     assert output_mb.metric_value == 0.44
     assert output_mg.metric_value > output_mb.metric_value
+
+
+def test_starting_materials_amount():
+    syngraph = MonopartiteReacSynGraph(d)
+    external_info = {
+        "target_amount": 319.15320615199994,  # 1 mol
+        "yield": {item["output_string"]: 0.5 for item in d},
+    }
+    sm_amount = StartingMaterialsAmount()
+    out = sm_amount.compute_metric(syngraph, external_info)
+    assert out.raw_data
+    assert out.raw_data == {
+        "intermediates": {
+            "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 554.29,
+            "O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1": 344085898.74,
+            "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 451356.26,
+        },
+        "starting_materials": {
+            "CC(=O)O": 120.04,
+            "Nc1ccc(N2CCOCC2)cc1": 122570700745.27,
+            "O=C(n1ccnc1)n1ccnc1": 146288319.88,
+            "O=C1c2ccccc2C(=O)N1CC1CO1": 139738956180.29,
+        },
+    }
