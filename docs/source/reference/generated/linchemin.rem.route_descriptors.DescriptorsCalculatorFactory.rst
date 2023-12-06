@@ -14,7 +14,9 @@
    .. autosummary::
    
       ~DescriptorsCalculatorFactory.__init__
-      ~DescriptorsCalculatorFactory.select_route_descriptor
+      ~DescriptorsCalculatorFactory.compute_route_descriptor
+      ~DescriptorsCalculatorFactory.get_descriptor_configuration
+      ~DescriptorsCalculatorFactory.get_descriptor_instance
    
    
 
