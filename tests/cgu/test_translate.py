@@ -546,12 +546,12 @@ def test_sparrow_to_iron():
             "Reactions": [
                 {
                     "smiles": "CC(=O)Cl.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
-                    "condition": ["CCN(CC)CC", "[Na+].[OH-]"],
+                    "conditions": ["CCN(CC)CC", "[Na+].[OH-]"],
                     "score": 0.24807077478828643,
                 },
                 {
                     "smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
-                    "condition": [],
+                    "conditions": [],
                     "score": 0.9898093781319756,
                 },
                 {"smiles": ">>CC(=O)Cl", "starting material cost ($/g)": 0.8},

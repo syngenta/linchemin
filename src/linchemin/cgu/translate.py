@@ -957,7 +957,7 @@ class Sparrow(Graph):
         ]
         iron = Iron()
         for n, reaction in enumerate(reactions):
-            if reaction["condition"]:
+            if reaction["conditions"]:
                 reaction_smiles = self.handle_reagents(reaction)
             else:
                 reaction_smiles = reaction["smiles"]
@@ -972,7 +972,7 @@ class Sparrow(Graph):
     def handle_reagents(reaction: dict) -> str:
         """To add reagents to the reaction smiles"""
         reactants_products = reaction["smiles"].split(">>")
-        reagents = reaction["condition"]
+        reagents = reaction["conditions"]
         return (
             reactants_products[0]
             + ">"
@@ -1009,7 +1009,7 @@ class Sparrow(Graph):
             "smiles": node.properties["node_unmapped_smiles"],
             "parents": self.get_molecules(chemical_equation, "reactants"),
             "children": self.get_molecules(chemical_equation, "products"),
-            "condition": self.get_molecules(chemical_equation, "reagents"),
+            "conditions": self.get_molecules(chemical_equation, "reagents"),
         }
         return reaction
 
