@@ -157,7 +157,7 @@ class Branchedness(RouteDescriptor):
     )
     title = "Branchedness"
     type = "number"
-    fields = ["nr_branches"]
+    fields = ["branchedness"]
 
     def compute_descriptor(
         self,
