@@ -15,12 +15,31 @@ Translate
 
 
     translator
-    Graph
-    Graph.from_iron
-    Graph.to_iron
-    DataModelFactory
-    DataModelFactory.iron_to_syngraph
-    DataModelFactory.syngraph_to_iron
+
+
+Format Translators
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. automodule:: linchemin.cgu.graph_transformations.format_translators
+.. autosummary::
+    :toctree: generated
+
+    GraphFormatTranslator
+    GraphFormatTranslator.to_iron
+    GraphFormatTranslator.from_iron
+    GraphFormatCatalog
+
+
+Data Model Converters
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. automodule:: linchemin.cgu.graph_transformations.data_model_converters
+.. autosummary::
+    :toctree: generated
+
+    DataModelConverter
+    DataModelConverter.syngraph_to_iron
+    DataModelConverter.iron_to_syngraph
+    DataModelCatalog
+
 
 Iron
 ^^^^^

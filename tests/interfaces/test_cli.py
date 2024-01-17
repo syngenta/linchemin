@@ -1,5 +1,4 @@
 import os
-import unittest.mock
 
 
 def test_cli_basic(capfd, cli):

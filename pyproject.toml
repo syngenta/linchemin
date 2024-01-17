@@ -59,6 +59,7 @@ dev = [
         "pytest-cov",
         "pytest",
         "sphinx",
+        "pytest-mock"
 ]
 
 [project.urls]

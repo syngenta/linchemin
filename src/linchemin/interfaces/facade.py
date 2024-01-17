@@ -24,12 +24,12 @@ from linchemin.cgu.syngraph_operations import (
     remove_reaction_from_syngraph,
 )
 from linchemin.cgu.translate import (
-    TranslationError,
     get_available_data_models,
     get_input_formats,
     get_output_formats,
     translator,
 )
+from linchemin.cgu.graph_transformations.exceptions import TranslationError
 from linchemin.cheminfo.atom_mapping import (
     get_available_mappers,
     perform_atom_mapping,
