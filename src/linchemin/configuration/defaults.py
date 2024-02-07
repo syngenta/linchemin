@@ -114,7 +114,7 @@ DEFAULT_CONSTRUCTORS = {
     "chemical_equation_identity_name": "r_p",
     "pattern_identity_property_name": "smarts",
     "template_identity_property": "r_p",
-    "molecular_hash_list": ["inchi_key", "inchikey_KET_15T"],
+    "molecular_hash_list": ["inchi_key", "inchikey_KET_15T", "cx_smiles"],
     "desired_product": None,
 }
 

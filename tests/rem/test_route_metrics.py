@@ -151,25 +151,21 @@ def test_starting_materials_amount():
     sm_amount = StartingMaterialsAmount()
     out = sm_amount.compute_metric(syngraph, external_info)
     assert out.raw_data
-    assert out.raw_data == {
-        "quantities": {
-            "intermediates": {
-                "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": {"grams": 554.285, "moles": 2.0},
-                "O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1": {
-                    "grams": 3049.351,
-                    "moles": 8.0,
-                },
-                "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": {
-                    "grams": 1628.592,
-                    "moles": 4.0,
-                },
-            },
-            "starting_materials": {
-                "CC(=O)O": {"grams": 120.042, "moles": 2.0},
-                "Nc1ccc(N2CCOCC2)cc1": {"grams": 2849.77, "moles": 16.0},
-                "O=C(n1ccnc1)n1ccnc1": {"grams": 1296.433, "moles": 8.0},
-                "O=C1c2ccccc2C(=O)N1CC1CO1": {"grams": 3248.932, "moles": 16.0},
-            },
+    assert out.raw_data["quantities"]["intermediates"] == {
+        "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": {"grams": 554.285, "moles": 2.0},
+        "O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1": {
+            "grams": 3049.351,
+            "moles": 8.0,
         },
-        "target_amount": {"grams": 319.15320615199994, "moles": 1.0},
+        "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": {
+            "grams": 1628.592,
+            "moles": 4.0,
+        },
     }
+    assert out.raw_data["quantities"]["starting_materials"] == {
+        "CC(=O)O": {"grams": 120.042, "moles": 2.0},
+        "Nc1ccc(N2CCOCC2)cc1": {"grams": 2849.77, "moles": 16.0},
+        "O=C(n1ccnc1)n1ccnc1": {"grams": 1296.433, "moles": 8.0},
+        "O=C1c2ccccc2C(=O)N1CC1CO1": {"grams": 3248.932, "moles": 16.0},
+    }
+    assert out.raw_data["target_amount"] == {"grams": 319.15320615199994, "moles": 1.0}

@@ -45,7 +45,7 @@ dependencies = [
         "pyyaml",
         "requests",
         "rdchiral",
-        "rdkit>=2022.3",
+        "rdkit>=2023.9",
         "scikit-learn",
 ]
 

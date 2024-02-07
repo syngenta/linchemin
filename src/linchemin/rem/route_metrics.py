@@ -159,7 +159,7 @@ class StartingMaterialsAmount(RouteMetric):
         output.raw_data["quantities"] = quantities
         output.raw_data["target_amount"] = {
             "grams": external_info["target_amount"],
-            "moles": target_amount_mol,
+            "moles": round(target_amount_mol, 3),
         }
         return output
 
@@ -189,12 +189,22 @@ class StartingMaterialsAmount(RouteMetric):
                 smiles = reactant.smiles
                 if reactant in leaves:
                     quantities["starting_materials"].update(
-                        {smiles: {"moles": amount_in_moles, "grams": amount_in_grams}}
+                        {
+                            smiles: {
+                                "moles": round(amount_in_moles, 3),
+                                "grams": amount_in_grams,
+                            }
+                        }
                     )
 
                 else:
                     quantities["intermediates"].update(
-                        {smiles: {"moles": amount_in_moles, "grams": amount_in_grams}}
+                        {
+                            smiles: {
+                                "moles": round(amount_in_moles, 3),
+                                "grams": amount_in_grams,
+                            }
+                        }
                     )
         return quantities
 
@@ -209,7 +219,7 @@ class StartingMaterialsAmount(RouteMetric):
         reactant_mw = cif.compute_molecular_weigth(reactant.rdmol)
         stoich = step.stoichiometry_coefficients["reactants"][reactant.uid]
         amount_in_moles = prod_amount / stoich / step_yield
-        return amount_in_moles, round(amount_in_moles * reactant_mw, 3)
+        return round(amount_in_moles, 3), round(amount_in_moles * reactant_mw, 3)
 
     @staticmethod
     def check_route_format(

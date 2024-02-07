@@ -12,8 +12,10 @@ from linchemin.cheminfo.constructors import (
     PatternConstructor,
     RatamConstructor,
     TemplateConstructor,
+)
+from linchemin.cheminfo.chemical_hashes import (
+    calculate_molecular_hash_map,
     UnavailableMolIdentifier,
-    calculate_molecular_hash_values,
 )
 from linchemin.cheminfo.models import Template
 from linchemin.utilities import create_hash
@@ -26,7 +28,7 @@ def test_molecular_constructor():
         MoleculeConstructor(molecular_identity_property_name="something")
     assert "UnavailableMolIdentifier" in str(ke.type)
     with unittest.TestCase().assertLogs(
-        "linchemin.cheminfo.constructors", level="WARNING"
+        "linchemin.cheminfo.chemical_hashes", level="WARNING"
     ):
         molecule_constructor = MoleculeConstructor(
             molecular_identity_property_name="smiles", hash_list=["something"]
@@ -91,6 +93,7 @@ def test_molecule_equality():
     d1 = {a.GetIdx(): [a.GetSymbol()] for a in mol1.GetAtoms()}
     d2 = {a.GetIdx(): [a.GetSymbol()] for a in mol2.GetAtoms()}
     assert d1 == d2
+    assert ms1.get(14) == ms1.get(15)
 
     # initialize the constructor to use inchi_key as identity property
     molecule_constructor = MoleculeConstructor(
@@ -114,871 +117,98 @@ def test_molecule_equality():
     assert ms2.get(10) == ms2.get(11)  # same molecule, but different atom mapping
 
 
-def test_molecular_hashing():
-    examples = [
-        {"name": "ra1", "smiles": "Cc1ccc2c(C(=O)c3cccc4ccccc34)cn(CCN3CCOCC3)c2c1"},
-        {"name": "ra2", "smiles": "Cc1ccc2c(C(=O)c3cccc4ccccc34)cn(CCN3CCOCC3)c2c1"},
-        {"name": "ra3", "smiles": "CCCCCn1cc(C(=O)c2cccc3ccccc23)c2ccccc21"},
-        {"name": "ra4", "smiles": "CC1COCCN1CCn1cc(C(=O)c2cccc3ccccc23)c2ccccc21"},
-        {"name": "ra5", "smiles": "Cc1ccc(C(=O)c2cn(CCN3CCOCC3)c3ccccc23)c2ccccc12"},
-        {"name": "ra6", "smiles": "Cc1c(CCN2CCOCC2)c2ccccc2n1C(=O)c1cccc2ccccc12"},
-        {"name": "ra7", "smiles": "CN1CCN(C)C(Cn2cc(C(=O)c3cccc4ccccc34)c3ccccc32)C1"},
-        {"name": "ma1", "smiles": "CCC1CC(C(=O)c2cccc(C)c2)CCC1=O"},
-        {"name": "ma2", "smiles": "CCC1CC(C(=O)c2ccccc2)CCC1=O"},
-        {"name": "ma3", "smiles": "C=C(C)C(c1ccccc1)S(=O)CC(N)=O"},
-        {"name": "ma4", "smiles": "Cc1cccc(C(C2CCC(N)CC2)C(F)(F)F)c1"},
-        {"name": "ma5", "smiles": "CNC1CCC(c2ccc(Cl)c(Cl)c2)c2ccccc21"},
-        {"name": "ma6", "smiles": "CCCOC(c1ccc(Cl)cc1)C1CCCCC1"},
-        {"name": "ta1", "smiles": "OC1=NCCC1"},
-        {"name": "ta2", "smiles": "O=C1CCCN1"},
-        {"name": "sa1", "smiles": "CC[C@@H](C)[C@H](O)Cl"},
-        {"name": "sa2", "smiles": "CC[C@@H](C)[C@@H](O)Cl"},
-        {"name": "sa3", "smiles": "CC[C@@H](C)C(O)Cl"},
-        {"name": "sa4", "smiles": "CC[C@H](C)[C@H](O)Cl"},
-        {"name": "sa5", "smiles": "CC[C@H](C)[C@@H](O)Cl"},
-        {"name": "sa6", "smiles": "CC[C@H](C)C(O)Cl"},
-        {"name": "sa7", "smiles": "CCC(C)[C@H](O)Cl"},
-        {"name": "sa8", "smiles": "CCC(C)[C@@H](O)Cl"},
-        {"name": "sa9", "smiles": "CCC(C)C(O)Cl"},
-        {"name": "tb1", "smiles": r"C/N=C(\C)C1C(=O)CCC(C)C1=O"},
-        {"name": "tb2", "smiles": r"C/N=C(\C)C1=C(O)CCC(C)C1=O"},
-        {"name": "tb3", "smiles": r"C/N=C(\C)C1=C(O)C(C)CCC1=O"},
-        {"name": "tc1", "smiles": "CC(=O)C1=C(O)C(C)CCC1=O"},
-        {"name": "tc2", "smiles": "CC(=O)C1C(=O)CCC(C)C1=O"},
-        {"name": "tc3", "smiles": "CC(=O)C1=C(O)CCC(C)C1=O"},
-        {"name": "tc4", "smiles": r"C/C(O)=C1\C(=O)CCC(C)C1=O"},
-    ]
+def test_molecule_from_molblocl():
+    smiles = "C[C@H](Cl)[C@H](F)C |&1:2,3|"
+    rdmol = cif.Chem.MolFromSmiles(smiles)
+    block = cif.Chem.MolToMolBlock(rdmol)
+    # if the selected molecular identity property is smiles,
+    # absolute stereochemistry info does not participate in the identity of the Molecule object
+    mol_constructor = MoleculeConstructor("smiles")
+    molecule = mol_constructor.build_from_molecule_string(block, "mol_block")
+    molecule_from_smiles = mol_constructor.build_from_molecule_string(smiles, "smiles")
+    assert molecule == molecule_from_smiles
 
-    reference = {
-        "ma1": {
-            "AnonymousGraph": "***1**(*(*)*2****(*)*2)***1*",
-            "ArthorSubstructureOrder": "001200130100100002000070000000",
-            "AtomBondCounts": "18,19",
-            "CanonicalSmiles": "CCC1CC(C(=O)c2cccc(C)c2)CCC1=O",
-            "DegreeVector": "0,6,8,4",
-            "ElementGraph": "CCC1CC(C(O)C2CCCC(C)C2)CCC1O",
-            "ExtendedMurcko": "*c1cccc(C(=*)C2CCC(=*)C(*)C2)c1",
-            "HetAtomProtomer": "CCC1CC([C]([O])[C]2[CH][CH][CH][C](C)[CH]2)CC[C]1[O]_0",
-            "HetAtomTautomer": "CCC1CC([C]([O])[C]2[CH][CH][CH][C](C)[CH]2)CC[C]1[O]_0_0",
-            "Mesomer": "CCC1CC([C]([O])[C]2[CH][CH][CH][C](C)[CH]2)CC[C]1[O]_0",
-            "MolFormula": "C16H20O2",
-            "MurckoScaffold": "c1ccc(CC2CCCCC2)cc1",
-            "NetCharge": "0",
-            "RedoxPair": "CCC1CC([C]([O])[C]2[CH][CH][CH][C](C)[CH]2)CC[C]1[O]",
-            "Regioisomer": "*C.*C(*)=O.*CC.O=C1CCCCC1.c1ccccc1",
-            "SmallWorldIndexBR": "B19R2",
-            "SmallWorldIndexBRL": "B19R2L8",
-            "cx_smiles": "CCC1CC(C(=O)c2cccc(C)c2)CCC1=O",
-            "inchi": "InChI=1S/C16H20O2/c1-3-12-10-14(7-8-15(12)17)16(18)13-6-4-5-11(2)9-13/h4-6,9,12,14H,3,7-8,10H2,1-2H3",
-            "inchi_KET_15T": "InChI=1/C16H20O2/c1-3-12-10-14(7-8-15(12)17)16(18)13-6-4-5-11(2)9-13/h4-6,9H,3,7,10H2,1-2H3,(H,14,18)(H3,8,12,17)",
-            "inchi_key": "MQEBHHFSYXQNPF-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "WFPNUSIRQPGLBS-UHFFFAOYNA-N",
-            "noiso_smiles": "CCC1CC(C(=O)c2cccc(C)c2)CCC1=O",
-            "smiles": "CCC1CC(C(=O)c2cccc(C)c2)CCC1=O",
-        },
-        "ma2": {
-            "AnonymousGraph": "***1**(*(*)*2*****2)***1*",
-            "ArthorSubstructureOrder": "0011001201000f000200006a000000",
-            "AtomBondCounts": "17,18",
-            "CanonicalSmiles": "CCC1CC(C(=O)c2ccccc2)CCC1=O",
-            "DegreeVector": "0,5,9,3",
-            "ElementGraph": "CCC1CC(C(O)C2CCCCC2)CCC1O",
-            "ExtendedMurcko": "*C1CC(C(=*)c2ccccc2)CCC1=*",
-            "HetAtomProtomer": "CCC1CC([C]([O])[C]2[CH][CH][CH][CH][CH]2)CC[C]1[O]_0",
-            "HetAtomTautomer": "CCC1CC([C]([O])[C]2[CH][CH][CH][CH][CH]2)CC[C]1[O]_0_0",
-            "Mesomer": "CCC1CC([C]([O])[C]2[CH][CH][CH][CH][CH]2)CC[C]1[O]_0",
-            "MolFormula": "C15H18O2",
-            "MurckoScaffold": "c1ccc(CC2CCCCC2)cc1",
-            "NetCharge": "0",
-            "RedoxPair": "CCC1CC([C]([O])[C]2[CH][CH][CH][CH][CH]2)CC[C]1[O]",
-            "Regioisomer": "*C(*)=O.*CC.O=C1CCCCC1.c1ccccc1",
-            "SmallWorldIndexBR": "B18R2",
-            "SmallWorldIndexBRL": "B18R2L9",
-            "cx_smiles": "CCC1CC(C(=O)c2ccccc2)CCC1=O",
-            "inchi": "InChI=1S/C15H18O2/c1-2-11-10-13(8-9-14(11)16)15(17)12-6-4-3-5-7-12/h3-7,11,13H,2,8-10H2,1H3",
-            "inchi_KET_15T": "InChI=1/C15H18O2/c1-2-11-10-13(8-9-14(11)16)15(17)12-6-4-3-5-7-12/h3-7H,2,8,10H2,1H3,(H,13,17)(H3,9,11,16)",
-            "inchi_key": "NGWXTRJFWAYHFL-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "NEMNUJJNBNORAW-UHFFFAOYNA-N",
-            "noiso_smiles": "CCC1CC(C(=O)c2ccccc2)CCC1=O",
-            "smiles": "CCC1CC(C(=O)c2ccccc2)CCC1=O",
-        },
-        "ma3": {
-            "AnonymousGraph": "**(*)**(*)*(*(*)*)*1*****1",
-            "ArthorSubstructureOrder": "0010001001000c000400006f000000",
-            "AtomBondCounts": "16,16",
-            "CanonicalSmiles": "C=C(C)C(c1ccccc1)S(=O)CC(N)=O",
-            "DegreeVector": "0,5,6,5",
-            "ElementGraph": "CC(C)C(C1CCCCC1)[S](O)CC(N)O",
-            "ExtendedMurcko": "*c1ccccc1",
-            "HetAtomProtomer": "C=C(C)C([C]1[CH][CH][CH][CH][CH]1)[S]([O])C[C]([N])[O]_2",
-            "HetAtomTautomer": "C=C(C)C([C]1[CH][CH][CH][CH][CH]1)[S]([O])C[C]([N])[O]_2_0",
-            "Mesomer": "[CH2][C](C)C([C]1[CH][CH][CH][CH][CH]1)[S]([O])C[C](N)[O]_0",
-            "MolFormula": "C12H15NO2S",
-            "MurckoScaffold": "c1ccccc1",
-            "NetCharge": "0",
-            "RedoxPair": "[CH2][C](C)C([C]1[CH][CH][CH][CH][CH]1)[S]([O])C[C](N)[O]",
-            "Regioisomer": "*CC(=C)C.*S(*)=O.CC(N)=O.c1ccccc1",
-            "SmallWorldIndexBR": "B16R1",
-            "SmallWorldIndexBRL": "B16R1L6",
-            "cx_smiles": "C=C(C)C(c1ccccc1)S(=O)CC(N)=O",
-            "inchi": "InChI=1S/C12H15NO2S/c1-9(2)12(16(15)8-11(13)14)10-6-4-3-5-7-10/h3-7,12H,1,8H2,2H3,(H2,13,14)",
-            "inchi_KET_15T": "InChI=1/C12H15NO2S/c1-9(2)12(16(15)8-11(13)14)10-6-4-3-5-7-10/h3-7,12H,1H2,2H3,(H4,8,13,14)",
-            "inchi_key": "ZFCHMUVIJDAZSM-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "DIAQTYFBHNUKSP-UHFFFAOYNA-N",
-            "noiso_smiles": "C=C(C)C(c1ccccc1)S(=O)CC(N)=O",
-            "smiles": "C=C(C)C(c1ccccc1)S(=O)CC(N)=O",
-        },
-        "ma4": {
-            "AnonymousGraph": "**1***(*(*2****(*)*2)*(*)(*)*)**1",
-            "ArthorSubstructureOrder": "0013001401000f000400007c000000",
-            "AtomBondCounts": "19,20",
-            "CanonicalSmiles": "Cc1cccc(C(C2CCC(N)CC2)C(F)(F)F)c1",
-            "DegreeVector": "1,5,8,5",
-            "ElementGraph": "CC1CCCC(C(C2CCC(N)CC2)C(F)(F)F)C1",
-            "ExtendedMurcko": "*c1cccc(C(*)C2CCC(*)CC2)c1",
-            "HetAtomProtomer": "C[C]1[CH][CH][CH][C](C(C2CCC([N])CC2)C(F)(F)F)[CH]1_2",
-            "HetAtomTautomer": "C[C]1[CH][CH][CH][C](C(C2CCC([N])CC2)C(F)(F)F)[CH]1_2_0",
-            "Mesomer": "C[C]1[CH][CH][CH][C](C(C2CCC(N)CC2)C(F)(F)F)[CH]1_0",
-            "MolFormula": "C15H20F3N",
-            "MurckoScaffold": "c1ccc(CC2CCCCC2)cc1",
-            "NetCharge": "0",
-            "RedoxPair": "C[C]1[CH][CH][CH][C](C(C2CCC(N)CC2)C(F)(F)F)[CH]1",
-            "Regioisomer": "*C.*C(*)C.*F.*F.*F.*N.C1CCCCC1.c1ccccc1",
-            "SmallWorldIndexBR": "B20R2",
-            "SmallWorldIndexBRL": "B20R2L8",
-            "cx_smiles": "Cc1cccc(C(C2CCC(N)CC2)C(F)(F)F)c1",
-            "inchi": "InChI=1S/C15H20F3N/c1-10-3-2-4-12(9-10)14(15(16,17)18)11-5-7-13(19)8-6-11/h2-4,9,11,13-14H,5-8,19H2,1H3",
-            "inchi_KET_15T": "InChI=1/C15H20F3N/c1-10-3-2-4-12(9-10)14(15(16,17)18)11-5-7-13(19)8-6-11/h2-4,9,11,13-14H,5-8,19H2,1H3",
-            "inchi_key": "JHNUJAVMAYMRLC-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "JHNUJAVMAYMRLC-UHFFFAOYNA-N",
-            "noiso_smiles": "Cc1cccc(C(C2CCC(N)CC2)C(F)(F)F)c1",
-            "smiles": "Cc1cccc(C(C2CCC(N)CC2)C(F)(F)F)c1",
-        },
-        "ma5": {
-            "AnonymousGraph": "***1***(*2***(*)*(*)*2)*2*****12",
-            "ArthorSubstructureOrder": "00140016010011000300008f000000",
-            "AtomBondCounts": "20,22",
-            "CanonicalSmiles": "CNC1CCC(c2ccc(Cl)c(Cl)c2)c2ccccc21",
-            "DegreeVector": "0,7,10,3",
-            "ElementGraph": "CNC1CCC(C2CCC(Cl)C(Cl)C2)C2CCCCC12",
-            "ExtendedMurcko": "*c1ccc(C2CCC(*)c3ccccc32)cc1*",
-            "HetAtomProtomer": "C[N]C1CCC([C]2[CH][CH][C](Cl)[C](Cl)[CH]2)[C]2[CH][CH][CH][CH][C]21_1",
-            "HetAtomTautomer": "C[N]C1CCC([C]2[CH][CH][C](Cl)[C](Cl)[CH]2)[C]2[CH][CH][CH][CH][C]21_1_0",
-            "Mesomer": "CNC1CCC([C]2[CH][CH][C](Cl)[C](Cl)[CH]2)[C]2[CH][CH][CH][CH][C]21_0",
-            "MolFormula": "C17H17Cl2N",
-            "MurckoScaffold": "c1ccc(C2CCCc3ccccc32)cc1",
-            "NetCharge": "0",
-            "RedoxPair": "CNC1CCC([C]2[CH][CH][C](Cl)[C](Cl)[CH]2)[C]2[CH][CH][CH][CH][C]21",
-            "Regioisomer": "*Cl.*Cl.*N*.C.c1ccc2c(c1)CCCC2.c1ccccc1",
-            "SmallWorldIndexBR": "B22R3",
-            "SmallWorldIndexBRL": "B22R3L10",
-            "cx_smiles": "CNC1CCC(c2ccc(Cl)c(Cl)c2)c2ccccc21",
-            "inchi": "InChI=1S/C17H17Cl2N/c1-20-17-9-7-12(13-4-2-3-5-14(13)17)11-6-8-15(18)16(19)10-11/h2-6,8,10,12,17,20H,7,9H2,1H3",
-            "inchi_KET_15T": "InChI=1/C17H17Cl2N/c1-20-17-9-7-12(13-4-2-3-5-14(13)17)11-6-8-15(18)16(19)10-11/h2-6,8,10,12,17,20H,7,9H2,1H3",
-            "inchi_key": "VGKDLMBJGBXTGI-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "VGKDLMBJGBXTGI-UHFFFAOYNA-N",
-            "noiso_smiles": "CNC1CCC(c2ccc(Cl)c(Cl)c2)c2ccccc21",
-            "smiles": "CNC1CCC(c2ccc(Cl)c(Cl)c2)c2ccccc21",
-        },
-        "ma6": {
-            "AnonymousGraph": "*****(*1*****1)*1***(*)**1",
-            "ArthorSubstructureOrder": "001200130100100002000079000000",
-            "AtomBondCounts": "18,19",
-            "CanonicalSmiles": "CCCOC(c1ccc(Cl)cc1)C1CCCCC1",
-            "DegreeVector": "0,4,12,2",
-            "ElementGraph": "CCCOC(C1CCCCC1)C1CCC(Cl)CC1",
-            "ExtendedMurcko": "*c1ccc(C(*)C2CCCCC2)cc1",
-            "HetAtomProtomer": "CCCOC([C]1[CH][CH][C](Cl)[CH][CH]1)C1CCCCC1_0",
-            "HetAtomTautomer": "CCCOC([C]1[CH][CH][C](Cl)[CH][CH]1)C1CCCCC1_0_0",
-            "Mesomer": "CCCOC([C]1[CH][CH][C](Cl)[CH][CH]1)C1CCCCC1_0",
-            "MolFormula": "C16H23ClO",
-            "MurckoScaffold": "c1ccc(CC2CCCCC2)cc1",
-            "NetCharge": "0",
-            "RedoxPair": "CCCOC([C]1[CH][CH][C](Cl)[CH][CH]1)C1CCCCC1",
-            "Regioisomer": "*C*.*Cl.*O*.C1CCCCC1.CCC.c1ccccc1",
-            "SmallWorldIndexBR": "B19R2",
-            "SmallWorldIndexBRL": "B19R2L12",
-            "cx_smiles": "CCCOC(c1ccc(Cl)cc1)C1CCCCC1",
-            "inchi": "InChI=1S/C16H23ClO/c1-2-12-18-16(13-6-4-3-5-7-13)14-8-10-15(17)11-9-14/h8-11,13,16H,2-7,12H2,1H3",
-            "inchi_KET_15T": "InChI=1/C16H23ClO/c1-2-12-18-16(13-6-4-3-5-7-13)14-8-10-15(17)11-9-14/h8-11,13,16H,2-7,12H2,1H3",
-            "inchi_key": "IJTNMUAWUDRFON-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "IJTNMUAWUDRFON-UHFFFAOYNA-N",
-            "noiso_smiles": "CCCOC(c1ccc(Cl)cc1)C1CCCCC1",
-            "smiles": "CCCOC(c1ccc(Cl)cc1)C1CCCCC1",
-        },
-        "ra1": {
-            "AnonymousGraph": "**(*1****2*****12)*1**(***2*****2)*2**(*)***12",
-            "ArthorSubstructureOrder": "001e002201001a00040000ba000000",
-            "AtomBondCounts": "30,34",
-            "CanonicalSmiles": "Cc1ccc2c(C(=O)c3cccc4ccccc34)cn(CCN3CCOCC3)c2c1",
-            "DegreeVector": "0,10,18,2",
-            "ElementGraph": "CC1CCC2C(C(O)C3CCCC4CCCCC34)CN(CCN3CCOCC3)C2C1",
-            "ExtendedMurcko": "*c1ccc2c(C(=*)c3cccc4ccccc34)cn(CCN3CCOCC3)c2c1",
-            "HetAtomProtomer": "C[C]1[CH][CH][C]2[C]([C]([O])[C]3[CH][CH][CH][C]4[CH][CH][CH][CH][C]43)[CH]N(CCN3CCOCC3)[C]2[CH]1_0",
-            "HetAtomTautomer": "C[C]1[CH][CH][C]2[C]([C]([O])[C]3[CH][CH][CH][C]4[CH][CH][CH][CH][C]43)[CH]N(CCN3CCOCC3)[C]2[CH]1_0_0",
-            "Mesomer": "C[C]1[CH][CH][C]2[C]([C]([O])[C]3[CH][CH][CH][C]4[CH][CH][CH][CH][C]34)[CH]N(CCN3CCOCC3)[C]2[CH]1_0",
-            "MolFormula": "C26H26N2O2",
-            "MurckoScaffold": "c1ccc2c(Cc3cn(CCN4CCOCC4)c4ccccc34)cccc2c1",
-            "NetCharge": "0",
-            "RedoxPair": "C[C]1[CH][CH][C]2[C]([C]([O])[C]3[CH][CH][CH][C]4[CH][CH][CH][CH][C]34)[CH]N(CCN3CCOCC3)[C]2[CH]1",
-            "Regioisomer": "*C.*C(*)=O.*CC*.C1COCCN1.c1ccc2[nH]ccc2c1.c1ccc2ccccc2c1",
-            "SmallWorldIndexBR": "B34R5",
-            "SmallWorldIndexBRL": "B34R5L18",
-            "cx_smiles": "Cc1ccc2c(C(=O)c3cccc4ccccc34)cn(CCN3CCOCC3)c2c1",
-            "inchi": "InChI=1S/C26H26N2O2/c1-19-9-10-22-24(26(29)23-8-4-6-20-5-2-3-7-21(20)23)18-28(25(22)17-19)12-11-27-13-15-30-16-14-27/h2-10,17-18H,11-16H2,1H3",
-            "inchi_KET_15T": "InChI=1/C26H26N2O2/c1-19-9-10-22-24(26(29)23-8-4-6-20-5-2-3-7-21(20)23)18-28(25(22)17-19)12-11-27-13-15-30-16-14-27/h2-10,17-18H,11-16H2,1H3",
-            "inchi_key": "DDVFEKLZEPNGMS-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "DDVFEKLZEPNGMS-UHFFFAOYNA-N",
-            "noiso_smiles": "Cc1ccc2c(C(=O)c3cccc4ccccc34)cn(CCN3CCOCC3)c2c1",
-            "smiles": "Cc1ccc2c(C(=O)c3cccc4ccccc34)cn(CCN3CCOCC3)c2c1",
-        },
-        "ra2": {
-            "AnonymousGraph": "**(*1****2*****12)*1**(***2*****2)*2**(*)***12",
-            "ArthorSubstructureOrder": "001e002201001a00040000ba000000",
-            "AtomBondCounts": "30,34",
-            "CanonicalSmiles": "Cc1ccc2c(C(=O)c3cccc4ccccc34)cn(CCN3CCOCC3)c2c1",
-            "DegreeVector": "0,10,18,2",
-            "ElementGraph": "CC1CCC2C(C(O)C3CCCC4CCCCC34)CN(CCN3CCOCC3)C2C1",
-            "ExtendedMurcko": "*c1ccc2c(C(=*)c3cccc4ccccc34)cn(CCN3CCOCC3)c2c1",
-            "HetAtomProtomer": "C[C]1[CH][CH][C]2[C]([C]([O])[C]3[CH][CH][CH][C]4[CH][CH][CH][CH][C]43)[CH]N(CCN3CCOCC3)[C]2[CH]1_0",
-            "HetAtomTautomer": "C[C]1[CH][CH][C]2[C]([C]([O])[C]3[CH][CH][CH][C]4[CH][CH][CH][CH][C]43)[CH]N(CCN3CCOCC3)[C]2[CH]1_0_0",
-            "Mesomer": "C[C]1[CH][CH][C]2[C]([C]([O])[C]3[CH][CH][CH][C]4[CH][CH][CH][CH][C]34)[CH]N(CCN3CCOCC3)[C]2[CH]1_0",
-            "MolFormula": "C26H26N2O2",
-            "MurckoScaffold": "c1ccc2c(Cc3cn(CCN4CCOCC4)c4ccccc34)cccc2c1",
-            "NetCharge": "0",
-            "RedoxPair": "C[C]1[CH][CH][C]2[C]([C]([O])[C]3[CH][CH][CH][C]4[CH][CH][CH][CH][C]34)[CH]N(CCN3CCOCC3)[C]2[CH]1",
-            "Regioisomer": "*C.*C(*)=O.*CC*.C1COCCN1.c1ccc2[nH]ccc2c1.c1ccc2ccccc2c1",
-            "SmallWorldIndexBR": "B34R5",
-            "SmallWorldIndexBRL": "B34R5L18",
-            "cx_smiles": "Cc1ccc2c(C(=O)c3cccc4ccccc34)cn(CCN3CCOCC3)c2c1",
-            "inchi": "InChI=1S/C26H26N2O2/c1-19-9-10-22-24(26(29)23-8-4-6-20-5-2-3-7-21(20)23)18-28(25(22)17-19)12-11-27-13-15-30-16-14-27/h2-10,17-18H,11-16H2,1H3",
-            "inchi_KET_15T": "InChI=1/C26H26N2O2/c1-19-9-10-22-24(26(29)23-8-4-6-20-5-2-3-7-21(20)23)18-28(25(22)17-19)12-11-27-13-15-30-16-14-27/h2-10,17-18H,11-16H2,1H3",
-            "inchi_key": "DDVFEKLZEPNGMS-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "DDVFEKLZEPNGMS-UHFFFAOYNA-N",
-            "noiso_smiles": "Cc1ccc2c(C(=O)c3cccc4ccccc34)cn(CCN3CCOCC3)c2c1",
-            "smiles": "Cc1ccc2c(C(=O)c3cccc4ccccc34)cn(CCN3CCOCC3)c2c1",
-        },
-        "ra3": {
-            "AnonymousGraph": "******1**(*(*)*2****3*****23)*2*****12",
-            "ArthorSubstructureOrder": "001a001d010018000200009f000000",
-            "AtomBondCounts": "26,29",
-            "CanonicalSmiles": "CCCCCn1cc(C(=O)c2cccc3ccccc23)c2ccccc21",
-            "DegreeVector": "0,8,16,2",
-            "ElementGraph": "CCCCCN1CC(C(O)C2CCCC3CCCCC23)C2CCCCC21",
-            "ExtendedMurcko": "*n1cc(C(=*)c2cccc3ccccc23)c2ccccc21",
-            "HetAtomProtomer": "CCCCCN1[CH][C]([C]([O])[C]2[CH][CH][CH][C]3[CH][CH][CH][CH][C]32)[C]2[CH][CH][CH][CH][C]21_0",
-            "HetAtomTautomer": "CCCCCN1[CH][C]([C]([O])[C]2[CH][CH][CH][C]3[CH][CH][CH][CH][C]32)[C]2[CH][CH][CH][CH][C]21_0_0",
-            "Mesomer": "CCCCCN1[CH][C]([C]([O])[C]2[CH][CH][CH][C]3[CH][CH][CH][CH][C]23)[C]2[CH][CH][CH][CH][C]21_0",
-            "MolFormula": "C24H23NO",
-            "MurckoScaffold": "c1ccc2c(Cc3c[nH]c4ccccc34)cccc2c1",
-            "NetCharge": "0",
-            "RedoxPair": "CCCCCN1[CH][C]([C]([O])[C]2[CH][CH][CH][C]3[CH][CH][CH][CH][C]23)[C]2[CH][CH][CH][CH][C]21",
-            "Regioisomer": "*C(*)=O.*CCCCC.c1ccc2[nH]ccc2c1.c1ccc2ccccc2c1",
-            "SmallWorldIndexBR": "B29R4",
-            "SmallWorldIndexBRL": "B29R4L16",
-            "cx_smiles": "CCCCCn1cc(C(=O)c2cccc3ccccc23)c2ccccc21",
-            "inchi": "InChI=1S/C24H23NO/c1-2-3-8-16-25-17-22(20-13-6-7-15-23(20)25)24(26)21-14-9-11-18-10-4-5-12-19(18)21/h4-7,9-15,17H,2-3,8,16H2,1H3",
-            "inchi_KET_15T": "InChI=1/C24H23NO/c1-2-3-8-16-25-17-22(20-13-6-7-15-23(20)25)24(26)21-14-9-11-18-10-4-5-12-19(18)21/h4-7,9-15,17H,2-3,8,16H2,1H3",
-            "inchi_key": "JDNLPKCAXICMBW-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "JDNLPKCAXICMBW-UHFFFAOYNA-N",
-            "noiso_smiles": "CCCCCn1cc(C(=O)c2cccc3ccccc23)c2ccccc21",
-            "smiles": "CCCCCn1cc(C(=O)c2cccc3ccccc23)c2ccccc21",
-        },
-        "ra4": {
-            "AnonymousGraph": "**1*****1***1**(*(*)*2****3*****23)*2*****12",
-            "ArthorSubstructureOrder": "001e002201001a00040000ba000000",
-            "AtomBondCounts": "30,34",
-            "CanonicalSmiles": "CC1COCCN1CCn1cc(C(=O)c2cccc3ccccc23)c2ccccc21",
-            "DegreeVector": "0,10,18,2",
-            "ElementGraph": "CC1COCCN1CCN1CC(C(O)C2CCCC3CCCCC23)C2CCCCC21",
-            "ExtendedMurcko": "*C1COCCN1CCn1cc(C(=*)c2cccc3ccccc23)c2ccccc21",
-            "HetAtomProtomer": "CC1COCCN1CCN1[CH][C]([C]([O])[C]2[CH][CH][CH][C]3[CH][CH][CH][CH][C]32)[C]2[CH][CH][CH][CH][C]21_0",
-            "HetAtomTautomer": "CC1COCCN1CCN1[CH][C]([C]([O])[C]2[CH][CH][CH][C]3[CH][CH][CH][CH][C]32)[C]2[CH][CH][CH][CH][C]21_0_0",
-            "Mesomer": "CC1COCCN1CCN1[CH][C]([C]([O])[C]2[CH][CH][CH][C]3[CH][CH][CH][CH][C]23)[C]2[CH][CH][CH][CH][C]21_0",
-            "MolFormula": "C26H26N2O2",
-            "MurckoScaffold": "c1ccc2c(Cc3cn(CCN4CCOCC4)c4ccccc34)cccc2c1",
-            "NetCharge": "0",
-            "RedoxPair": "CC1COCCN1CCN1[CH][C]([C]([O])[C]2[CH][CH][CH][C]3[CH][CH][CH][CH][C]23)[C]2[CH][CH][CH][CH][C]21",
-            "Regioisomer": "*C.*C(*)=O.*CC*.C1COCCN1.c1ccc2[nH]ccc2c1.c1ccc2ccccc2c1",
-            "SmallWorldIndexBR": "B34R5",
-            "SmallWorldIndexBRL": "B34R5L18",
-            "cx_smiles": "CC1COCCN1CCn1cc(C(=O)c2cccc3ccccc23)c2ccccc21",
-            "inchi": "InChI=1S/C26H26N2O2/c1-19-18-30-16-15-27(19)13-14-28-17-24(22-10-4-5-12-25(22)28)26(29)23-11-6-8-20-7-2-3-9-21(20)23/h2-12,17,19H,13-16,18H2,1H3",
-            "inchi_KET_15T": "InChI=1/C26H26N2O2/c1-19-18-30-16-15-27(19)13-14-28-17-24(22-10-4-5-12-25(22)28)26(29)23-11-6-8-20-7-2-3-9-21(20)23/h2-12,17,19H,13-16,18H2,1H3",
-            "inchi_key": "AZPCJOZKMQFKLE-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "AZPCJOZKMQFKLE-UHFFFAOYNA-N",
-            "noiso_smiles": "CC1COCCN1CCn1cc(C(=O)c2cccc3ccccc23)c2ccccc21",
-            "smiles": "CC1COCCN1CCn1cc(C(=O)c2cccc3ccccc23)c2ccccc21",
-        },
-        "ra5": {
-            "AnonymousGraph": "**(*1***(*)*2*****12)*1**(***2*****2)*2*****12",
-            "ArthorSubstructureOrder": "001e002201001a00040000ba000000",
-            "AtomBondCounts": "30,34",
-            "CanonicalSmiles": "Cc1ccc(C(=O)c2cn(CCN3CCOCC3)c3ccccc23)c2ccccc12",
-            "DegreeVector": "0,10,18,2",
-            "ElementGraph": "CC1CCC(C(O)C2CN(CCN3CCOCC3)C3CCCCC23)C2CCCCC12",
-            "ExtendedMurcko": "*c1ccc(C(=*)c2cn(CCN3CCOCC3)c3ccccc23)c2ccccc12",
-            "HetAtomProtomer": "C[C]1[CH][CH][C]([C]([O])[C]2[CH]N(CCN3CCOCC3)[C]3[CH][CH][CH][CH][C]23)[C]2[CH][CH][CH][CH][C]12_0",
-            "HetAtomTautomer": "C[C]1[CH][CH][C]([C]([O])[C]2[CH]N(CCN3CCOCC3)[C]3[CH][CH][CH][CH][C]23)[C]2[CH][CH][CH][CH][C]12_0_0",
-            "Mesomer": "C[C]1[CH][CH][C]([C]([O])[C]2[CH]N(CCN3CCOCC3)[C]3[CH][CH][CH][CH][C]23)[C]2[CH][CH][CH][CH][C]12_0",
-            "MolFormula": "C26H26N2O2",
-            "MurckoScaffold": "c1ccc2c(Cc3cn(CCN4CCOCC4)c4ccccc34)cccc2c1",
-            "NetCharge": "0",
-            "RedoxPair": "C[C]1[CH][CH][C]([C]([O])[C]2[CH]N(CCN3CCOCC3)[C]3[CH][CH][CH][CH][C]23)[C]2[CH][CH][CH][CH][C]12",
-            "Regioisomer": "*C.*C(*)=O.*CC*.C1COCCN1.c1ccc2[nH]ccc2c1.c1ccc2ccccc2c1",
-            "SmallWorldIndexBR": "B34R5",
-            "SmallWorldIndexBRL": "B34R5L18",
-            "cx_smiles": "Cc1ccc(C(=O)c2cn(CCN3CCOCC3)c3ccccc23)c2ccccc12",
-            "inchi": "InChI=1S/C26H26N2O2/c1-19-10-11-23(21-7-3-2-6-20(19)21)26(29)24-18-28(25-9-5-4-8-22(24)25)13-12-27-14-16-30-17-15-27/h2-11,18H,12-17H2,1H3",
-            "inchi_KET_15T": "InChI=1/C26H26N2O2/c1-19-10-11-23(21-7-3-2-6-20(19)21)26(29)24-18-28(25-9-5-4-8-22(24)25)13-12-27-14-16-30-17-15-27/h2-11,18H,12-17H2,1H3",
-            "inchi_key": "ICKWPPYMDARCKJ-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "ICKWPPYMDARCKJ-UHFFFAOYNA-N",
-            "noiso_smiles": "Cc1ccc(C(=O)c2cn(CCN3CCOCC3)c3ccccc23)c2ccccc12",
-            "smiles": "Cc1ccc(C(=O)c2cn(CCN3CCOCC3)c3ccccc23)c2ccccc12",
-        },
-        "ra6": {
-            "AnonymousGraph": "**(*1****2*****12)*1*(*)*(***2*****2)*2*****12",
-            "ArthorSubstructureOrder": "001e002201001a00040000ba000000",
-            "AtomBondCounts": "30,34",
-            "CanonicalSmiles": "Cc1c(CCN2CCOCC2)c2ccccc2n1C(=O)c1cccc2ccccc12",
-            "DegreeVector": "0,10,18,2",
-            "ElementGraph": "CC1C(CCN2CCOCC2)C2CCCCC2N1C(O)C1CCCC2CCCCC12",
-            "ExtendedMurcko": "*c1c(CCN2CCOCC2)c2ccccc2n1C(=*)c1cccc2ccccc12",
-            "HetAtomProtomer": "C[C]1[C](CCN2CCOCC2)[C]2[CH][CH][CH][CH][C]2N1[C]([O])[C]1[CH][CH][CH][C]2[CH][CH][CH][CH][C]21_0",
-            "HetAtomTautomer": "C[C]1[C](CCN2CCOCC2)[C]2[CH][CH][CH][CH][C]2N1[C]([O])[C]1[CH][CH][CH][C]2[CH][CH][CH][CH][C]21_0_0",
-            "Mesomer": "C[C]1[C](CCN2CCOCC2)[C]2[CH][CH][CH][CH][C]2N1[C]([O])[C]1[CH][CH][CH][C]2[CH][CH][CH][CH][C]12_0",
-            "MolFormula": "C26H26N2O2",
-            "MurckoScaffold": "c1ccc2c(Cn3cc(CCN4CCOCC4)c4ccccc43)cccc2c1",
-            "NetCharge": "0",
-            "RedoxPair": "C[C]1[C](CCN2CCOCC2)[C]2[CH][CH][CH][CH][C]2N1[C]([O])[C]1[CH][CH][CH][C]2[CH][CH][CH][CH][C]12",
-            "Regioisomer": "*C.*C(*)=O.*CC*.C1COCCN1.c1ccc2[nH]ccc2c1.c1ccc2ccccc2c1",
-            "SmallWorldIndexBR": "B34R5",
-            "SmallWorldIndexBRL": "B34R5L18",
-            "cx_smiles": "Cc1c(CCN2CCOCC2)c2ccccc2n1C(=O)c1cccc2ccccc12",
-            "inchi": "InChI=1S/C26H26N2O2/c1-19-21(13-14-27-15-17-30-18-16-27)23-10-4-5-12-25(23)28(19)26(29)24-11-6-8-20-7-2-3-9-22(20)24/h2-12H,13-18H2,1H3",
-            "inchi_KET_15T": "InChI=1/C26H26N2O2/c1-19-21(13-14-27-15-17-30-18-16-27)23-10-4-5-12-25(23)28(19)26(29)24-11-6-8-20-7-2-3-9-22(20)24/h2-12H,13-18H2,1H3",
-            "inchi_key": "FKFDKPAJXHDYTK-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "FKFDKPAJXHDYTK-UHFFFAOYNA-N",
-            "noiso_smiles": "Cc1c(CCN2CCOCC2)c2ccccc2n1C(=O)c1cccc2ccccc12",
-            "smiles": "Cc1c(CCN2CCOCC2)c2ccccc2n1C(=O)c1cccc2ccccc12",
-        },
-        "ra7": {
-            "AnonymousGraph": "**1***(*)*(**2**(*(*)*3****4*****34)*3*****23)*1",
-            "ArthorSubstructureOrder": "001e002201001a00040000b9000000",
-            "AtomBondCounts": "30,34",
-            "CanonicalSmiles": "CN1CCN(C)C(Cn2cc(C(=O)c3cccc4ccccc34)c3ccccc32)C1",
-            "DegreeVector": "0,11,16,3",
-            "ElementGraph": "CN1CCN(C)C(CN2CC(C(O)C3CCCC4CCCCC34)C3CCCCC32)C1",
-            "ExtendedMurcko": "*N1CCN(*)C(Cn2cc(C(=*)c3cccc4ccccc34)c3ccccc32)C1",
-            "HetAtomProtomer": "CN1CCN(C)C(CN2[CH][C]([C]([O])[C]3[CH][CH][CH][C]4[CH][CH][CH][CH][C]43)[C]3[CH][CH][CH][CH][C]32)C1_0",
-            "HetAtomTautomer": "CN1CCN(C)C(CN2[CH][C]([C]([O])[C]3[CH][CH][CH][C]4[CH][CH][CH][CH][C]43)[C]3[CH][CH][CH][CH][C]32)C1_0_0",
-            "Mesomer": "CN1CCN(C)C(CN2[CH][C]([C]([O])[C]3[CH][CH][CH][C]4[CH][CH][CH][CH][C]34)[C]3[CH][CH][CH][CH][C]32)C1_0",
-            "MolFormula": "C26H27N3O",
-            "MurckoScaffold": "c1ccc2c(Cc3cn(CC4CNCCN4)c4ccccc34)cccc2c1",
-            "NetCharge": "0",
-            "RedoxPair": "CN1CCN(C)C(CN2[CH][C]([C]([O])[C]3[CH][CH][CH][C]4[CH][CH][CH][CH][C]34)[C]3[CH][CH][CH][CH][C]32)C1",
-            "Regioisomer": "*C.*C.*C(*)=O.*C*.C1CNCCN1.c1ccc2[nH]ccc2c1.c1ccc2ccccc2c1",
-            "SmallWorldIndexBR": "B34R5",
-            "SmallWorldIndexBRL": "B34R5L16",
-            "cx_smiles": "CN1CCN(C)C(Cn2cc(C(=O)c3cccc4ccccc34)c3ccccc32)C1",
-            "inchi": "InChI=1S/C26H27N3O/c1-27-14-15-28(2)20(16-27)17-29-18-24(22-11-5-6-13-25(22)29)26(30)23-12-7-9-19-8-3-4-10-21(19)23/h3-13,18,20H,14-17H2,1-2H3",
-            "inchi_KET_15T": "InChI=1/C26H27N3O/c1-27-14-15-28(2)20(16-27)17-29-18-24(22-11-5-6-13-25(22)29)26(30)23-12-7-9-19-8-3-4-10-21(19)23/h3-13,18,20H,14-17H2,1-2H3",
-            "inchi_key": "CPHORMQWXVSQFN-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "CPHORMQWXVSQFN-UHFFFAOYNA-N",
-            "noiso_smiles": "CN1CCN(C)C(Cn2cc(C(=O)c3cccc4ccccc34)c3ccccc32)C1",
-            "smiles": "CN1CCN(C)C(Cn2cc(C(=O)c3cccc4ccccc34)c3ccccc32)C1",
-        },
-        "sa1": {
-            "AnonymousGraph": "***(*)*(*)*",
-            "ArthorSubstructureOrder": "000700060100050002000037000000",
-            "AtomBondCounts": "7,6",
-            "CanonicalSmiles": "CC[C@@H](C)[C@H](O)Cl",
-            "DegreeVector": "0,2,1,4",
-            "ElementGraph": "CC[C@@H](C)[C@H](O)Cl",
-            "ExtendedMurcko": "",
-            "HetAtomProtomer": "CC[C@@H](C)[C@H]([O])Cl_1",
-            "HetAtomTautomer": "CC[C@@H](C)[C@H]([O])Cl_1_0",
-            "Mesomer": "CC[C@@H](C)[C@H](O)Cl_0",
-            "MolFormula": "C5H11ClO",
-            "MurckoScaffold": "",
-            "NetCharge": "0",
-            "RedoxPair": "CC[C@@H](C)[C@H](O)Cl",
-            "Regioisomer": "*Cl.*O.CCC(C)C",
-            "SmallWorldIndexBR": "B6R0",
-            "SmallWorldIndexBRL": "B6R0L1",
-            "cx_smiles": "CC[C@@H](C)[C@H](O)Cl",
-            "inchi": "InChI=1S/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4-,5+/m1/s1",
-            "inchi_KET_15T": "InChI=1/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4-,5+/m1/s1",
-            "inchi_key": "ZXUZVOQOEXOEFU-UHNVWZDZSA-N",
-            "inchikey_KET_15T": "ZXUZVOQOEXOEFU-UHNVWZDZNA-N",
-            "noiso_smiles": "CCC(C)C(O)Cl",
-            "smiles": "CC[C@@H](C)[C@H](O)Cl",
-        },
-        "sa2": {
-            "AnonymousGraph": "***(*)*(*)*",
-            "ArthorSubstructureOrder": "000700060100050002000037000000",
-            "AtomBondCounts": "7,6",
-            "CanonicalSmiles": "CC[C@@H](C)[C@@H](O)Cl",
-            "DegreeVector": "0,2,1,4",
-            "ElementGraph": "CC[C@@H](C)[C@@H](O)Cl",
-            "ExtendedMurcko": "",
-            "HetAtomProtomer": "CC[C@@H](C)[C@@H]([O])Cl_1",
-            "HetAtomTautomer": "CC[C@@H](C)[C@@H]([O])Cl_1_0",
-            "Mesomer": "CC[C@@H](C)[C@@H](O)Cl_0",
-            "MolFormula": "C5H11ClO",
-            "MurckoScaffold": "",
-            "NetCharge": "0",
-            "RedoxPair": "CC[C@@H](C)[C@@H](O)Cl",
-            "Regioisomer": "*Cl.*O.CCC(C)C",
-            "SmallWorldIndexBR": "B6R0",
-            "SmallWorldIndexBRL": "B6R0L1",
-            "cx_smiles": "CC[C@@H](C)[C@@H](O)Cl",
-            "inchi": "InChI=1S/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4-,5-/m1/s1",
-            "inchi_KET_15T": "InChI=1/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4-,5-/m1/s1",
-            "inchi_key": "ZXUZVOQOEXOEFU-RFZPGFLSSA-N",
-            "inchikey_KET_15T": "ZXUZVOQOEXOEFU-RFZPGFLSNA-N",
-            "noiso_smiles": "CCC(C)C(O)Cl",
-            "smiles": "CC[C@@H](C)[C@@H](O)Cl",
-        },
-        "sa3": {
-            "AnonymousGraph": "***(*)*(*)*",
-            "ArthorSubstructureOrder": "000700060100050002000037000000",
-            "AtomBondCounts": "7,6",
-            "CanonicalSmiles": "CC[C@@H](C)C(O)Cl",
-            "DegreeVector": "0,2,1,4",
-            "ElementGraph": "CC[C@@H](C)C(O)Cl",
-            "ExtendedMurcko": "",
-            "HetAtomProtomer": "CC[C@@H](C)C([O])Cl_1",
-            "HetAtomTautomer": "CC[C@@H](C)C([O])Cl_1_0",
-            "Mesomer": "CC[C@@H](C)C(O)Cl_0",
-            "MolFormula": "C5H11ClO",
-            "MurckoScaffold": "",
-            "NetCharge": "0",
-            "RedoxPair": "CC[C@@H](C)C(O)Cl",
-            "Regioisomer": "*Cl.*O.CCC(C)C",
-            "SmallWorldIndexBR": "B6R0",
-            "SmallWorldIndexBRL": "B6R0L1",
-            "cx_smiles": "CC[C@@H](C)C(O)Cl",
-            "inchi": "InChI=1S/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4-,5?/m1/s1",
-            "inchi_KET_15T": "InChI=1/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4-,5?/m1/s1",
-            "inchi_key": "ZXUZVOQOEXOEFU-CNZKWPKMSA-N",
-            "inchikey_KET_15T": "ZXUZVOQOEXOEFU-CNZKWPKMNA-N",
-            "noiso_smiles": "CCC(C)C(O)Cl",
-            "smiles": "CC[C@@H](C)C(O)Cl",
-        },
-        "sa4": {
-            "AnonymousGraph": "***(*)*(*)*",
-            "ArthorSubstructureOrder": "000700060100050002000037000000",
-            "AtomBondCounts": "7,6",
-            "CanonicalSmiles": "CC[C@H](C)[C@H](O)Cl",
-            "DegreeVector": "0,2,1,4",
-            "ElementGraph": "CC[C@H](C)[C@H](O)Cl",
-            "ExtendedMurcko": "",
-            "HetAtomProtomer": "CC[C@H](C)[C@H]([O])Cl_1",
-            "HetAtomTautomer": "CC[C@H](C)[C@H]([O])Cl_1_0",
-            "Mesomer": "CC[C@H](C)[C@H](O)Cl_0",
-            "MolFormula": "C5H11ClO",
-            "MurckoScaffold": "",
-            "NetCharge": "0",
-            "RedoxPair": "CC[C@H](C)[C@H](O)Cl",
-            "Regioisomer": "*Cl.*O.CCC(C)C",
-            "SmallWorldIndexBR": "B6R0",
-            "SmallWorldIndexBRL": "B6R0L1",
-            "cx_smiles": "CC[C@H](C)[C@H](O)Cl",
-            "inchi": "InChI=1S/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4-,5-/m0/s1",
-            "inchi_KET_15T": "InChI=1/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4-,5-/m0/s1",
-            "inchi_key": "ZXUZVOQOEXOEFU-WHFBIAKZSA-N",
-            "inchikey_KET_15T": "ZXUZVOQOEXOEFU-WHFBIAKZNA-N",
-            "noiso_smiles": "CCC(C)C(O)Cl",
-            "smiles": "CC[C@H](C)[C@H](O)Cl",
-        },
-        "sa5": {
-            "AnonymousGraph": "***(*)*(*)*",
-            "ArthorSubstructureOrder": "000700060100050002000037000000",
-            "AtomBondCounts": "7,6",
-            "CanonicalSmiles": "CC[C@H](C)[C@@H](O)Cl",
-            "DegreeVector": "0,2,1,4",
-            "ElementGraph": "CC[C@H](C)[C@@H](O)Cl",
-            "ExtendedMurcko": "",
-            "HetAtomProtomer": "CC[C@H](C)[C@@H]([O])Cl_1",
-            "HetAtomTautomer": "CC[C@H](C)[C@@H]([O])Cl_1_0",
-            "Mesomer": "CC[C@H](C)[C@@H](O)Cl_0",
-            "MolFormula": "C5H11ClO",
-            "MurckoScaffold": "",
-            "NetCharge": "0",
-            "RedoxPair": "CC[C@H](C)[C@@H](O)Cl",
-            "Regioisomer": "*Cl.*O.CCC(C)C",
-            "SmallWorldIndexBR": "B6R0",
-            "SmallWorldIndexBRL": "B6R0L1",
-            "cx_smiles": "CC[C@H](C)[C@@H](O)Cl",
-            "inchi": "InChI=1S/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4-,5+/m0/s1",
-            "inchi_KET_15T": "InChI=1/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4-,5+/m0/s1",
-            "inchi_key": "ZXUZVOQOEXOEFU-CRCLSJGQSA-N",
-            "inchikey_KET_15T": "ZXUZVOQOEXOEFU-CRCLSJGQNA-N",
-            "noiso_smiles": "CCC(C)C(O)Cl",
-            "smiles": "CC[C@H](C)[C@@H](O)Cl",
-        },
-        "sa6": {
-            "AnonymousGraph": "***(*)*(*)*",
-            "ArthorSubstructureOrder": "000700060100050002000037000000",
-            "AtomBondCounts": "7,6",
-            "CanonicalSmiles": "CC[C@H](C)C(O)Cl",
-            "DegreeVector": "0,2,1,4",
-            "ElementGraph": "CC[C@H](C)C(O)Cl",
-            "ExtendedMurcko": "",
-            "HetAtomProtomer": "CC[C@H](C)C([O])Cl_1",
-            "HetAtomTautomer": "CC[C@H](C)C([O])Cl_1_0",
-            "Mesomer": "CC[C@H](C)C(O)Cl_0",
-            "MolFormula": "C5H11ClO",
-            "MurckoScaffold": "",
-            "NetCharge": "0",
-            "RedoxPair": "CC[C@H](C)C(O)Cl",
-            "Regioisomer": "*Cl.*O.CCC(C)C",
-            "SmallWorldIndexBR": "B6R0",
-            "SmallWorldIndexBRL": "B6R0L1",
-            "cx_smiles": "CC[C@H](C)C(O)Cl",
-            "inchi": "InChI=1S/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4-,5?/m0/s1",
-            "inchi_KET_15T": "InChI=1/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4-,5?/m0/s1",
-            "inchi_key": "ZXUZVOQOEXOEFU-ROLXFIACSA-N",
-            "inchikey_KET_15T": "ZXUZVOQOEXOEFU-ROLXFIACNA-N",
-            "noiso_smiles": "CCC(C)C(O)Cl",
-            "smiles": "CC[C@H](C)C(O)Cl",
-        },
-        "sa7": {
-            "AnonymousGraph": "***(*)*(*)*",
-            "ArthorSubstructureOrder": "000700060100050002000037000000",
-            "AtomBondCounts": "7,6",
-            "CanonicalSmiles": "CCC(C)[C@H](O)Cl",
-            "DegreeVector": "0,2,1,4",
-            "ElementGraph": "CCC(C)[C@H](O)Cl",
-            "ExtendedMurcko": "",
-            "HetAtomProtomer": "CCC(C)[C@H]([O])Cl_1",
-            "HetAtomTautomer": "CCC(C)[C@H]([O])Cl_1_0",
-            "Mesomer": "CCC(C)[C@H](O)Cl_0",
-            "MolFormula": "C5H11ClO",
-            "MurckoScaffold": "",
-            "NetCharge": "0",
-            "RedoxPair": "CCC(C)[C@H](O)Cl",
-            "Regioisomer": "*Cl.*O.CCC(C)C",
-            "SmallWorldIndexBR": "B6R0",
-            "SmallWorldIndexBRL": "B6R0L1",
-            "cx_smiles": "CCC(C)[C@H](O)Cl",
-            "inchi": "InChI=1S/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4?,5-/m0/s1",
-            "inchi_KET_15T": "InChI=1/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4?,5-/m0/s1",
-            "inchi_key": "ZXUZVOQOEXOEFU-AKGZTFGVSA-N",
-            "inchikey_KET_15T": "ZXUZVOQOEXOEFU-AKGZTFGVNA-N",
-            "noiso_smiles": "CCC(C)C(O)Cl",
-            "smiles": "CCC(C)[C@H](O)Cl",
-        },
-        "sa8": {
-            "AnonymousGraph": "***(*)*(*)*",
-            "ArthorSubstructureOrder": "000700060100050002000037000000",
-            "AtomBondCounts": "7,6",
-            "CanonicalSmiles": "CCC(C)[C@@H](O)Cl",
-            "DegreeVector": "0,2,1,4",
-            "ElementGraph": "CCC(C)[C@@H](O)Cl",
-            "ExtendedMurcko": "",
-            "HetAtomProtomer": "CCC(C)[C@@H]([O])Cl_1",
-            "HetAtomTautomer": "CCC(C)[C@@H]([O])Cl_1_0",
-            "Mesomer": "CCC(C)[C@@H](O)Cl_0",
-            "MolFormula": "C5H11ClO",
-            "MurckoScaffold": "",
-            "NetCharge": "0",
-            "RedoxPair": "CCC(C)[C@@H](O)Cl",
-            "Regioisomer": "*Cl.*O.CCC(C)C",
-            "SmallWorldIndexBR": "B6R0",
-            "SmallWorldIndexBRL": "B6R0L1",
-            "cx_smiles": "CCC(C)[C@@H](O)Cl",
-            "inchi": "InChI=1S/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4?,5-/m1/s1",
-            "inchi_KET_15T": "InChI=1/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3/t4?,5-/m1/s1",
-            "inchi_key": "ZXUZVOQOEXOEFU-BRJRFNKRSA-N",
-            "inchikey_KET_15T": "ZXUZVOQOEXOEFU-BRJRFNKRNA-N",
-            "noiso_smiles": "CCC(C)C(O)Cl",
-            "smiles": "CCC(C)[C@@H](O)Cl",
-        },
-        "sa9": {
-            "AnonymousGraph": "***(*)*(*)*",
-            "ArthorSubstructureOrder": "000700060100050002000037000000",
-            "AtomBondCounts": "7,6",
-            "CanonicalSmiles": "CCC(C)C(O)Cl",
-            "DegreeVector": "0,2,1,4",
-            "ElementGraph": "CCC(C)C(O)Cl",
-            "ExtendedMurcko": "",
-            "HetAtomProtomer": "CCC(C)C([O])Cl_1",
-            "HetAtomTautomer": "CCC(C)C([O])Cl_1_0",
-            "Mesomer": "CCC(C)C(O)Cl_0",
-            "MolFormula": "C5H11ClO",
-            "MurckoScaffold": "",
-            "NetCharge": "0",
-            "RedoxPair": "CCC(C)C(O)Cl",
-            "Regioisomer": "*Cl.*O.CCC(C)C",
-            "SmallWorldIndexBR": "B6R0",
-            "SmallWorldIndexBRL": "B6R0L1",
-            "cx_smiles": "CCC(C)C(O)Cl",
-            "inchi": "InChI=1S/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3",
-            "inchi_KET_15T": "InChI=1/C5H11ClO/c1-3-4(2)5(6)7/h4-5,7H,3H2,1-2H3",
-            "inchi_key": "ZXUZVOQOEXOEFU-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "ZXUZVOQOEXOEFU-UHFFFAOYNA-N",
-            "noiso_smiles": "CCC(C)C(O)Cl",
-            "smiles": "CCC(C)C(O)Cl",
-        },
-        "ta1": {
-            "AnonymousGraph": "**1****1",
-            "ArthorSubstructureOrder": "000600060100040002000027000000",
-            "AtomBondCounts": "6,6",
-            "CanonicalSmiles": "OC1=NCCC1",
-            "DegreeVector": "0,1,4,1",
-            "ElementGraph": "OC1CCCN1",
-            "ExtendedMurcko": "*C1=NCCC1",
-            "HetAtomProtomer": "[O][C]1CCC[N]1_1",
-            "HetAtomTautomer": "[O][C]1CCC[N]1_1_0",
-            "Mesomer": "O[C]1CCC[N]1_0",
-            "MolFormula": "C4H7NO",
-            "MurckoScaffold": "C1=NCCC1",
-            "NetCharge": "0",
-            "RedoxPair": "O[C]1CCC[N]1",
-            "Regioisomer": "*O.C1=NCCC1",
-            "SmallWorldIndexBR": "B6R1",
-            "SmallWorldIndexBRL": "B6R1L4",
-            "cx_smiles": "OC1=NCCC1",
-            "inchi": "InChI=1S/C4H7NO/c6-4-2-1-3-5-4/h1-3H2,(H,5,6)",
-            "inchi_KET_15T": "InChI=1/C4H7NO/c6-4-2-1-3-5-4/h1,3H2,(H3,2,5,6)",
-            "inchi_key": "HNJBEVLQSNELDL-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "DXJWFBGIRPOVOQ-UHFFFAOYNA-N",
-            "noiso_smiles": "OC1=NCCC1",
-            "smiles": "OC1=NCCC1",
-        },
-        "ta2": {
-            "AnonymousGraph": "**1****1",
-            "ArthorSubstructureOrder": "000600060100040002000027000000",
-            "AtomBondCounts": "6,6",
-            "CanonicalSmiles": "O=C1CCCN1",
-            "DegreeVector": "0,1,4,1",
-            "ElementGraph": "OC1CCCN1",
-            "ExtendedMurcko": "*=C1CCCN1",
-            "HetAtomProtomer": "[O][C]1CCC[N]1_1",
-            "HetAtomTautomer": "[O][C]1CCC[N]1_1_0",
-            "Mesomer": "[O][C]1CCCN1_0",
-            "MolFormula": "C4H7NO",
-            "MurckoScaffold": "C1CCNC1",
-            "NetCharge": "0",
-            "RedoxPair": "[O][C]1CCCN1",
-            "Regioisomer": "O=C1CCCN1",
-            "SmallWorldIndexBR": "B6R1",
-            "SmallWorldIndexBRL": "B6R1L4",
-            "cx_smiles": "O=C1CCCN1",
-            "inchi": "InChI=1S/C4H7NO/c6-4-2-1-3-5-4/h1-3H2,(H,5,6)",
-            "inchi_KET_15T": "InChI=1/C4H7NO/c6-4-2-1-3-5-4/h1,3H2,(H3,2,5,6)",
-            "inchi_key": "HNJBEVLQSNELDL-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "DXJWFBGIRPOVOQ-UHFFFAOYNA-N",
-            "noiso_smiles": "O=C1CCCN1",
-            "smiles": "O=C1CCCN1",
-        },
-        "tb1": {
-            "AnonymousGraph": "***(*)*1*(*)***(*)*1*",
-            "ArthorSubstructureOrder": "000d000d01000a0003000053000000",
-            "AtomBondCounts": "13,13",
-            "CanonicalSmiles": "C/N=C(\\C)C1C(=O)CCC(C)C1=O",
-            "DegreeVector": "0,5,3,5",
-            "ElementGraph": "CNC(C)C1C(O)CCC(C)C1O",
-            "ExtendedMurcko": "*C1CCC(=*)C(*)C1=*",
-            "HetAtomProtomer": "C[N][C](C)C1[C]([O])CCC(C)[C]1[O]_0",
-            "HetAtomTautomer": "C[N][C](C)C1[C]([O])CCC(C)[C]1[O]_0_0",
-            "Mesomer": "C[N][C](C)C1[C]([O])CCC(C)[C]1[O]_0",
-            "MolFormula": "C10H15NO2",
-            "MurckoScaffold": "C1CCCCC1",
-            "NetCharge": "0",
-            "RedoxPair": "C[N][C](C)C1[C]([O])CCC(C)[C]1[O]",
-            "Regioisomer": "*C.*N=C(*)C.C.O=C1CCCC(=O)C1",
-            "SmallWorldIndexBR": "B13R1",
-            "SmallWorldIndexBRL": "B13R1L3",
-            "cx_smiles": "C/N=C(\\C)C1C(=O)CCC(C)C1=O",
-            "inchi": "InChI=1S/C10H15NO2/c1-6-4-5-8(12)9(10(6)13)7(2)11-3/h6,9H,4-5H2,1-3H3/b11-7+",
-            "inchi_KET_15T": "InChI=1/C10H15NO2/c1-6-4-5-8(12)9(10(6)13)7(2)11-3/h4H2,1-3H3,(H4,5,6,9,11,12,13)",
-            "inchi_key": "LFFJNZFRBPZXBS-YRNVUSSQSA-N",
-            "inchikey_KET_15T": "SJQNTMZZZVTREP-UHFFFAOYNA-N",
-            "noiso_smiles": "CN=C(C)C1C(=O)CCC(C)C1=O",
-            "smiles": "C/N=C(\\C)C1C(=O)CCC(C)C1=O",
-        },
-        "tb2": {
-            "AnonymousGraph": "***(*)*1*(*)***(*)*1*",
-            "ArthorSubstructureOrder": "000d000d01000a0003000053000000",
-            "AtomBondCounts": "13,13",
-            "CanonicalSmiles": "C/N=C(\\C)C1=C(O)CCC(C)C1=O",
-            "DegreeVector": "0,5,3,5",
-            "ElementGraph": "CNC(C)C1C(O)CCC(C)C1O",
-            "ExtendedMurcko": "*C1=C(*)C(=*)C(*)CC1",
-            "HetAtomProtomer": "C[N][C](C)[C]1[C]([O])CCC(C)[C]1[O]_1",
-            "HetAtomTautomer": "C[N][C](C)[C]1[C]([O])CCC(C)[C]1[O]_1_0",
-            "Mesomer": "C[N][C](C)[C]1[C](O)CCC(C)[C]1[O]_0",
-            "MolFormula": "C10H15NO2",
-            "MurckoScaffold": "C1=CCCCC1",
-            "NetCharge": "0",
-            "RedoxPair": "C[N][C](C)[C]1[C](O)CCC(C)[C]1[O]",
-            "Regioisomer": "*C.*N=C(*)C.*O.C.O=C1C=CCCC1",
-            "SmallWorldIndexBR": "B13R1",
-            "SmallWorldIndexBRL": "B13R1L3",
-            "cx_smiles": "C/N=C(\\C)C1=C(O)CCC(C)C1=O",
-            "inchi": "InChI=1S/C10H15NO2/c1-6-4-5-8(12)9(10(6)13)7(2)11-3/h6,12H,4-5H2,1-3H3/b11-7+",
-            "inchi_KET_15T": "InChI=1/C10H15NO2/c1-6-4-5-8(12)9(10(6)13)7(2)11-3/h4H2,1-3H3,(H4,5,6,9,11,12,13)",
-            "inchi_key": "MCKSLMLPGJYCNP-YRNVUSSQSA-N",
-            "inchikey_KET_15T": "SJQNTMZZZVTREP-UHFFFAOYNA-N",
-            "noiso_smiles": "CN=C(C)C1=C(O)CCC(C)C1=O",
-            "smiles": "C/N=C(\\C)C1=C(O)CCC(C)C1=O",
-        },
-        "tb3": {
-            "AnonymousGraph": "***(*)*1*(*)***(*)*1*",
-            "ArthorSubstructureOrder": "000d000d01000a0003000053000000",
-            "AtomBondCounts": "13,13",
-            "CanonicalSmiles": "C/N=C(\\C)C1=C(O)C(C)CCC1=O",
-            "DegreeVector": "0,5,3,5",
-            "ElementGraph": "CNC(C)C1C(O)CCC(C)C1O",
-            "ExtendedMurcko": "*C1=C(*)C(*)CCC1=*",
-            "HetAtomProtomer": "C[N][C](C)[C]1[C]([O])CCC(C)[C]1[O]_1",
-            "HetAtomTautomer": "C[N][C](C)[C]1[C]([O])CCC(C)[C]1[O]_1_0",
-            "Mesomer": "C[N][C](C)[C]1[C]([O])CCC(C)[C]1O_0",
-            "MolFormula": "C10H15NO2",
-            "MurckoScaffold": "C1=CCCCC1",
-            "NetCharge": "0",
-            "RedoxPair": "C[N][C](C)[C]1[C]([O])CCC(C)[C]1O",
-            "Regioisomer": "*C.*N=C(*)C.*O.C.O=C1C=CCCC1",
-            "SmallWorldIndexBR": "B13R1",
-            "SmallWorldIndexBRL": "B13R1L3",
-            "cx_smiles": "C/N=C(\\C)C1=C(O)C(C)CCC1=O",
-            "inchi": "InChI=1S/C10H15NO2/c1-6-4-5-8(12)9(10(6)13)7(2)11-3/h6,13H,4-5H2,1-3H3/b11-7+",
-            "inchi_KET_15T": "InChI=1/C10H15NO2/c1-6-4-5-8(12)9(10(6)13)7(2)11-3/h4H2,1-3H3,(H4,5,6,9,11,12,13)",
-            "inchi_key": "LQHZFYQSMISUAH-YRNVUSSQSA-N",
-            "inchikey_KET_15T": "SJQNTMZZZVTREP-UHFFFAOYNA-N",
-            "noiso_smiles": "CN=C(C)C1=C(O)C(C)CCC1=O",
-            "smiles": "C/N=C(\\C)C1=C(O)C(C)CCC1=O",
-        },
-        "tc1": {
-            "AnonymousGraph": "**(*)*1*(*)***(*)*1*",
-            "ArthorSubstructureOrder": "000c000c010009000300004e000000",
-            "AtomBondCounts": "12,12",
-            "CanonicalSmiles": "CC(=O)C1=C(O)C(C)CCC1=O",
-            "DegreeVector": "0,5,2,5",
-            "ElementGraph": "CC(O)C1C(O)CCC(C)C1O",
-            "ExtendedMurcko": "*C1=C(*)C(*)CCC1=*",
-            "HetAtomProtomer": "C[C]([O])[C]1[C]([O])CCC(C)[C]1[O]_1",
-            "HetAtomTautomer": "C[C]([O])[C]1[C]([O])CCC(C)[C]1[O]_1_0",
-            "Mesomer": "C[C]([O])[C]1[C]([O])CCC(C)[C]1O_0",
-            "MolFormula": "C9H12O3",
-            "MurckoScaffold": "C1=CCCCC1",
-            "NetCharge": "0",
-            "RedoxPair": "C[C]([O])[C]1[C]([O])CCC(C)[C]1O",
-            "Regioisomer": "*C.*C(C)=O.*O.O=C1C=CCCC1",
-            "SmallWorldIndexBR": "B12R1",
-            "SmallWorldIndexBRL": "B12R1L2",
-            "cx_smiles": "CC(=O)C1=C(O)C(C)CCC1=O",
-            "inchi": "InChI=1S/C9H12O3/c1-5-3-4-7(11)8(6(2)10)9(5)12/h5,12H,3-4H2,1-2H3",
-            "inchi_KET_15T": "InChI=1/C9H12O3/c1-5-3-4-7(11)8(6(2)10)9(5)12/h3H2,1-2H3,(H4,4,5,8,10,11,12)",
-            "inchi_key": "JKVFZUSRZCBLOO-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "XCMTZZNIZOTRIL-UHFFFAOYNA-N",
-            "noiso_smiles": "CC(=O)C1=C(O)C(C)CCC1=O",
-            "smiles": "CC(=O)C1=C(O)C(C)CCC1=O",
-        },
-        "tc2": {
-            "AnonymousGraph": "**(*)*1*(*)***(*)*1*",
-            "ArthorSubstructureOrder": "000c000c010009000300004e000000",
-            "AtomBondCounts": "12,12",
-            "CanonicalSmiles": "CC(=O)C1C(=O)CCC(C)C1=O",
-            "DegreeVector": "0,5,2,5",
-            "ElementGraph": "CC(O)C1C(O)CCC(C)C1O",
-            "ExtendedMurcko": "*C1CCC(=*)C(*)C1=*",
-            "HetAtomProtomer": "C[C]([O])C1[C]([O])CCC(C)[C]1[O]_0",
-            "HetAtomTautomer": "C[C]([O])C1[C]([O])CCC(C)[C]1[O]_0_0",
-            "Mesomer": "C[C]([O])C1[C]([O])CCC(C)[C]1[O]_0",
-            "MolFormula": "C9H12O3",
-            "MurckoScaffold": "C1CCCCC1",
-            "NetCharge": "0",
-            "RedoxPair": "C[C]([O])C1[C]([O])CCC(C)[C]1[O]",
-            "Regioisomer": "*C.*C(C)=O.O=C1CCCC(=O)C1",
-            "SmallWorldIndexBR": "B12R1",
-            "SmallWorldIndexBRL": "B12R1L2",
-            "cx_smiles": "CC(=O)C1C(=O)CCC(C)C1=O",
-            "inchi": "InChI=1S/C9H12O3/c1-5-3-4-7(11)8(6(2)10)9(5)12/h5,8H,3-4H2,1-2H3",
-            "inchi_KET_15T": "InChI=1/C9H12O3/c1-5-3-4-7(11)8(6(2)10)9(5)12/h3H2,1-2H3,(H4,4,5,8,10,11,12)",
-            "inchi_key": "MMPTYALDYQTEML-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "XCMTZZNIZOTRIL-UHFFFAOYNA-N",
-            "noiso_smiles": "CC(=O)C1C(=O)CCC(C)C1=O",
-            "smiles": "CC(=O)C1C(=O)CCC(C)C1=O",
-        },
-        "tc3": {
-            "AnonymousGraph": "**(*)*1*(*)***(*)*1*",
-            "ArthorSubstructureOrder": "000c000c010009000300004e000000",
-            "AtomBondCounts": "12,12",
-            "CanonicalSmiles": "CC(=O)C1=C(O)CCC(C)C1=O",
-            "DegreeVector": "0,5,2,5",
-            "ElementGraph": "CC(O)C1C(O)CCC(C)C1O",
-            "ExtendedMurcko": "*C1=C(*)C(=*)C(*)CC1",
-            "HetAtomProtomer": "C[C]([O])[C]1[C]([O])CCC(C)[C]1[O]_1",
-            "HetAtomTautomer": "C[C]([O])[C]1[C]([O])CCC(C)[C]1[O]_1_0",
-            "Mesomer": "C[C]([O])[C]1[C](O)CCC(C)[C]1[O]_0",
-            "MolFormula": "C9H12O3",
-            "MurckoScaffold": "C1=CCCCC1",
-            "NetCharge": "0",
-            "RedoxPair": "C[C]([O])[C]1[C](O)CCC(C)[C]1[O]",
-            "Regioisomer": "*C.*C(C)=O.*O.O=C1C=CCCC1",
-            "SmallWorldIndexBR": "B12R1",
-            "SmallWorldIndexBRL": "B12R1L2",
-            "cx_smiles": "CC(=O)C1=C(O)CCC(C)C1=O",
-            "inchi": "InChI=1S/C9H12O3/c1-5-3-4-7(11)8(6(2)10)9(5)12/h5,11H,3-4H2,1-2H3",
-            "inchi_KET_15T": "InChI=1/C9H12O3/c1-5-3-4-7(11)8(6(2)10)9(5)12/h3H2,1-2H3,(H4,4,5,8,10,11,12)",
-            "inchi_key": "UYIJIQGWGXARDH-UHFFFAOYSA-N",
-            "inchikey_KET_15T": "XCMTZZNIZOTRIL-UHFFFAOYNA-N",
-            "noiso_smiles": "CC(=O)C1=C(O)CCC(C)C1=O",
-            "smiles": "CC(=O)C1=C(O)CCC(C)C1=O",
-        },
-        "tc4": {
-            "AnonymousGraph": "**1***(*)*(*(*)*)*1*",
-            "ArthorSubstructureOrder": "000c000c010009000300004e000000",
-            "AtomBondCounts": "12,12",
-            "CanonicalSmiles": "C/C(O)=C1\\C(=O)CCC(C)C1=O",
-            "DegreeVector": "0,5,2,5",
-            "ElementGraph": "CC1CCC(O)C(C(C)O)C1O",
-            "ExtendedMurcko": "*C1CCC(=*)C(=*)C1=*",
-            "HetAtomProtomer": "C[C]([O])[C]1[C]([O])CCC(C)[C]1[O]_1",
-            "HetAtomTautomer": "C[C]([O])[C]1[C]([O])CCC(C)[C]1[O]_1_0",
-            "Mesomer": "C[C](O)[C]1[C]([O])CCC(C)[C]1[O]_0",
-            "MolFormula": "C9H12O3",
-            "MurckoScaffold": "C1CCCCC1",
-            "NetCharge": "0",
-            "RedoxPair": "C[C](O)[C]1[C]([O])CCC(C)[C]1[O]",
-            "Regioisomer": "*C.CC(O)=C1C(=O)CCCC1=O",
-            "SmallWorldIndexBR": "B12R1",
-            "SmallWorldIndexBRL": "B12R1L2",
-            "cx_smiles": "C/C(O)=C1\\C(=O)CCC(C)C1=O",
-            "inchi": "InChI=1S/C9H12O3/c1-5-3-4-7(11)8(6(2)10)9(5)12/h5,10H,3-4H2,1-2H3/b8-6-",
-            "inchi_KET_15T": "InChI=1/C9H12O3/c1-5-3-4-7(11)8(6(2)10)9(5)12/h3H2,1-2H3,(H4,4,5,8,10,11,12)",
-            "inchi_key": "LTGVOMHYBZTAIZ-VURMDHGXSA-N",
-            "inchikey_KET_15T": "XCMTZZNIZOTRIL-UHFFFAOYNA-N",
-            "noiso_smiles": "CC(O)=C1C(=O)CCC(C)C1=O",
-            "smiles": "C/C(O)=C1\\C(=O)CCC(C)C1=O",
-        },
-    }
-    calculated = {}
-    for x in examples:
-        rdmol = cif.Chem.MolFromSmiles(x.get("smiles"))
-        hash_map = calculate_molecular_hash_values(rdmol=rdmol)
-        name = x.get("name")
-        calculated[name] = hash_map
-        # print()
-        # import pprint
-        # pprint.pprint(calculated)
-    # checking only few hashed descriptors that are valid across multiple RDKit versions
-    hashed_descriptors = [
-        "AnonymousGraph",
-        "CanonicalSmiles",
-        "inchi",
-        "inchi_KET_15T",
-        "inchi_key",
-        "inchikey_KET_15T",
+    mol_constructor = MoleculeConstructor("cx_smiles")
+    molecule = mol_constructor.build_from_molecule_string(block, "mol_block")
+    molecule_from_smiles = mol_constructor.build_from_molecule_string(smiles, "smiles")
+    assert molecule != molecule_from_smiles
+
+
+def test_mol_w_smiles_cx_smiles():
+    # flat molecule
+    s1 = "CCC(F)C(C)O"
+    # molecule with standard stereochemistry
+    s2 = "CC[C@H](F)[C@H](C)O"
+    # molecule with enhanced stereochemistry
+    s3 = "CC[C@H](F)[C@H](C)O |o1:2,4|"
+    # molecule with enhanced stereochemistry and mapping
+    s4 = "[CH3:1][CH2:2][C@H:3]([F:4])[C@H:5]([CH3:6])[OH:7] |o1:2,4|"
+
+    # when the uid is based on canonical smiles, all the molecules are equivalent
+    mol_constructor = MoleculeConstructor("smiles", ["smiles", "cx_smiles"])
+    mol1 = mol_constructor.build_from_molecule_string(s1, "smiles")
+    mol2 = mol_constructor.build_from_molecule_string(s2, "smiles")
+    mol3 = mol_constructor.build_from_molecule_string(s3, "smiles")
+    mol4 = mol_constructor.build_from_molecule_string(s4, "smiles")
+    # the flat molecule is still different from the one with standard stereochemistry
+    assert mol1 != mol2
+    # all the others are equivalent
+    assert mol2 == mol3
+    assert mol3 == mol4
+    # enhanced stereo info is lost when the uid is based on canonical smiles
+    assert not all(cif.has_enhanced_stereo(m.rdmol) for m in [mol1, mol2, mol3, mol4])
+
+    # when the uid is based on cx_smiles, the presence of enhanced stereo information influences the equivalence
+    mol_constructor_cxsmiles = MoleculeConstructor("cx_smiles")
+    mol1_cx = mol_constructor_cxsmiles.build_from_molecule_string(s1, "smiles")
+    mol2_cx = mol_constructor_cxsmiles.build_from_molecule_string(s2, "smiles")
+    mol3_cx = mol_constructor_cxsmiles.build_from_molecule_string(s3, "smiles")
+    mol4_cx = mol_constructor_cxsmiles.build_from_molecule_string(s4, "smiles")
+    # the molecules without enhanced stereo information are different from the others
+    assert mol2_cx != mol1_cx
+    assert mol2_cx != mol3_cx
+    # the atom mapping does not influence identity
+    assert mol3_cx == mol4_cx
+    stereo_groups3 = mol3_cx.rdmol.GetStereoGroups()
+    stereo_groups4 = mol4_cx.rdmol.GetStereoGroups()
+    stereo_groups4_mapped = mol4_cx.rdmol_mapped.GetStereoGroups()
+    atoms_w_stereo3 = [
+        (atom.GetIdx(), atom.GetSymbol(), atom.GetAtomMapNum())
+        for group in stereo_groups3
+        for atom in group.GetAtoms()
     ]
-    for hd in hashed_descriptors:
-        for k, v in calculated.items():
-            assert v[hd] == reference.get(k).get(hd)
-    # clever testing
+    atoms_w_stereo4 = [
+        (atom.GetIdx(), atom.GetSymbol(), atom.GetAtomMapNum())
+        for group in stereo_groups4
+        for atom in group.GetAtoms()
+    ]
+    atoms_w_stereo4_mapped = [
+        (atom.GetIdx(), atom.GetSymbol(), atom.GetAtomMapNum())
+        for group in stereo_groups4_mapped
+        for atom in group.GetAtoms()
+    ]
+    assert sorted(atoms_w_stereo3) == sorted(atoms_w_stereo4)
+    # rdmol1 = cif.canonicalize_mapped_rdmol((cif.Chem.MolFromSmiles(s1)))
+    # rdmol2 = cif.canonicalize_mapped_rdmol((cif.Chem.MolFromSmiles(s2)))
+    # rdmol3 = cif.Chem.MolFromSmiles(s3)
+    # print([n for n in cif.Chem.CanonicalRankAtoms(rdmol3)])
+    # stereo_groups3 = rdmol3.GetStereoGroups()
+    # print([
+    #     (atom.GetIdx(), atom.GetSymbol(), atom.GetAtomMapNum())
+    #     for group in stereo_groups3
+    #     for atom in group.GetAtoms()
+    # ])
+    # rdmol_canon = cif.canonicalize_mapped_rdmol(rdmol3)
+    # print([n for n in cif.Chem.CanonicalRankAtoms(rdmol_canon)])
+    # stereo_groups3 = rdmol_canon.GetStereoGroups()
+    # print(
+    #     [
+    #         (atom.GetIdx(), atom.GetSymbol(), atom.GetAtomMapNum())
+    #         for group in stereo_groups3
+    #         for atom in group.GetAtoms()
+    #     ]
+    # )
+    # print(cif.Chem.MolToCXSmiles(rdmol_canon))
 
 
 # ChemicalEquation tests
@@ -1050,6 +280,28 @@ def test_chemical_equation_hashing():
     # the reversible full r<a>p hash is  conserved if the reaction is reversed
     assert results.get(0).get("u_r_r_p") == results.get(9).get("u_r_r_p")
     assert results.get(3).get("u_r_r_p") == results.get(6).get("u_r_r_p")
+
+
+def test_ce_from_block():
+    smiles = "CN.CC(O)=O>O>CNC(C)=O"
+    rxn = cif.rdrxn_from_string(smiles, "smiles")
+    # with RxnBlockV3000, reactants and reagents are correctly assigned, if they are correct in the input smiles
+    block = cif.rdrxn_to_string(rxn, "rxn_blockV3K")
+    ce_constructor = ChemicalEquationConstructor("smiles", "r_r_p")
+    ce = ce_constructor.build_from_reaction_string(block, "rxn_block")
+    assert ce
+    ce_from_smiles = ce_constructor.build_from_reaction_string(smiles, "smiles")
+    assert ce_from_smiles == ce
+
+    # if a V2000 RxnBlock is generated, reactants and reagents are mixed
+    block2 = cif.rdrxn_to_string(rxn, "rxn_blockV2K")
+    ce_from_block = ce_constructor.build_from_reaction_string(block2, "rxn_block")
+    assert ce_from_block != ce
+
+    # by forcing V3000 and agents separation, the correct reaction is generated
+    block3 = cif.rdrxn_to_string(rxn, "rxn")
+    ce_from_block = ce_constructor.build_from_reaction_string(block3, "rxn_block")
+    assert ce_from_block == ce
 
 
 def test_instantiate_chemical_equation():
@@ -1934,6 +1186,7 @@ def test_disconnection_depiction():
         )
         for item in test_set
     }
+    # import linchemin.IO.io as lio
     for name, ce in results.items():
         # print(disconnection.to_dict())
         # rdrxn = cif.rdrxn_from_string(input_string=item.get('smiles'), inp_fmt='smiles')
@@ -1946,7 +1199,7 @@ def test_disconnection_depiction():
         # lio.write_rdkit_depict(data=depiction_data, file_path=f"{name}_fragment.png")
         depiction_data = cid.draw_reaction(rdrxn=ce.rdrxn)
         assert depiction_data
-        # lio.write_rdkit_depict(data=depiction_data, file_path=f"{item.get('name')}_reaction.png")
+        # lio.write_rdkit_depict(data=depiction_data, file_path=f"{name}_reaction.png")
         # print(f"\n{item.get('name')} {disconnection.__dict__}")
 
 
@@ -2017,3 +1270,51 @@ def test_real_ces():
     )
     assert depiction_data
     # lio.write_rdkit_depict(data=depiction_data, file_path="multi_disconnections.png")
+
+
+def test_chem_equation_w_enhanced_stereo():
+    # reaction whose product has enhanced stereo
+    reaction_string_w_es = (
+        r"[CH3:1][C@H:2]([Cl:3])[C:4]([CH3:6])=O.[FH:5]>>"
+        r"[CH3:6][C@@H:4]([F:5])[C@H:2]([CH3:1])[Cl:3] |&1:2,8,12,r|"
+    )
+    # reaction without enhanced stereo
+    reaction_string = "[CH3:1][C@H:2]([Cl:3])[C:4]([CH3:6])=O.[FH:5]>>[CH3:6][C@@H:4]([F:5])[C@H:2]([CH3:1])[Cl:3]"
+    ce_constructor = ChemicalEquationConstructor("cx_smiles", "r_r_p")
+    ce_w_es = ce_constructor.build_from_reaction_string(reaction_string_w_es, "smiles")
+    ce = ce_constructor.build_from_reaction_string(reaction_string, "smiles")
+
+    # ChemicalEquation identity is influenced by enhanced stereochemistry if the molecular uid is cx_smiles
+    assert ce != ce_w_es
+
+    # Template is not influenced by enhanced stereochemistry in the desired product
+    assert ce.template == ce_w_es.template
+
+    # The disconnection is impacted by enhanced stereochemistry in the desired product
+    assert ce.disconnection != ce_w_es.disconnection
+
+
+def test_chem_equation_w_enhanced_stereo2():
+    # reaction whose reactants have enhanced stereochemistry
+    s1 = "FC(F)C(F)(Cl)[C@H](F)Cl>>FC(F)C(F)(Cl)C(Cl)=O |o1:3,4,12,13,&6:6,8,15,16,r|"
+    # reaction without enhaced stereochemistry
+    s2 = "FC(F)C(F)(Cl)[C@H](F)Cl>>FC(F)C(F)(Cl)C(Cl)=O"
+
+    ce_constructor = ChemicalEquationConstructor("cx_smiles", "r_r_p")
+    ce_w_es = ce_constructor.build_from_reaction_string(s1, "smiles")
+    ce = ce_constructor.build_from_reaction_string(s2, "smiles")
+    assert ce_w_es != ce
+    # The disconnection is not impacted by enhanced stereochemistry in the reactants/reagents
+    assert ce.disconnection == ce_w_es.disconnection
+
+
+def test_molecule_is_always_sanitized():
+    mol_smiles = "O=C(CBr)NC1=CC=C(C2=NOC=N2)C=C1"
+    mol_constructor = MoleculeConstructor("smiles")
+    mol = mol_constructor.build_from_molecule_string(mol_smiles, "smiles")
+
+    ce_smiles = "COC(=O)CBr.Nc1ccc(-c2ncon2)cc1>>O=C(CBr)NC1=CC=C(C2=NOC=N2)C=C1"
+    ce_constructor = ChemicalEquationConstructor("smiles", "r_p")
+    ce = ce_constructor.build_from_reaction_string(ce_smiles, "smiles")
+    product = ce.get_products()[0]
+    assert product == mol
