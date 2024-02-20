@@ -732,7 +732,7 @@ class Sparrow(GraphFormatTranslator):
         reactions = [
             reaction
             for target, data in graph.items()
-            for reaction in data["Reactions"]
+            for reaction in data["Reaction Nodes"]
             if not reaction["smiles"].startswith(">>")
         ]
         iron = Iron()
@@ -763,26 +763,24 @@ class Sparrow(GraphFormatTranslator):
 
     def from_iron(self, route_iron: Iron) -> dict:
         reactions = []
-        compounds = []
-        if self.get_node_types(route_iron) == [ChemicalEquation, Molecule]:
-            logger.warning(
-                "For full compatibility with sparrow software, the graph should be bipartite"
+        if self.get_node_types(route_iron) == [ChemicalEquation]:
+            logger.error(
+                "Monopartite molecules-only graphs are not compatible with SPARROW structure. "
+                "Please change the output data model to 'bipartite' or to 'monopartite_reactions'"
             )
+            raise ValueError
         for id_n, node in route_iron.nodes.items():
             if "node_type" in node.properties:
-                if isinstance(node.properties["node_type"], ChemicalEquation):
-                    reaction = self.handle_reaction(node)
+                if node.properties["node_type"] is ChemicalEquation:
+                    reaction = self.handle_chemical_equation(node)
                     reactions.append(reaction)
-                elif isinstance(node.properties["node_type"], Molecule):
-                    compound = self.handle_molecules(node, route_iron)
-                    compounds.append(compound)
             else:
                 node_smiles = node.properties["node_smiles"]
                 if node_smiles.count(">") == 2:
-                    reactions.append(node_smiles)
-                else:
-                    compounds.append(node_smiles)
-        return {"Compound Nodes": compounds, "Reaction Nodes": reactions}
+                    reaction = self.handle_reaction_smiles(node_smiles)
+                    reactions.append(reaction)
+
+        return {"Compound Nodes": [], "Reaction Nodes": reactions}
 
     @staticmethod
     def get_node_types(iron: Iron) -> list:
@@ -794,43 +792,27 @@ class Sparrow(GraphFormatTranslator):
         }
         return sorted(datatypes)
 
-    def handle_reaction(self, node: Node) -> dict:
+    def handle_chemical_equation(self, node: Node) -> dict:
         """To create a Reaction Node entry"""
         chemical_equation = node.properties["node_type"]
         reaction = {
-            "smiles": node.properties["node_unmapped_smiles"],
-            "parents": self.get_molecules(chemical_equation, "reactants"),
-            "children": self.get_molecules(chemical_equation, "products"),
+            "smiles": chemical_equation.build_reaction_smiles(use_reagents=False),
             "conditions": self.get_molecules(chemical_equation, "reagents"),
         }
         return reaction
 
     @staticmethod
-    def get_molecules(chemical_equation: ChemicalEquation, role: str) -> List[str]:
-        """To get a list of Molecules' smiles with a given role"""
-        mols = [reactant.smiles for reactant in chemical_equation.get_reactants()]
-        return mols
+    def get_reagents_smiles(chemical_equation: ChemicalEquation) -> List[str]:
+        """To get the list of reagents smiles of a chemical equation"""
+        return [reactant.smiles for reactant in chemical_equation.get_reagents()]
 
-    @staticmethod
-    def handle_molecules(node: Node, iron: Iron) -> dict:
-        """To create a Compound Node entry"""
-        molecule = node.properties["node_type"]
-        compound = {
-            "smiles": molecule.smiles,
+    def handle_reaction_smiles(self, reaction_smiles: str) -> dict:
+        molecules = reaction_smiles.split(">")
+        print(molecules)
+        return {
+            "smiles": molecules[0] + ">>" + molecules[-1],
+            "conditions": molecules[1],
         }
-        parents = iron.get_parent_nodes(node.iid)
-        compound["parents"] = [
-            n.properties["node_unmapped_smiles"]
-            for i, n in iron.nodes.items()
-            if i in parents
-        ]
-        children = iron.get_child_nodes(node.iid)
-        compound["children"] = [
-            n.properties["node_unmapped_smiles"]
-            for i, n in iron.nodes.items()
-            if i in children
-        ]
-        return compound
 
 
 # helper functions

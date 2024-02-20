@@ -193,8 +193,8 @@ def test_sparrow_translation():
     """To test the translation from sparrow output"""
     graph = {
         "CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": {
-            "Compounds": ["CC(=O)Cl", "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"],
-            "Reactions": [
+            "Compound Nodes": ["CC(=O)Cl", "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"],
+            "Reaction Nodes": [
                 {
                     "smiles": "CC(=O)Cl.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
                     "conditions": ["CCN(CC)CC", "[Na+].[OH-]"],
@@ -216,10 +216,23 @@ def test_sparrow_translation():
     assert iron.i_edge_number() == 0
 
     new_sparrow = translator.from_iron(iron)
+    import pprint
+
+    pprint.pprint(new_sparrow)
     assert "Reaction Nodes" in new_sparrow
     assert "Compound Nodes" in new_sparrow
     assert len(new_sparrow["Reaction Nodes"]) == 2
     assert len(new_sparrow["Compound Nodes"]) == 0
+    assert new_sparrow["Reaction Nodes"] == [
+        {
+            "conditions": "CCN(CC)CC.[Na+].[OH-]",
+            "smiles": "CC(=O)Cl.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+        },
+        {
+            "conditions": "",
+            "smiles": "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+        },
+    ]
 
 
 def test_reaxys_translation(reaxys_as_dict):
