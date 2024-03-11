@@ -1,18 +1,19 @@
-import pytest
-from linchemin.cgu.graph_transformations.format_translators import (
-    PyDot,
-    Networkx,
-    IbmRetro,
-    AzRetro,
-    MitRetro,
-    Sparrow,
-    ReaxysRT,
-    get_output_translators,
-    get_input_translators,
-)
-import pydot
 import networkx as nx
-from linchemin.cgu.iron import Iron, Node, Edge, Direction
+import pydot
+import pytest
+
+from linchemin.cgu.graph_transformations.format_translators import (
+    AzRetro,
+    IbmRetro,
+    MitRetro,
+    Networkx,
+    PyDot,
+    ReaxysRT,
+    Sparrow,
+    get_input_translators,
+    get_output_translators,
+)
+from linchemin.cgu.iron import Direction, Edge, Iron, Node
 
 
 @pytest.fixture

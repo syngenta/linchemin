@@ -5,12 +5,6 @@ from typing import Union
 import networkx as nx
 import pydot
 
-from linchemin.cgu.iron import Iron
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-    MonopartiteReacSynGraph,
-)
 from linchemin.cgu.graph_transformations.data_model_converters import (
     DataModelCatalog,
     DataModelConverter,
@@ -19,6 +13,12 @@ from linchemin.cgu.graph_transformations.exceptions import UnavailableTranslatio
 from linchemin.cgu.graph_transformations.format_translators import (
     GraphFormatCatalog,
     get_formats,
+)
+from linchemin.cgu.iron import Iron
+from linchemin.cgu.syngraph import (
+    BipartiteSynGraph,
+    MonopartiteMolSynGraph,
+    MonopartiteReacSynGraph,
 )
 from linchemin.utilities import console_logger
 

@@ -1,5 +1,6 @@
-from linchemin.cgu.iron import Iron, Node, Edge, Direction
-from typing import Union, Tuple
+from typing import Tuple, Union
+
+from linchemin.cgu.iron import Direction, Edge, Iron, Node
 
 
 def az_dict_to_iron(

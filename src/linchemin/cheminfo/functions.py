@@ -1,7 +1,7 @@
 import copy
 import re
 from functools import partial
-from typing import Callable, Dict, Iterable, List, Tuple, Union, Any
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import rdkit
 from rdchiral import template_extractor

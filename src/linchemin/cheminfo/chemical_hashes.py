@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-from linchemin.utilities import console_logger
-import linchemin.cheminfo.functions as cif
 from typing import Type, Union
-from linchemin.cheminfo.models import Disconnection
+
+import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
+from linchemin.cheminfo.models import Disconnection
+from linchemin.utilities import console_logger
 
 
 class UnavailableMolIdentifier(Exception):

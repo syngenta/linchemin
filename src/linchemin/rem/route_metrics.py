@@ -2,17 +2,17 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Type, Union
 
+import linchemin.cheminfo.functions as cif
 from linchemin.cgu.convert import converter
 from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
 )
-from linchemin.cgu.syngraph_operations import find_path, find_all_paths
+from linchemin.cgu.syngraph_operations import find_all_paths, find_path
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.route_descriptors import descriptor_calculator
 from linchemin.utilities import console_logger
-import linchemin.cheminfo.functions as cif
 
 """Module containing functions and classes for computing route metrics that depend on external information"""
 logger = console_logger(__name__)

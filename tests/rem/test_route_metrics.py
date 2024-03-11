@@ -7,9 +7,9 @@ from linchemin.cgu.syngraph import (
 )
 from linchemin.cheminfo.models import Molecule
 from linchemin.rem.route_metrics import (
+    StartingMaterialsAmount,
     distance_function_calculator,
     route_metric_calculator,
-    StartingMaterialsAmount,
 )
 
 # route from the test file of askcos

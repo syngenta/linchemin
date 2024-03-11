@@ -1,9 +1,10 @@
+import json
 from pathlib import Path
 
 import pytest
-import json
-from linchemin.cgu.iron import Iron, Node, Edge, Direction
-from linchemin.cgu.syngraph import BipartiteSynGraph
+
+from linchemin.cgu.iron import Direction, Edge, Iron, Node
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 
 
 @pytest.fixture
@@ -48,8 +49,8 @@ def iron_w_smiles():
 
 
 @pytest.fixture
-def bp_syngraph_instance():
-    reaction_list = [
+def reaction_list():
+    return [
         {
             "output_string": "C1COCCO1.CC(=O)O.CC1(C)OB([B:6]2[O:7][C:8]([CH3:9])([CH3:10])[C:11]([CH3:12])([CH3:13])[O:14]2)OC1(C)C.Br[C:5]1=[CH:4][CH2:3][N:2]([CH3:1])[CH2:17][C:15]1=[O:16].Cl[Pd]Cl.[CH]1[CH][CH]C(P(c2ccccc2)c2ccccc2)[CH]1.[CH]1[CH][CH]C(P(c2ccccc2)c2ccccc2)[CH]1.[Fe].[K+]>>[CH3:1][N:2]1[CH2:3][CH:4]=[C:5]([B:6]2[O:7][C:8]([CH3:9])([CH3:10])[C:11]([CH3:12])([CH3:13])[O:14]2)[C:15](=[O:16])[CH2:17]1",
             "query_id": "0",
@@ -63,7 +64,16 @@ def bp_syngraph_instance():
             "query_id": "5",
         },
     ]
+
+
+@pytest.fixture
+def bp_syngraph_instance(reaction_list):
     return BipartiteSynGraph(reaction_list)
+
+
+@pytest.fixture
+def mpr_syngraph_instance(reaction_list):
+    return MonopartiteReacSynGraph(reaction_list)
 
 
 @pytest.fixture

@@ -1,20 +1,20 @@
+import unittest
+
 import pytest
+
 from linchemin.cgu.graph_transformations.data_model_converters import (
     Bipartite,
+    DataModelCatalog,
     MonopartiteMolecules,
     MonopartiteReactions,
-    DataModelCatalog,
 )
+from linchemin.cgu.graph_transformations.exceptions import UnavailableDataModel
+from linchemin.cgu.iron import Direction, Edge, Iron, Node
 from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
 )
-from linchemin.cgu.iron import Iron, Node, Edge, Direction
-from linchemin.cgu.graph_transformations.exceptions import (
-    UnavailableDataModel,
-)
-import unittest
 
 
 def test_iron_bp_syngraph(iron_w_smiles):

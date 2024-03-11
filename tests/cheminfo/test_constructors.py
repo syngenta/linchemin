@@ -5,6 +5,10 @@ import pytest
 
 import linchemin.cheminfo.depiction as cid
 import linchemin.cheminfo.functions as cif
+from linchemin.cheminfo.chemical_hashes import (
+    UnavailableMolIdentifier,
+    calculate_molecular_hash_map,
+)
 from linchemin.cheminfo.constructors import (
     BadMapping,
     ChemicalEquationConstructor,
@@ -12,10 +16,6 @@ from linchemin.cheminfo.constructors import (
     PatternConstructor,
     RatamConstructor,
     TemplateConstructor,
-)
-from linchemin.cheminfo.chemical_hashes import (
-    calculate_molecular_hash_map,
-    UnavailableMolIdentifier,
 )
 from linchemin.cheminfo.models import Template
 from linchemin.utilities import create_hash

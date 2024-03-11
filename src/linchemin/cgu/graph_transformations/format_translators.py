@@ -2,21 +2,23 @@ import datetime
 import os
 from abc import ABC, abstractmethod
 from typing import List, Type, Union
-from linchemin.cgu.iron import Edge, Iron, Node
+
 import networkx as nx
 import pydot
-from linchemin.utilities import console_logger
+
+import linchemin.cgu.graph_transformations.exceptions as exceptions
+import linchemin.cheminfo.depiction as cid
+from linchemin import settings
 from linchemin.cgu.graph_transformations.supporting_functions import (
     az_dict_to_iron,
+    build_iron_edge,
     ibm_dict_to_iron,
     mit_dict_to_iron,
-    build_iron_edge,
 )
-from linchemin import settings
-import linchemin.cheminfo.depiction as cid
+from linchemin.cgu.iron import Edge, Iron, Node
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.IO import io as lio
-from linchemin.cheminfo.models import Molecule, ChemicalEquation
-import linchemin.cgu.graph_transformations.exceptions as exceptions
+from linchemin.utilities import console_logger
 
 logger = console_logger(__name__)
 

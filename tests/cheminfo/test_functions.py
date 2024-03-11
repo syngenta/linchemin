@@ -1,11 +1,11 @@
 import unittest
+
 import pytest
 from rdkit import Chem
 from rdkit.Chem import rdChemReactions
 
-from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 import linchemin.cheminfo.functions as cif
-
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 from linchemin.cheminfo.functions import rdkit as rdkit
 
 

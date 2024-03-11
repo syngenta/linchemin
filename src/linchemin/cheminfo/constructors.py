@@ -9,6 +9,14 @@ from typing import Dict, List, Set, Tuple, Union
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
 from linchemin import settings
+from linchemin.cheminfo.chemical_hashes import (
+    MolIdentifierFactory,
+    UnavailableMolIdentifier,
+    calculate_disconnection_hash_map,
+    calculate_molecular_hash_map,
+    calculate_pattern_hash_map,
+    calculate_reaction_like_hash_map,
+)
 from linchemin.cheminfo.models import (
     ChemicalEquation,
     Disconnection,
@@ -20,14 +28,6 @@ from linchemin.cheminfo.models import (
     Reagent,
     Role,
     Template,
-)
-from linchemin.cheminfo.chemical_hashes import (
-    MolIdentifierFactory,
-    UnavailableMolIdentifier,
-    calculate_molecular_hash_map,
-    calculate_disconnection_hash_map,
-    calculate_pattern_hash_map,
-    calculate_reaction_like_hash_map,
 )
 
 """

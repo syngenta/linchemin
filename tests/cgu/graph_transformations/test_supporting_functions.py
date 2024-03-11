@@ -1,8 +1,8 @@
 from linchemin.cgu.graph_transformations.supporting_functions import (
-    populate_iron,
     build_iron_edge,
+    populate_iron,
 )
-from linchemin.cgu.iron import Iron, Node, Edge
+from linchemin.cgu.iron import Edge, Iron, Node
 
 
 def test_populate_iron():

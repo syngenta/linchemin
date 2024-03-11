@@ -1,14 +1,15 @@
 import pytest
+
+import linchemin.cheminfo.functions as cif
 from linchemin.cheminfo.chemical_hashes import (
-    MolIdentifierFactory,
     CxSmiles,
-    NoisoSmiles,
-    InchiKey,
     Inchi,
     InchiKET15,
+    InchiKey,
     InchiKeyKET15,
+    MolIdentifierFactory,
+    NoisoSmiles,
 )
-import linchemin.cheminfo.functions as cif
 
 
 @pytest.fixture

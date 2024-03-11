@@ -1,18 +1,20 @@
 from unittest.mock import Mock, patch
+
 import pytest
+
 from linchemin.cgu.graph_transformations.data_model_converters import Bipartite
 from linchemin.cgu.translate import (
-    get_available_data_models,
-    get_available_formats,
-    get_output_formats,
-    get_input_formats,
-    translator,
     InputToIron,
+    IronToOutput,
     IronToSynGraph,
     SynGraphToIron,
-    IronToOutput,
     TranslationParameters,
     UnavailableTranslation,
+    get_available_data_models,
+    get_available_formats,
+    get_input_formats,
+    get_output_formats,
+    translator,
 )
 
 

@@ -1,17 +1,18 @@
 from abc import ABC, abstractmethod
+from typing import Tuple, Type, Union
+
+import linchemin.cgu.graph_transformations.exceptions as exceptions
+import linchemin.cheminfo.functions as cif
+from linchemin.cgu.convert import converter
+from linchemin.cgu.graph_transformations.supporting_functions import build_iron_edge
+from linchemin.cgu.iron import Iron, Node
 from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
 )
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
-import linchemin.cheminfo.functions as cif
-from linchemin.cgu.iron import Iron, Node
-from typing import Tuple, Type, Union
 from linchemin.utilities import console_logger
-from linchemin.cgu.convert import converter
-import linchemin.cgu.graph_transformations.exceptions as exceptions
-from linchemin.cgu.graph_transformations.supporting_functions import build_iron_edge
 
 logger = console_logger(__name__)
 

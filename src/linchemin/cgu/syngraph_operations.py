@@ -8,7 +8,6 @@ from linchemin.cgu.syngraph import (
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
 )
-
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 

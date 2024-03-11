@@ -8,6 +8,7 @@ import pandas as pd
 
 from linchemin import settings
 from linchemin.cgu.convert import Converter, converter
+from linchemin.cgu.graph_transformations.exceptions import TranslationError
 from linchemin.cgu.route_sanity_check import (
     get_available_route_sanity_checks,
     route_checker,
@@ -29,12 +30,11 @@ from linchemin.cgu.translate import (
     get_output_formats,
     translator,
 )
-from linchemin.cgu.graph_transformations.exceptions import TranslationError
 from linchemin.cheminfo.atom_mapping import (
+    MappingOutput,
     get_available_mappers,
     perform_atom_mapping,
     pipeline_atom_mapping,
-    MappingOutput,
 )
 from linchemin.configuration.defaults import DEFAULT_FACADE
 from linchemin.rem.clustering import (
@@ -54,8 +54,8 @@ from linchemin.rem.route_descriptors import (
     descriptor_calculator,
     find_duplicates,
     get_available_descriptors,
-    is_subset,
     get_configuration,
+    is_subset,
 )
 
 """
