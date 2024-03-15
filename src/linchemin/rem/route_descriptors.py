@@ -181,7 +181,7 @@ class NrBranches(RouteDescriptor):
     title = "N of Branches"
     type = "number"
     fields = ["nr_branches"]
-    order = 40
+    order = 30
 
     def compute_descriptor(
         self,
@@ -214,7 +214,7 @@ class Branchedness(RouteDescriptor):
     title = "Branchedness"
     type = "number"
     fields = ["branchedness"]
-    order = 50
+    order = 40
 
     def compute_descriptor(self, graph: MonopartiteReacSynGraph) -> float:
         """
@@ -303,7 +303,7 @@ class Convergence(RouteDescriptor):
     title = "Convergence"
     type = "number"
     fields = ["convergence"]
-    order = 70
+    order = 50
 
     def compute_descriptor(self, graph: MonopartiteReacSynGraph) -> float:
         """
@@ -325,7 +325,7 @@ class AvgBranchingFactor(RouteDescriptor):
     title = "Avg Branching Factor"
     type = "number"
     fields = ["branching_factor"]
-    order = 100
+    order = 80
 
     def compute_descriptor(self, graph: MonopartiteReacSynGraph) -> float:
         """
@@ -351,7 +351,7 @@ class CDScore(RouteDescriptor):
     title = "Convergent Disconnection Score"
     type = "number"
     fields = ["cdscore"]
-    order = 80
+    order = 60
 
     def compute_descriptor(self, graph: MonopartiteReacSynGraph) -> float:
         """Takes a SynGraph and returns the average CDScore computing the score for each reaction involved."""
@@ -377,7 +377,7 @@ class SimplifiedAtomEffectiveness(RouteDescriptor):
     title = "Simplified Atom Effectiveness"
     type = "number"
     fields = ["simplified_atom_effectiveness"]
-    order = 90
+    order = 70
 
     def compute_descriptor(self, graph: MonopartiteReacSynGraph) -> float:
         """Takes a SynGraph and returns its simplified atom effectiveness"""
