@@ -1,4 +1,4 @@
-import unittest.mock
+from unittest.mock import patch
 
 import pytest
 
@@ -6,10 +6,10 @@ from linchemin.interfaces.facade import facade
 from linchemin.interfaces.workflows import get_workflow_options, process_routes
 
 
-@unittest.mock.patch("linchemin.cgu.translate.AzRetro.to_iron")
-@unittest.mock.patch("linchemin.cgu.translate.IbmRetro.to_iron")
-@unittest.mock.patch("linchemin.cgu.translate.ReaxysRT.to_iron")
-@unittest.mock.patch("linchemin.IO.io.write_json")
+@patch("linchemin.cgu.graph_transformations.format_translators.AzRetro.to_iron")
+@patch("linchemin.cgu.graph_transformations.format_translators.IbmRetro.to_iron")
+@patch("linchemin.cgu.graph_transformations.format_translators.ReaxysRT.to_iron")
+@patch("linchemin.IO.io.write_json")
 def test_workflow_basic(
     mock_os, mock_reaxys, mock_ibm, mock_az, az_path, ibm2_path, reaxys_path
 ):
@@ -53,8 +53,8 @@ def test_workflow_basic(
     assert "KeyError" in str(ke.type)
 
 
-@unittest.mock.patch("linchemin.IO.io.dict_list_to_csv")
-@unittest.mock.patch("linchemin.IO.io.dataframe_to_csv")
+@patch("linchemin.IO.io.dict_list_to_csv")
+@patch("linchemin.IO.io.dataframe_to_csv")
 def test_workflow_metric(mock_dataframe, mock_csv, ibm2_path):
     path = str(ibm2_path)
     input_dict = {path: "ibmrxn"}
@@ -74,7 +74,7 @@ def test_workflow_metric(mock_dataframe, mock_csv, ibm2_path):
     mock_dataframe.assert_called_with(out.descriptors, "descriptors.csv")
 
 
-@unittest.mock.patch("linchemin.interfaces.workflows.write_syngraph")
+@patch("linchemin.interfaces.workflows.write_syngraph")
 def test_merging(mock_writer1, az_path):
     path = str(az_path)
     input_dict = {path: "az"}
@@ -82,8 +82,8 @@ def test_merging(mock_writer1, az_path):
     mock_writer1.assert_called_with(out.routes_list, "bipartite", "png", "routes")
 
 
-@unittest.mock.patch("linchemin.IO.io.dict_list_to_csv")
-@unittest.mock.patch("linchemin.IO.io.dataframe_to_csv")
+@patch("linchemin.IO.io.dict_list_to_csv")
+@patch("linchemin.IO.io.dataframe_to_csv")
 def test_workflow_cluster_dist_matrix(mock_dataframe, mock_csv, mit_path):
     path = str(mit_path)
     input_dict = {path: "askcos"}
@@ -97,7 +97,7 @@ def test_workflow_cluster_dist_matrix(mock_dataframe, mock_csv, mit_path):
     mock_dataframe.assert_called_with(out.clustered_descriptors, "cluster_metrics.csv")
 
 
-@unittest.mock.patch("linchemin.IO.io.write_nx_to_graphml")
+@patch("linchemin.IO.io.write_nx_to_graphml")
 def test_workflow_graphml(mock_graphml, mit_path):
     path = str(mit_path)
     input_dict = {path: "askcos"}
@@ -113,8 +113,8 @@ def test_helper(capfd):
     assert "input_dict" in out
 
 
-@unittest.mock.patch("linchemin.IO.io.dict_list_to_csv")
-@unittest.mock.patch("linchemin.IO.io.write_json")
+@patch("linchemin.IO.io.dict_list_to_csv")
+@patch("linchemin.IO.io.write_json")
 def test_reaction_strings_extraction(mock_json, mock_csv, az_path):
     path = str(az_path)
     input_dict = {path: "az"}
@@ -128,8 +128,8 @@ def test_reaction_strings_extraction(mock_json, mock_csv, az_path):
     mock_json.assert_called_with(out.reaction_strings, "reaction_strings.json")
 
 
-@unittest.mock.patch("linchemin.IO.io.dict_list_to_csv")
-@unittest.mock.patch("linchemin.IO.io.write_json")
+@patch("linchemin.IO.io.dict_list_to_csv")
+@patch("linchemin.IO.io.write_json")
 def test_graphml(mock_json, mock_csv, az_path):
     path = str(az_path)
     input_dict = {path: "az"}
@@ -143,13 +143,11 @@ def test_graphml(mock_json, mock_csv, az_path):
     mock_json.assert_called_with(out.reaction_strings, "reaction_strings.json")
 
 
-@unittest.mock.patch("linchemin.IO.io.write_json")
-@unittest.mock.patch("linchemin.interfaces.workflows.MergingStep.perform_step")
-@unittest.mock.patch(
-    "linchemin.interfaces.workflows.ClusteringAndDistanceMatrixStep.perform_step"
-)
-@unittest.mock.patch("linchemin.interfaces.workflows.DescriptorsStep.perform_step")
-@unittest.mock.patch("linchemin.interfaces.workflows.TranslationStep.perform_step")
+@patch("linchemin.IO.io.write_json")
+@patch("linchemin.interfaces.workflows.MergingStep.perform_step")
+@patch("linchemin.interfaces.workflows.ClusteringAndDistanceMatrixStep.perform_step")
+@patch("linchemin.interfaces.workflows.DescriptorsStep.perform_step")
+@patch("linchemin.interfaces.workflows.TranslationStep.perform_step")
 def test_full_workflow(
     mock_translate, mock_descriptors, mock_cluster, mock_merging, mock_write, az_path
 ):
@@ -167,8 +165,8 @@ def test_full_workflow(
     mock_write.assert_called()
 
 
-@unittest.mock.patch("linchemin.IO.io.write_json")
-@unittest.mock.patch("linchemin.interfaces.workflows.AtomMappingStep.perform_step")
+@patch("linchemin.IO.io.write_json")
+@patch("linchemin.interfaces.workflows.AtomMappingStep.perform_step")
 def test_atom_mapping(mock_mapping, mock_write, az_path):
     path = str(az_path)
     input_dict = {path: "az"}

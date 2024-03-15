@@ -9,6 +9,14 @@ from typing import Dict, List, Set, Tuple, Union
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
 from linchemin import settings
+from linchemin.cheminfo.chemical_hashes import (
+    MolIdentifierFactory,
+    UnavailableMolIdentifier,
+    calculate_disconnection_hash_map,
+    calculate_molecular_hash_map,
+    calculate_pattern_hash_map,
+    calculate_reaction_like_hash_map,
+)
 from linchemin.cheminfo.models import (
     ChemicalEquation,
     Disconnection,
@@ -27,12 +35,6 @@ Module containing the constructor classes of relevant cheminformatics models def
 """
 
 
-class UnavailableMolIdentifier(Exception):
-    """To be raised if the selected name for the molecular property name is not among the supported ones"""
-
-    pass
-
-
 class BadMapping(Exception):
     """To be raised if an atom number is used more than once, indicating that the atom mapping is invalid"""
 
@@ -40,69 +42,6 @@ class BadMapping(Exception):
 
 
 logger = utilities.console_logger(__name__)
-
-
-# Molecular hash calculations
-class MolIdentifierGenerator(ABC):
-    """Abstract class for generator of hash map fragments"""
-
-    @abstractmethod
-    def compute_identifier(self, rdmol: cif.Mol, hash_map: dict):
-        pass
-
-
-class InchiKeyGenerator(MolIdentifierGenerator):
-    """To compute inch and inchKey"""
-
-    def compute_identifier(self, rdmol: cif.Mol, hash_map: dict):
-        hash_map["inchi"] = cif.Chem.MolToInchi(rdmol)
-        hash_map["inchi_key"] = cif.Chem.InchiToInchiKey(hash_map["inchi"])
-        return hash_map
-
-
-class InchiKeyKET15Generator(MolIdentifierGenerator):
-    """To compute InchiKET15T and InchiKeyKET15T"""
-
-    def compute_identifier(self, rdmol: cif.Mol, hash_map: dict):
-        hash_map["inchi_KET_15T"] = cif.Chem.MolToInchi(rdmol, options="-KET -15T")
-        hash_map["inchikey_KET_15T"] = cif.Chem.InchiToInchiKey(
-            hash_map["inchi_KET_15T"]
-        )
-        return hash_map
-
-
-class NoisoSmilesGenerator(MolIdentifierGenerator):
-    """To compute Noiso smiles"""
-
-    def compute_identifier(self, rdmol: cif.Mol, hash_map: dict):
-        hash_map["noiso_smiles"] = cif.Chem.MolToSmiles(rdmol, isomericSmiles=False)
-        return hash_map
-
-
-class CxSmilesGenerator(MolIdentifierGenerator):
-    """To compute CxSmiles"""
-
-    def compute_identifier(self, rdmol: cif.Mol, hash_map: dict):
-        hash_map["cx_smiles"] = cif.Chem.MolToCXSmiles(rdmol)
-        return hash_map
-
-
-class MolIdentifierFactory:
-    """Factory to give access to the Molecular Identifier Generators"""
-
-    molecular_identifiers = {
-        "inchi_key": InchiKeyGenerator,
-        "inchikey_KET_15T": InchiKeyKET15Generator,
-        "noiso_smiles": NoisoSmilesGenerator,
-        "cx_smiles": CxSmilesGenerator,
-    }
-
-    def __init__(self, rdmol=None):
-        self.rdmol = rdmol
-
-    def select_identifier(self, identifier_name, hash_map):
-        generator = self.molecular_identifiers[identifier_name]
-        return generator().compute_identifier(self.rdmol, hash_map)
 
 
 # Molecule Constructor
@@ -120,7 +59,7 @@ class MoleculeConstructor:
 
     all_available_identifiers = (
         list(cif.HashFunction.names.keys())
-        + list(MolIdentifierFactory().molecular_identifiers.keys())
+        + MolIdentifierFactory.list_mol_identifiers()
         + ["smiles"]
     )
 
@@ -154,14 +93,28 @@ class MoleculeConstructor:
         """To build a Molecule instance from a rdkit Mol instance"""
         rdmol_mapped = rdmol
         rdmol_unmapped = cif.remove_rdmol_atom_mapping(rdmol=rdmol_mapped)
-        rdmol_unmapped_canonical = cif.canonicalize_rdmol_lite(
-            rdmol=rdmol_unmapped, is_pattern=False
-        )
-        rdmol_mapped_canonical = cif.canonicalize_mapped_rdmol(
-            cif.canonicalize_rdmol_lite(rdmol=rdmol_mapped, is_pattern=False)
-        )
-        hash_map = calculate_molecular_hash_values(
-            rdmol=rdmol_unmapped_canonical, hash_list=self.hash_list
+
+        if self.molecular_identity_property_name == "cx_smiles":
+            use_extended_info = True
+        else:
+            use_extended_info = False
+        rdmol_unmapped_canonical = cif.new_molecule_canonicalization(rdmol_unmapped)
+        # rdmol_unmapped_canonical = cif.canonicalize_rdmol_lite(
+        #     rdmol=rdmol_unmapped, is_pattern=False, use_extended_info=use_extended_info
+        # )
+        rdmol_mapped_canonical = cif.new_molecule_canonicalization(rdmol_mapped)
+        # rdmol_mapped_canonical = cif.canonicalize_mapped_rdmol(
+        #     cif.canonicalize_rdmol_lite(
+        #         rdmol=rdmol_mapped,
+        #         is_pattern=False,
+        #         use_extended_info=use_extended_info,
+        #     )
+        # )
+
+        hash_map = calculate_molecular_hash_map(
+            self.all_available_identifiers,
+            rdmol=rdmol_unmapped_canonical,
+            hash_list=self.hash_list,
         )
         identity_property = hash_map.get(self.molecular_identity_property_name)
         uid = utilities.create_hash(identity_property)
@@ -452,8 +405,7 @@ class DisconnectionConstructor:
         disconnection.hydrogenated_atoms = product_changes.hydrogenated_atoms
         disconnection.new_bonds = product_changes.new_bonds
         disconnection.modified_bonds = product_changes.modified_bonds
-
-        disconnection.hash_map = calculate_disconnection_hash_values(disconnection)
+        disconnection.hash_map = calculate_disconnection_hash_map(disconnection)
         disconnection.identity_property = disconnection.hash_map.get(
             "disconnection_summary"
         )
@@ -612,7 +564,6 @@ class RXNReactiveCenter:
 
         # retrieve the map numbers of the reacting atoms
         maps_reacting_atoms = self.get_reacting_atoms_map_numbers(ce)
-
         # retrieve the AtomTransformations of the desired product involving the reacting atoms
         ats_desired_product = [
             at
@@ -754,7 +705,7 @@ class PatternConstructor:
         pattern.rdmol = rdmol_unmapped_canonical
         pattern.rdmol_mapped = rdmol_mapped_canonical
         pattern.smarts = cif.compute_mol_smarts(rdmol=pattern.rdmol)
-        pattern.hash_map = calculate_pattern_hash_values(pattern.smarts)
+        pattern.hash_map = calculate_pattern_hash_map(pattern.smarts)
 
         pattern.identity_property = pattern.hash_map.get(self.identity_property_name)
         pattern.uid = utilities.create_hash(
@@ -791,12 +742,16 @@ class TemplateConstructor:
         """To attempt in sanitizing the rdkit reaction"""
         try:
             rdrxn = cif.rdrxn_from_string(input_string=reaction_string, inp_fmt=inp_fmt)
-            sanitize_msg = cif.rdChemReactions.SanitizeRxn(rdrxn, catchErrors=True)
-
+            # Sanitization to cause issues with some molecular structures https://github.com/rdkit/rdkit/issues/7108
+            # sanitize_msg = cif.rdChemReactions.SanitizeRxn(rdrxn, catchErrors=True)
+            #
+            # outcome = utilities.OutcomeMetadata(
+            #     name="read_reaction",
+            #     is_successful=True,
+            #     log={"sanitize_msg": sanitize_msg},
+            # )
             outcome = utilities.OutcomeMetadata(
-                name="read_reaction",
-                is_successful=True,
-                log={"sanitize_msg": sanitize_msg},
+                name="read_reaction", is_successful=True, log={}
             )
         except Exception as e:
             outcome = utilities.OutcomeMetadata(
@@ -879,7 +834,7 @@ class TemplateConstructor:
         template.pattern_catalog = pattern_catalog
         template.stoichiometry_coefficients = stoichiometry_coefficients
         template.role_map = role_map
-        template.hash_map = create_reaction_like_hash_values(pattern_catalog, role_map)
+        template.hash_map = calculate_reaction_like_hash_map(pattern_catalog, role_map)
         template.uid = template.hash_map.get(
             settings.CONSTRUCTORS.template_identity_property
         )  # TODO: review
@@ -923,14 +878,20 @@ class ChemicalEquationConstructor:
         """To start the building of a ChemicalEquation instance from a reaction string"""
         try:
             rdrxn = cif.rdrxn_from_string(input_string=reaction_string, inp_fmt=inp_fmt)
-            sanitize_msg = cif.rdChemReactions.SanitizeRxn(rdrxn, catchErrors=True)
-
+            # Sanitization to cause issues with some molecular structures https://github.com/rdkit/rdkit/issues/7108
+            # sanitize_msg = cif.rdChemReactions.SanitizeRxn(rdrxn, catchErrors=True)
+            # outcome = utilities.OutcomeMetadata(
+            #     name="read_reaction",
+            #     is_successful=True,
+            #     log={"sanitize_msg": sanitize_msg},
+            # )
             outcome = utilities.OutcomeMetadata(
-                name="read_reaction",
-                is_successful=True,
-                log={"sanitize_msg": sanitize_msg},
+                name="read_reaction", is_successful=True, log={}
             )
+
         except Exception as e:
+            logger.warning("Exception is raised, rdrxn is None")
+            print(e)
             outcome = utilities.OutcomeMetadata(
                 name="read_reaction", is_successful=False, log={"exception": e}
             )
@@ -1322,122 +1283,12 @@ class Builder:
         use_reagents = chemical_equation_identity_name not in ["r_p", "u_r_p"]
         ce.rdrxn = self.__builder.generate_rdrxn(ce, use_reagents)
         ce.smiles = self.__builder.generate_smiles(ce.rdrxn)
-        ce.hash_map = create_reaction_like_hash_values(ce.catalog, ce.role_map)
+        ce.hash_map = calculate_reaction_like_hash_map(ce.catalog, ce.role_map)
         ce.uid = ce.hash_map.get(chemical_equation_identity_name)
         ce.template = self.__builder.generate_template(ce)
         ce.disconnection = self.__builder.generate_disconnection(ce, desired_product)
 
         return ce
-
-
-def calculate_molecular_hash_values(
-    rdmol: cif.Mol, hash_list: Union[set, None] = None
-) -> dict:
-    """To compute the hash_map dictionary containing molecular properties/representations names and the
-    corresponding hash values"""
-    molhashf = cif.HashFunction.names
-    if hash_list is None:
-        hash_list = MoleculeConstructor.all_available_identifiers
-    hash_map = {}
-
-    if rdkit_hashes := [h for h in hash_list if h in molhashf]:
-        hash_map.update(
-            {k: cif.MolHash(rdmol, v) for k, v in molhashf.items() if k in rdkit_hashes}
-        )
-    if "smiles" in hash_list:
-        hash_map.update(
-            {
-                "smiles": cif.MolHash(rdmol, v)
-                for k, v in molhashf.items()
-                if k == "CanonicalSmiles"
-            }
-        )
-
-    if other_hashes := [h for h in hash_list if h not in rdkit_hashes]:
-        factory = MolIdentifierFactory(rdmol)
-        for h in other_hashes:
-            if h not in MoleculeConstructor.all_available_identifiers:
-                logger.warning(f"{h} is not supported as molecular identifier")
-            elif h != "smiles":
-                hash_map.update(factory.select_identifier(h, hash_map))
-
-    """
-
-    hash_map['ExtendedMurcko_AG'] = smiles_to_anonymus_graph(hash_map['ExtendedMurcko'])
-    hash_map['ExtendedMurcko_EG'] = smiles_to_element_graph(hash_map['ExtendedMurcko'])
-    hash_map['MurckoScaffold_AG'] = smiles_to_anonymus_graph(hash_map['MurckoScaffold'])
-    hash_map['MurckoScaffold_EG'] = smiles_to_element_graph(hash_map['MurckoScaffold'])
-    """
-    return hash_map
-
-
-# ChemicalEquation hash calculations
-def create_reaction_like_hash_values(catalog: dict, role_map: dict) -> dict:
-    """To calculate the hash keys for reaction-like objects"""
-    mol_list_map = {
-        role: [catalog.get(uid) for uid in uid_list]
-        for role, uid_list in role_map.items()
-    }
-
-    # get the identity_property for each molecule
-    idp_list_map = {
-        role: [m.identity_property for m in molecule_list]
-        for role, molecule_list in mol_list_map.items()
-    }
-
-    # for each role concatenate the properties
-    idp_str_map = {role: ".".join(sorted(v)) for role, v in idp_list_map.items()}
-
-    # add some more strings
-    idp_str_map["r_p"] = ">>".join(
-        [idp_str_map.get("reactants"), idp_str_map.get("products")]
-    )
-    idp_str_map["r_r_p"] = ">".join(
-        [
-            idp_str_map.get("reactants"),
-            idp_str_map.get("reagents"),
-            idp_str_map.get("products"),
-        ]
-    )
-    idp_str_map["u_r_p"] = ">>".join(
-        sorted([idp_str_map.get("reactants"), idp_str_map.get("products")])
-    )
-    idp_str_map["u_r_r_p"] = ">>".join(
-        sorted(
-            [
-                idp_str_map.get("reactants"),
-                idp_str_map.get("reagents"),
-                idp_str_map.get("products"),
-            ]
-        )
-    )
-    return {role: utilities.create_hash(v) for role, v in idp_str_map.items()}
-
-
-def calculate_disconnection_hash_values(disconnection: Disconnection) -> dict:
-    idp = disconnection.molecule.identity_property
-
-    changes_map = {
-        "reacting_atoms": disconnection.reacting_atoms,
-        "hydrogenated_atoms": disconnection.hydrogenated_atoms,
-        "new_bonds": disconnection.new_bonds,
-        "mod_bonds": disconnection.modified_bonds,
-    }
-
-    """
-    | separates properties and is followed by the name and a:
-    """
-    changes_str = "|".join(
-        [f'{k}:{",".join(map(str, v))}' for k, v in changes_map.items()]
-    )
-
-    disconnection_summary = "|".join([idp, changes_str])
-
-    return {"disconnection_summary": disconnection_summary}
-
-
-def calculate_pattern_hash_values(smarts) -> dict:
-    return {"smarts": smarts}
 
 
 if __name__ == "__main__":

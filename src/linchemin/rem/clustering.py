@@ -304,7 +304,7 @@ def optimize_agglomerative_cluster(dist_matrix: np.array, linkage: str) -> tuple
 
     for n_cluster in range(2, min(5, len(dist_matrix))):
         clustering = AgglomerativeClustering(
-            n_clusters=n_cluster, affinity="precomputed", linkage=linkage
+            n_clusters=n_cluster, metric="precomputed", linkage=linkage
         ).fit(dist_matrix.to_numpy(dtype=float))
         score = compute_silhouette_score(dist_matrix, clustering.labels_)
 

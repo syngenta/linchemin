@@ -1,9 +1,9 @@
 import abc
+from typing import Type
 
 import linchemin.cheminfo.functions as cif
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.utilities import console_logger
-from typing import Type
 
 """
 Module containing functions and classes for computing score and metrics of single nodes of a route.

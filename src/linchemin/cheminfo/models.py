@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Union, List
+from typing import List, Union
 
 import linchemin.cheminfo.functions as cif
 

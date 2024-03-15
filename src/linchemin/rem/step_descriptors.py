@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass, field
-from typing import Type, Union, List, Set
+from typing import List, Set, Type, Union
 
 import linchemin.cheminfo.functions as cif
 from linchemin.cgu.convert import converter
@@ -10,12 +10,12 @@ from linchemin.cgu.syngraph import (
     MonopartiteReacSynGraph,
 )
 from linchemin.cheminfo.constructors import (
-    ChemicalEquationConstructor,
     AtomTransformation,
+    ChemicalEquationConstructor,
 )
 from linchemin.cheminfo.functions import Descriptors
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.utilities import console_logger
-from linchemin.cheminfo.models import Molecule, ChemicalEquation
 
 """
 Module containing all classes and functions to compute route's step descriptors

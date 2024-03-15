@@ -2,35 +2,58 @@ Adding graph formats
 ====================
 
 
-.. currentmodule:: linchemin.cgu.translate
+.. currentmodule:: linchemin.cgu.graph_transformations
 
-The :mod:`~linchemin.cgu.translate` module stores all the classes and functions to make translation between
-graph formats and if you are planning to include a new format, this is the module you will need to modify.
-Below we firstly give a brief description of the module architecture and then we show a practical example
+The :mod:`~linchemin.cgu.graph_transformations.format_translators`
+module stores all the classes
+and functions to make translation between
+graph formats. If you are planning to include a new format,
+this is where you will need to start.
+Below we firstly give a brief description of the module's architecture and
+then we show a practical example
 for including a new input format and one for including an output format.
 
 
 Translate overview
 -------------------
 
+The module :mod:`~linchemin.cgu.graph_transformations.format_translators`
+contains a simple factory architecture, in which the subclasses of the abstract class
+:class:`~linchemin.cgu.graph_transformations.format_translators.GraphFormatTranslator`
+implement the concrete translators to transform a graph object into
+and from an :class:`~linchemin.cgu.iron.Iron` instance.
+For each subclass the concrete implementation of at least one of two abstract methods
+:meth:`~linchemin.cgu.graph_transformations.format_translators.GraphFormatTranslator.from_iron`
+and
+:meth:`linchemin.cgu.graph_transformations.format_translators.GraphFormatTranslator.to_iron`
+is developed.
+The :class:`~linchemin.cgu.graph_transformations.format_translators.GraphFormatCatalog`
+class
+is responsible to keep a registry of the implemented translators and
+to instantiate the appropriate concrete class based on its name.
 
-The module is composed of an abstract factory structure which enables to translate graph objects
-between data format (Networkx, pydot, format of CASP tools, etc...), as well as between data models
-(monopartite graph with only reaction nodes, monopartite with only molecule nodes or bipartite).
-The subclasses of the abstract class
-:class:`~linchemin.cgu.translate.Graph` represent concrete graph objects in a specific format, so that,
-for example, there is a ``Networkx(Graph)`` class, a ``RetroIbm(Graph)`` class,
-etc... For each subclass the concrete implementation of at least one of two abstract methods
-:meth:`~linchemin.cgu.translate.Graph.from_iron` and
-:meth:`~linchemin.cgu.translate.Graph.to_iron` is developed.
-The conversion between data models occurs through the concrete subclasses of the
-:class:`~linchemin.cgu.translate.DataModelFactory` abstract class. The
-:class:`~linchemin.cgu.syngraph.SynGraph` format is used as carrier of the data model information and thus
-each concrete factory must implement both the :meth:`~linchemin.cgu.translate.DataModelFactory.iron_to_syngraph`
-and the :meth:`~linchemin.cgu.translate.DataModelFactory.syngraph_to_iron` methods.
+
+On the other hand, the conversion between data models is handled in the
+:mod:`~linchemin.cgu.graph_transformations.data_model_converters` module,
+which is also composed of a simple factory structure.
+The conversion occurs through the concrete subclasses of the
+:class:`~linchemin.cgu.graph_transformations.data_model_converters.DataModelConverter`
+abstract class. The
+:class:`~linchemin.cgu.syngraph.SynGraph` format is used as carrier of
+the data model information and thus
+each concrete factory must implement both
+the
+:meth:`~linchemin.cgu.graph_transformations.data_model_converters.DataModelConverter.iron_to_syngraph`
+and the
+:meth:`~linchemin.cgu.graph_transformations.data_model_converters.DataModelConverter.syngraph_to_iron` methods.
+Also in  this case,
+a :class:`~linchemin.cgu.graph_transformations.data_model_converters.DataModelCatalog` class
+is used to register and call the appropriate concrete converters.
 
 
-On the top of the factory there is a chain of responsibility structure that enforces a sequence of translations
+In the :mod:`~linchemin.cgu.translate` module, a series of handlers compose a
+chain of responsibility the uses the Translators and Converters to enforce
+a sequence of translations
 from the selected input format to the output format. The steps of the sequence are:
 
 - Input format is translated to Iron
@@ -57,17 +80,19 @@ Implementing a new input format
 
 In order to include a new input format among those that LinChemIn can 'read', you
 firstly need to create a new subclass of the abstract class
-:class:`~linchemin.cgu.translate.Graph` in the :mod:`~linchemin.cgu.translate` module.
-The new subclass should also be decorated with the ``@DataModelFactory.register_format``
-decorator: it is used by the :class:`~linchemin.cgu.translate.DataModelFactory` to register
-the new format among the available ones. The decorator takes two arguments: the name that will be used
+:class:`~linchemin.cgu.graph_transformations.format_translators.GraphFormatTranslator`
+in the :mod:`~linchemin.cgu.graph_transformations.format_translators` module.
+The new subclass should also be decorated with the ``@GraphFormatCatalog.register_format``
+decorator: it is to register
+the new format among the available ones.
+The decorator takes two arguments: the name that will be used
 to select the format and a brief description that will appear in the helper functions.
 
 .. code-block:: python
 
-    @DataModelFactory.register_format("new_input", "brief description")
-    class TranslatorNewInputFormat(Graph):
-    """ Graph subclass to handle translations from NewInputFormat objects """
+    @GraphFormatCatalog.register_format("new_input", "brief description")
+    class TranslatorNewInputFormat(GraphFormatTranslator):
+    """ Translator subclass to handle translations from NewInputFormat objects """
         as_input = None
         as_output = None
 
@@ -77,8 +102,11 @@ to select the format and a brief description that will appear in the helper func
         def to_iron(self, route) -> Iron:
             pass
 
-What you are interested in is the :meth:`~linchemin.cgu.translate.Graph.to_iron` method, while the
-:meth:`~linchemin.cgu.translate.Graph.from_iron` can be left aside for the moment.
+What you are interested in registering the new translator as "input", you will need to implement the
+:meth:`linchemin.cgu.graph_transformations.format_translators.GraphFormatTranslator.to_iron`
+method, while the
+:meth:`~linchemin.cgu.graph_transformations.format_translators.GraphFormatTranslator.from_iron`
+can be left aside for the moment.
 
 Now you need to take your time to develop the actual code that, starting from a graph object
 in the format you are trying to add, returns an Iron instance. We recommend to add a 'node_smiles'
@@ -96,9 +124,9 @@ to this:
 
 .. code-block:: python
 
-    @DataModelFactory.register_format("new_input", "brief description")
-    class TranslatorNewInputFormat(Graph):
-    """ Graph subclass to handle translations from NewInputFormat objects """
+    @GraphFormatCatalog.register_format("new_input", "brief description")
+    class TranslatorNewInputFormat(GraphFormatTranslator):
+    """ Translator subclass to handle translations from NewInputFormat objects """
         as_input = 'implemented'
         as_output = None
 
@@ -112,8 +140,9 @@ to this:
 
 
 
-All the available formats are stored in the ``_formats`` attributes of the
-:class:`~linchemin.cgu.translate.DataModelFactory` class. As previously mentioned, the factory can
+All the available formats are stored in the ``_registered_graph_formats`` attributes of the
+:class:`~linchemin.cgu.graph_transformations.format_translators.GraphFormatCatalog`` class.
+As previously mentioned, the factory can
 self-register new options via the decorator.
 
 That's it, you are all done! Now your newly developed format is available to all the LinChemIn
@@ -142,15 +171,17 @@ Implementing a new output format
 
 The procedure to add a new output format is the same as the one described above,
 with the only difference that you now need to implement the
-:meth:`~linchemin.cgu.translate.Graph.from_iron` method.
-In this case, your code should take an Iron instance as input and, after the appropriate transformations,
+:meth:`~linchemin.cgu.graph_transformations.format_translators.GraphFormatTranslator.from_iron`
+method.
+In this case, your code should take an Iron instance as input and,
+after the appropriate transformations,
 return a graph object in the new format.
 
 .. code-block:: python
 
-    @DataModelFactory.register_format("new_output", "brief description")
-    class TranslatorNewOutputFormat(Graph):
-    """ Graph subclass to handle translations from NewOutputFormat objects """
+    @GraphFormatCatalog.register_format("new_output", "brief description")
+    class TranslatorNewOutputFormat(GraphFormatTranslator):
+    """ Translator to handle translations from NewOutputFormat objects """
         as_input = None
         as_output = 'implemented'
 

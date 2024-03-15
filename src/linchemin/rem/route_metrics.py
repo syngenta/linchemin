@@ -2,17 +2,17 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Type, Union
 
+import linchemin.cheminfo.functions as cif
 from linchemin.cgu.convert import converter
 from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
 )
-from linchemin.cgu.syngraph_operations import find_path, find_all_paths
+from linchemin.cgu.syngraph_operations import find_all_paths, find_path
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.route_descriptors import descriptor_calculator
 from linchemin.utilities import console_logger
-import linchemin.cheminfo.functions as cif
 
 """Module containing functions and classes for computing route metrics that depend on external information"""
 logger = console_logger(__name__)
@@ -156,7 +156,11 @@ class StartingMaterialsAmount(RouteMetric):
                 path, yields, root, leaves, target_amount_mol, quantities
             )
 
-        output.raw_data = quantities
+        output.raw_data["quantities"] = quantities
+        output.raw_data["target_amount"] = {
+            "grams": external_info["target_amount"],
+            "moles": round(target_amount_mol, 3),
+        }
         return output
 
     def get_path_quantities(
@@ -167,7 +171,7 @@ class StartingMaterialsAmount(RouteMetric):
         leaves: list,
         target_amount_mol: float,
         quantities: dict,
-    ):
+    ) -> dict:
         """To get the quantities of the reactants in the input path"""
         while path:
             step = path.pop(-1)
@@ -177,15 +181,31 @@ class StartingMaterialsAmount(RouteMetric):
             if product == root:
                 prod_amount = target_amount_mol
             else:
-                prod_amount = quantities["intermediates"][product.smiles]
+                prod_amount = quantities["intermediates"][product.smiles]["moles"]
             for reactant in reactants:
-                quantity = self.get_reactant_quantity(
+                amount_in_moles, amount_in_grams = self.get_reactant_quantity(
                     reactant, step, step_yield, prod_amount
                 )
+                smiles = reactant.smiles
                 if reactant in leaves:
-                    quantities["starting_materials"].update(quantity)
+                    quantities["starting_materials"].update(
+                        {
+                            smiles: {
+                                "moles": round(amount_in_moles, 3),
+                                "grams": amount_in_grams,
+                            }
+                        }
+                    )
+
                 else:
-                    quantities["intermediates"].update(quantity)
+                    quantities["intermediates"].update(
+                        {
+                            smiles: {
+                                "moles": round(amount_in_moles, 3),
+                                "grams": amount_in_grams,
+                            }
+                        }
+                    )
         return quantities
 
     @staticmethod
@@ -194,13 +214,12 @@ class StartingMaterialsAmount(RouteMetric):
         step: ChemicalEquation,
         step_yield: float,
         prod_amount: float,
-    ) -> dict:
+    ) -> tuple:
         """To compute the needed amount of the input reactant"""
         reactant_mw = cif.compute_molecular_weigth(reactant.rdmol)
         stoich = step.stoichiometry_coefficients["reactants"][reactant.uid]
-        return {
-            reactant.smiles: round(prod_amount / stoich / step_yield * reactant_mw, 2)
-        }
+        amount_in_moles = prod_amount / stoich / step_yield
+        return round(amount_in_moles, 3), round(amount_in_moles * reactant_mw, 3)
 
     @staticmethod
     def check_route_format(

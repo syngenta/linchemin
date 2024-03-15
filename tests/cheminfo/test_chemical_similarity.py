@@ -248,3 +248,58 @@ def test_mol_fp_factory():
     assert fp_morgan != fp_rdkit
     fp_topological = compute_mol_fingerprint(rdmol, "topological")
     assert fp_topological != fp_rdkit
+
+
+def test_similarity_with_count_fp():
+    smiles = "CNC(C)=O"
+    rdmol = cif.rdmol_from_string(smiles, inp_fmt="smiles")
+    # check morgan fp
+    fp_morgan_count = compute_mol_fingerprint(rdmol, "morgan", count_fp_vector=True)
+    fp_morgan_count2 = compute_mol_fingerprint(rdmol, "morgan", count_fp_vector=True)
+    assert (
+        compute_similarity(
+            fp_morgan_count, fp_morgan_count2, similarity_name="tanimoto"
+        )
+        == 1.0
+    )
+
+    fp_morgan = compute_mol_fingerprint(rdmol, "morgan", count_fp_vector=False)
+    fp_morgan2 = compute_mol_fingerprint(rdmol, "morgan", count_fp_vector=False)
+    assert compute_similarity(fp_morgan, fp_morgan2, similarity_name="tanimoto") == 1.0
+
+    # check rdkit fp
+    fp_rdkit_count = compute_mol_fingerprint(rdmol, "rdkit", count_fp_vector=True)
+    fp_rdkit_count2 = compute_mol_fingerprint(rdmol, "rdkit", count_fp_vector=True)
+    similarity = compute_similarity(
+        fp_rdkit_count, fp_rdkit_count2, similarity_name="tanimoto"
+    )
+    assert similarity == 1.0
+
+    fp_rdkit = compute_mol_fingerprint(rdmol, "rdkit", count_fp_vector=False)
+    fp_rdkit2 = compute_mol_fingerprint(rdmol, "rdkit", count_fp_vector=False)
+    assert compute_similarity(fp_rdkit, fp_rdkit2, similarity_name="tanimoto") == 1.0
+
+    # check topological fp
+    fp_topological_count = compute_mol_fingerprint(
+        rdmol, "topological", count_fp_vector=True
+    )
+    fp_topological_count2 = compute_mol_fingerprint(
+        rdmol, "topological", count_fp_vector=True
+    )
+    assert (
+        compute_similarity(
+            fp_topological_count, fp_topological_count2, similarity_name="tanimoto"
+        )
+        == 1.0
+    )
+
+    fp_topological = compute_mol_fingerprint(
+        rdmol, "topological", count_fp_vector=False
+    )
+    fp_topological2 = compute_mol_fingerprint(
+        rdmol, "topological", count_fp_vector=False
+    )
+    assert (
+        compute_similarity(fp_topological, fp_topological2, similarity_name="tanimoto")
+        == 1.0
+    )
