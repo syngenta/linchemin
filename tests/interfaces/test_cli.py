@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from linchemin.interfaces.cli import linchemin_cli, parse_arguments
 

@@ -1132,6 +1132,19 @@ def test_disconnection():
         )
 
 
+def test_correspondence_between_molecule_ce():
+    mol_smiles = "C/C=C/C(O)c1ccccc1[N+](=O)[O-]"
+    mol = MoleculeConstructor("smiles").build_from_molecule_string(mol_smiles, "smiles")
+    ce_smiles = "C/C=C/Br.O=Cc1ccccc1[N+](=O)[O-]>>C/C=C/C(O)c1ccccc1[N+](=O)[O-]"
+    ce = ChemicalEquationConstructor("smiles", "r_p").build_from_reaction_string(
+        ce_smiles, "smiles"
+    )
+    assert (
+        mol.hash_map["inchikey_KET_15T"]
+        == ce.get_products()[0].hash_map["inchikey_KET_15T"]
+    )
+
+
 def test_disconnection_depiction():
     test_set = [
         {

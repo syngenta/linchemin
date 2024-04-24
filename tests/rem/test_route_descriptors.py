@@ -16,6 +16,7 @@ from linchemin.rem.route_descriptors import (
     RouteDescriptor,
     SimplifiedAtomEffectiveness,
     UnavailableDescriptor,
+    WrongGraphType,
     descriptor_calculator,
     find_duplicates,
     get_available_descriptors,
@@ -23,7 +24,6 @@ from linchemin.rem.route_descriptors import (
     get_nodes_consensus,
     is_subset,
     validate_input_graph,
-    WrongGraphType,
 )
 
 

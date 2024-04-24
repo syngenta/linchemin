@@ -301,7 +301,7 @@ def test_rdrxn_role_reassignment():
         },
         {
             "name": "rnx_9",
-            "smiles": "[CH3:1][C:2]([OH:3])=[O:4].C[O:3]>[CH3:6][NH2:5]>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]",
+            "smiles": "[CH3:1][C:2]([OH:3])=[O:4].C[OH:3]>[CH3:6][NH2:5]>[CH3:6][NH:5][C:2]([CH3:1])=[O:4].[OH2:3]",
             "expected": {
                 "reactants": ["[CH3:1][C:2]([OH:3])=[O:4]", "[NH2:5][CH3:6]"],
                 "reagents": ["CO"],
@@ -881,50 +881,40 @@ def test_atom_ids_canonicalization_w_enhanced_stereo(mols_w_stereo):
 
 def test_mapping_diagnosis():
     smiles = {
+        # unmapped atoms in the product --> missing reactants
         1: "[CH3:1][C:2]([OH:3])=[O:4]>O>CN[C:2]([CH3:1])=[O:4]",
+        # unmapped atoms in a reactant are bound together --> possible leaving group
         2: "[O:1]=[C:2]([c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12)N=[N+]=[N-]>ClCCl.O=C(Cl)C(=O)Cl>O[C:2](=[O:1])[c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12.[N-:13]=[N+:14]=[N-:15]",
         3: "Cl[c:8]1[n:9][cH:10][cH:11][c:12]2[c:3]([cH:4][cH:5][cH:6][c:7]12)[C:2](=[O:1])N=[N+]=[N-]>ClCCl.O=C(Cl)C(=O)Cl>O[C:2](=[O:1])[c:3]1[cH:4][cH:5][cH:6][c:7]2[cH:8][n:9][cH:10][cH:11][c:12]12",
     }
     ce_constructor = ChemicalEquationConstructor(
         molecular_identity_property_name="smiles"
     )
-    chemical_equations = {
-        n: ce_constructor.build_from_reaction_string(
-            reaction_string=s, inp_fmt="smiles"
-        )
-        for n, s in smiles.items()
-    }
-    desired_prod1 = next(
-        mol
-        for uid, mol in chemical_equations.get(1).catalog.items()
-        if uid == chemical_equations.get(1).role_map["products"][0]
+    ce1 = ce_constructor.build_from_reaction_string(
+        reaction_string=smiles[1], inp_fmt="smiles"
     )
+    desired_prod1 = ce1.get_products()[0]
+
     # a warning is raised if there are unmapped atoms in the desired product
     with unittest.TestCase().assertLogs(
         "linchemin.cheminfo.functions", level="WARNING"
     ) as w:
-        cif.mapping_diagnosis(chemical_equations.get(1), desired_prod1)
+        cif.mapping_diagnosis(ce1, desired_prod1)
     unittest.TestCase().assertEqual(len(w.records), 1)
     unittest.TestCase().assertIn("unmapped", w.records[0].getMessage())
-
     # unmapped atoms in a single reactant are all bounded together: they might indicate a leaving group
-    desired_prod2 = next(
-        mol
-        for uid, mol in chemical_equations.get(2).catalog.items()
-        if uid == chemical_equations.get(2).role_map["products"][0]
+    ce2 = ce_constructor.build_from_reaction_string(
+        reaction_string=smiles[2], inp_fmt="smiles"
     )
-    fragments2 = cif.mapping_diagnosis(chemical_equations.get(2), desired_prod2)
-    # print(chemical_equations.get(2))
-    # print(fragments2)
+    desired_prod2 = ce2.get_products()[0]
+    fragments2 = cif.mapping_diagnosis(ce2, desired_prod2)
     assert len(fragments2) == 1
     assert "." not in fragments2[0]
-
     # unmapped atoms in a single reactant are only partially bounded together: there might be more than one leaving group
-    desired_prod3 = next(
-        mol
-        for uid, mol in chemical_equations.get(3).catalog.items()
-        if uid == chemical_equations.get(3).role_map["products"][0]
+    ce3 = ce_constructor.build_from_reaction_string(
+        reaction_string=smiles[3], inp_fmt="smiles"
     )
-    fragments3 = cif.mapping_diagnosis(chemical_equations.get(3), desired_prod3)
+    desired_prod3 = ce3.get_products()[0]
+    fragments3 = cif.mapping_diagnosis(ce3, desired_prod3)
     assert len(fragments3) == 1
     assert "." in fragments3[0]
