@@ -439,8 +439,12 @@ def new_molecule_canonicalization(rdmol: Mol) -> Mol:
     # Reassign the properties to the atoms in the new molecule
     set_atomic_properties(new_rdmol, properties_new_ids)
 
-    # Sanitize molecule
+    # Sanitize molecule: following the procedure described here https://github.com/rdkit/rdkit/issues/2361
     Chem.SanitizeMol(new_rdmol)
+    cleaning = True
+    force = True
+    flag_possible = True
+    Chem.AssignStereochemistry(new_rdmol, cleaning, force, flag_possible)
     return new_rdmol
 
 

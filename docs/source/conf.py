@@ -21,7 +21,7 @@ exclude_patterns = ["build", "Thumbs.db", ".DS_Store"]
 
 autosummary_generate = True
 
-version = "2.2.9"
+version = "2.2.10"
 # The full version, including dev info
 release = version.replace("_", "")
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "linchemin"
-version = "2.2.9"
+version = "2.2.10"
 description = "Toolkit to create, manipulate, and query networks of Chemical Reactions and Chemicals"
 license = { file = "LICENSE" }
 authors = [
@@ -40,7 +40,7 @@ dependencies = [
         "networkx",
         "numpy",
         "pandas",
-        "pydantic>=1,<2",
+        "pydantic",
         "pydot",
         "pyyaml",
         "requests",
@@ -76,7 +76,7 @@ py_version = "38"
 skip_gitignore = true
 
 [tool.bumpver]
-current_version = "2.2.9"
+current_version = "2.2.10"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "Bump version {old_version} -> {new_version}"
 commit = true

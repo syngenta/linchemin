@@ -94,22 +94,8 @@ class MoleculeConstructor:
         rdmol_mapped = rdmol
         rdmol_unmapped = cif.remove_rdmol_atom_mapping(rdmol=rdmol_mapped)
 
-        if self.molecular_identity_property_name == "cx_smiles":
-            use_extended_info = True
-        else:
-            use_extended_info = False
         rdmol_unmapped_canonical = cif.new_molecule_canonicalization(rdmol_unmapped)
-        # rdmol_unmapped_canonical = cif.canonicalize_rdmol_lite(
-        #     rdmol=rdmol_unmapped, is_pattern=False, use_extended_info=use_extended_info
-        # )
         rdmol_mapped_canonical = cif.new_molecule_canonicalization(rdmol_mapped)
-        # rdmol_mapped_canonical = cif.canonicalize_mapped_rdmol(
-        #     cif.canonicalize_rdmol_lite(
-        #         rdmol=rdmol_mapped,
-        #         is_pattern=False,
-        #         use_extended_info=use_extended_info,
-        #     )
-        # )
 
         hash_map = calculate_molecular_hash_map(
             self.all_available_identifiers,
@@ -335,15 +321,19 @@ class RatamConstructor:
     def get_atom_transformations(full_map_info: dict) -> Set[AtomTransformation]:
         """To create the list of AtomTransformations from a catalog of mapped Molecule objects"""
         atom_transformations = set()
-        for product_uid, prod_maps in full_map_info["products"].items():
+        products = full_map_info["products"]
+        reactants = full_map_info["reactants"]
+
+        for product_uid, prod_maps in products.items():
             for prod_map in prod_maps:
-                for reactant_uid, reactant_maps in full_map_info["reactants"].items():
+                for reactant_uid, reactant_maps in reactants.items():
                     for reactant_map in reactant_maps:
-                        if matching_map_num := [
+                        matching_map_num = [
                             map_num
                             for map_num in reactant_map.values()
                             if map_num in prod_map.values() and map_num not in [0, -1]
-                        ]:
+                        ]
+                        if matching_map_num:
                             atom_transformations.update(
                                 build_atom_transformations(
                                     matching_map_num,
@@ -353,6 +343,7 @@ class RatamConstructor:
                                     reactant_uid,
                                 )
                             )
+
         return atom_transformations
 
 
@@ -366,8 +357,8 @@ def build_atom_transformations(
     """To build the list of AtomTransformation objects for each pair of product-reactant with matching map number"""
     ats = []
     for map_num in matching_map_num:
-        p_aids = [aid for aid, map in prod_map.items() if map == map_num]
-        r_aids = [aid for aid, map in reactant_map.items() if map == map_num]
+        p_aids = {aid for aid, map_val in prod_map.items() if map_val == map_num}
+        r_aids = {aid for aid, map_val in reactant_map.items() if map_val == map_num}
         ats.extend(
             [
                 AtomTransformation(product_uid, reactant_uid, p_aid, r_aid, map_num)
@@ -443,12 +434,12 @@ class DisconnectionConstructor:
                 b = bond.GetBeginAtomIdx()
                 mh.RemoveBond(a, b)
 
-                nAts = mh.GetNumAtoms()
+                n_ats = mh.GetNumAtoms()
                 mh.AddAtom(cif.Chem.Atom(0))
-                mh.AddBond(a, nAts, cif.Chem.BondType.SINGLE)
+                mh.AddBond(a, n_ats, cif.Chem.BondType.SINGLE)
                 mh.AddAtom(cif.Chem.Atom(0))
-                mh.AddBond(b, nAts + 1, cif.Chem.BondType.SINGLE)
-                nAts += 2
+                mh.AddBond(b, n_ats + 1, cif.Chem.BondType.SINGLE)
+                n_ats += 2
 
             cif.Chem.SanitizeMol(mh)
             cif.rdkit.Chem.rdmolops.SanitizeFlags.SANITIZE_NONE
@@ -609,9 +600,9 @@ class RXNReactiveCenter:
     def get_reacting_atoms_map_numbers(ce: ChemicalEquation) -> List[int]:
         """ " To identify the map numbers associated with the reacting atoms in a ChemicalEquation"""
         ce.rdrxn.Initialize()
-        reactingAtoms = ce.rdrxn.GetReactingAtoms()
+        reacting_atoms = ce.rdrxn.GetReactingAtoms()
         maps_reacting_atoms = []
-        for ridx, reacting in enumerate(reactingAtoms):
+        for ridx, reacting in enumerate(reacting_atoms):
             r = ce.rdrxn.GetReactantTemplate(ridx)
             maps_reacting_atoms.extend(
                 r.GetAtomWithIdx(raidx).GetAtomMapNum() for raidx in reacting
@@ -1089,6 +1080,7 @@ def create_chemical_equation(
 class ChemicalEquationGenerator(ABC):
     """Abstract class for ChemicalEquationAttributesGenerator"""
 
+    @abstractmethod
     def get_basic_attributes(
         self, reaction_mols: dict, desired_product: Union[Molecule, None]
     ) -> Tuple[dict, Molecule]:

@@ -1,17 +1,17 @@
 import json
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 import pandas as pd
 
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.interfaces.facade import (
+    DescriptorError,
     GedFacade,
     RoutesDescriptorsFacade,
     TranslateFacade,
     facade,
     facade_helper,
-    DescriptorError,
 )
 
 
