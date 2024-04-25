@@ -40,7 +40,7 @@ dependencies = [
         "networkx",
         "numpy",
         "pandas",
-        "pydantic>=1,<2",
+        "pydantic",
         "pydot",
         "pyyaml",
         "requests",

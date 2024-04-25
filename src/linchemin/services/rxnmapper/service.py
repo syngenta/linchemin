@@ -32,10 +32,14 @@ class EndPoint:
         self.request_method = request_method
 
         if input_schema:
-            self.input_example = self.input_schema.Config().schema_extra.get("example")
+            self.input_example = self.input_schema.Config().json_schema_extra.get(
+                "example"
+            )
         else:
             self.input_example = None
-        self.output_example = self.output_schema.Config().schema_extra.get("example")
+        self.output_example = self.output_schema.Config().json_schema_extra.get(
+            "example"
+        )
 
     def validate_input(self, data):
         try:
