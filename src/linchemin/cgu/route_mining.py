@@ -140,29 +140,29 @@ class RouteFinder:
         current_label = route_graph.nodes[current_node]["label"]
         # handle node differently depending on its type
         if current_label == settings.ROUTE_MINING.molecule_node_label:
-            self.handle_M_node(route_graph, current_node, seen, stack)
+            self.handle_molecule_node(route_graph, current_node, seen, stack)
 
         elif current_label == settings.ROUTE_MINING.chemicalequation_node_label:
-            self.handle_CE_node(route_graph, current_node, seen, stack)
+            self.handle_chemeq_node(route_graph, current_node, seen, stack)
 
-    def handle_M_node(
+    def handle_molecule_node(
         self, route_graph: nx.DiGraph, current_node: str, seen: set, stack: dict
     ):
         """To handle Molecule nodes during the tree traversal"""
         # Find P edges connected to the current M node
-        p_neighbors = self.get_P_neighbors(current_node)
+        p_neighbors = self.get_p_neighbors(current_node)
         # If the current M node has more than one P edge, it is an OR node
         if len(p_neighbors) > 1:
-            self.handle_OR_node(route_graph, p_neighbors, seen, stack)
+            self.handle_or_node(route_graph, p_neighbors, seen, stack)
         elif p_neighbors:
-            self.handle_AND_node(route_graph, p_neighbors, seen, stack)
+            self.handle_and_node(route_graph, p_neighbors, seen, stack)
 
-    def handle_CE_node(
+    def handle_chemeq_node(
         self, route_graph: nx.DiGraph, current_node: str, seen: set, stack: dict
     ) -> None:
         """To handle the ChemicalEquation nodes during the tree traversal."""
         # Find R edges connected to the current CE node
-        r_neighbors = self.get_R_neighbors(current_node)
+        r_neighbors = self.get_r_neighbors(current_node)
 
         stack[current_node] = [u for u, v, d in r_neighbors if u not in seen]
         while stack[current_node]:
@@ -177,7 +177,7 @@ class RouteFinder:
         elif route_graph not in self.routes:
             self.routes.append(route_graph)
 
-    def handle_OR_node(
+    def handle_or_node(
         self, route_graph: nx.DiGraph, p_neighbors: List[tuple], seen: set, stack: dict
     ) -> None:
         """To handle 'OR' Molecule nodes --> Molecule nodes that are product of more than one ChemicalEquation node."""
@@ -212,7 +212,7 @@ class RouteFinder:
         """To create a new route and the corresponding set of visited nodes."""
         return copy.deepcopy(route_graph), copy.deepcopy(seen), copy.deepcopy(stack)
 
-    def handle_AND_node(
+    def handle_and_node(
         self, route_graph: nx.DiGraph, p_neighbors: List[tuple], seen: set, stack: dict
     ) -> None:
         u, v, edge_data = p_neighbors[0]
@@ -229,11 +229,11 @@ class RouteFinder:
     def is_loop(self, node: str, seen: set) -> bool:
         """To check if the next node is involved in a loop."""
 
-        r_edge_list = self.get_R_neighbors(node)
+        r_edge_list = self.get_r_neighbors(node)
         r_neighbors = {m for (m, ce, d) in r_edge_list}
         return r_neighbors.issubset(seen)
 
-    def get_P_neighbors(self, node: str) -> List[tuple]:
+    def get_p_neighbors(self, node: str) -> List[tuple]:
         """To get the ChemicalEquation nodes, parents of a Molecule node, following the 'PRODUCT' edges."""
         return [
             (u, v, d)
@@ -241,7 +241,7 @@ class RouteFinder:
             if d["label"] == self.product_edge
         ]
 
-    def get_R_neighbors(self, node: str) -> List[tuple]:
+    def get_r_neighbors(self, node: str) -> List[tuple]:
         """To get the Molecule nodes, parents of a ChemicalEquation node, following the 'REACTANT' edges."""
         return [
             (u, v, d)
@@ -256,7 +256,7 @@ class RouteFinder:
             for ce in ce_nodes:
                 while stack[ce]:
                     n = stack[ce].pop()
-                    r_neighbors = self.get_R_neighbors(ce)
+                    r_neighbors = self.get_r_neighbors(ce)
                     (u, v, edge_data) = next(tup for tup in r_neighbors if tup[0] == n)
                     route_graph.add_edge(u, v, **edge_data)
 

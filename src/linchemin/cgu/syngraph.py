@@ -3,7 +3,7 @@ from collections import defaultdict
 from typing import List, Tuple, Union
 
 import linchemin.utilities as utilities
-from linchemin.cgu.iron import Iron
+from linchemin.cgu.iron import Iron, Node
 from linchemin.cheminfo.constructors import (
     ChemicalEquationConstructor,
     MoleculeConstructor,
@@ -100,11 +100,11 @@ class SynGraph(ABC):
                 )
         sorted_tups = sorted(tups)
         h = utilities.create_hash(str(sorted_tups))
-        if type(self) == BipartiteSynGraph:
+        if isinstance(self, BipartiteSynGraph):
             h = "".join(["BP", str(h)])
-        elif type(self) == MonopartiteReacSynGraph:
+        elif isinstance(self, MonopartiteReacSynGraph):
             h = "".join(["MPR", str(h)])
-        elif type(self) == MonopartiteMolSynGraph:
+        elif isinstance(self, MonopartiteMolSynGraph):
             h = "".join(["MPM", str(h)])
         return h
 
@@ -340,7 +340,7 @@ class BipartiteSynGraph(SynGraph):
 
     def find_dangling_sequence(self, reactants, leaves, nodes_to_remove):
         """To identify the nodes that are part of a disconnected sequence of nodes."""
-        while intermediates := {r for r in reactants if r not in leaves}:
+        if intermediates := set(reactants).difference(leaves):
             for intermediate in intermediates:
                 parent_ces = self.find_parent_node(intermediate)
                 nodes_to_remove.extend(parent_ces)
@@ -348,8 +348,7 @@ class BipartiteSynGraph(SynGraph):
                     reactants = parent.get_reactants()
                     nodes_to_remove.extend(reactants)
 
-        else:
-            return nodes_to_remove
+        return nodes_to_remove
 
 
 class MonopartiteReacSynGraph(SynGraph):
@@ -376,38 +375,41 @@ class MonopartiteReacSynGraph(SynGraph):
 
     def builder_from_iron(self, iron_graph: Iron) -> None:
         """To build a MonopartiteReacSynGraph from an Iron instance."""
+
+        def has_intersection(reactants, products) -> bool:
+            return any(item in products for item in reactants)
+
+        def get_next_connections(iron: Iron, node: int) -> list:
+            return [
+                edge.direction.tup
+                for edge in iron.edges.values()
+                if edge.direction.tup[0] == node
+            ]
+
+        def process_connection(parent: int, child: int) -> None:
+            all_reactants, all_products = self.find_reactants_products(
+                iron_graph, parent, child, connections
+            )
+            if not has_intersection(all_reactants, all_products):
+                chemical_equation = get_reaction_instance(all_reactants, all_products)
+                next_connections = get_next_connections(iron_graph, child)
+                connected_equations = []
+                for next_node1, next_node2 in next_connections:
+                    (
+                        all_reactants_next,
+                        all_products_next,
+                    ) = self.find_reactants_products(
+                        iron_graph, next_node1, next_node2, connections
+                    )
+                    if not has_intersection(all_reactants_next, all_products_next):
+                        connected_equations.append(
+                            get_reaction_instance(all_reactants_next, all_products_next)
+                        )
+                self.add_node((chemical_equation, connected_equations))
+
         connections = [edge.direction.tup for id_e, edge in iron_graph.edges.items()]
         for node1, node2 in connections:
-            all_reactants, all_products = self.find_reactants_products(
-                iron_graph, node1, node2, connections
-            )
-
-            check = [item for item in all_reactants if item in all_products]
-            if not check:
-                chemical_equation1 = get_reaction_instance(all_reactants, all_products)
-
-                # Searching for the connections in which the product of the "parent" reaction is a reactant
-                next_connections = [
-                    edge.direction.tup
-                    for edge in iron_graph.edges.values()
-                    if edge.direction.tup[0] == node2
-                ]
-                if next_connections:
-                    for node_a, node_b in next_connections:
-                        all_reactants2, all_products2 = self.find_reactants_products(
-                            iron_graph, node_a, node_b, connections
-                        )
-
-                        check = [
-                            item for item in all_reactants2 if item in all_products2
-                        ]
-                        if not check:
-                            chemical_equation2 = get_reaction_instance(
-                                all_reactants2, all_products2
-                            )
-                            self.add_node((chemical_equation1, [chemical_equation2]))
-                else:
-                    self.add_node((chemical_equation1, []))
+            process_connection(node1, node2)
 
         self.set_source(iron_graph.source)
 
@@ -459,12 +461,14 @@ class MonopartiteReacSynGraph(SynGraph):
     def find_dangling_sequence(self, ce_to_remove, leaves, nodes_to_remove):
         """To identify the nodes that are part of a disconnected sequence of nodes."""
         while ce_to_remove not in leaves:
-            if parent_nodes := self.find_parent_node(ce_to_remove):
-                nodes_to_remove.extend(parent_nodes)
-                for parent_node in parent_nodes:
-                    ce_to_remove = parent_node
-        else:
-            return nodes_to_remove
+            parent_nodes = self.find_parent_node(ce_to_remove)
+            if not parent_nodes:
+                break  # No parents found, exit the loop
+            nodes_to_remove.extend(parent_nodes)
+            for parent_node in parent_nodes:
+                ce_to_remove = parent_node
+
+        return nodes_to_remove
 
 
 class MonopartiteMolSynGraph(SynGraph):
