@@ -7,7 +7,25 @@ from linchemin.cheminfo.chemical_hashes import (
     InchiKET15,
     InchiKey,
     InchiKeyKET15,
+    get_all_molecular_identifiers,
+    is_valid_molecular_identifier,
+    validate_molecular_identifier,
+    UnavailableMolIdentifier,
+    UnavailableReactionIdentifier,
+    ReactionIdentifiersFactory,
+    ReactantProduct,
+    ReactantReagentProduct,
+    UnorderedReactantProduct,
+    UnorderedReactantReagentProduct,
+    get_all_reaction_identifiers,
+    is_valid_reaction_identifier,
+    validate_reaction_identifier,
 )
+
+
+@pytest.fixture
+def molecules_map():
+    return {"reactants": "CC(=O)O.CN", "reagents": "O", "products": "CNC(C)=O"}
 
 
 @pytest.fixture
@@ -961,3 +979,63 @@ def test_cx_smiles(example_smiles, reference_hashes):
         assert v == reference_hashes.get(name).get("cx_smiles")
         if name == "es1":
             assert v != reference_hashes.get(name).get("smiles")
+
+
+def test_all_mol_identifiers_are_listed():
+    identifiers = get_all_molecular_identifiers()
+    assert "smiles" in identifiers
+    assert "inchi_key" in identifiers
+
+
+def test_mol_identifier_is_valid():
+    assert is_valid_molecular_identifier("smiles") is True
+    assert is_valid_molecular_identifier("r_p") is False
+
+
+def test_mol_identifier_validation():
+    validate_molecular_identifier("cx_smiles")
+    with pytest.raises(UnavailableMolIdentifier):
+        validate_molecular_identifier("something_wrong")
+
+
+def test_reaction_representation_factory():
+    representation_list = ReactionIdentifiersFactory.list_reaction_identifiers()
+    assert "r_p" in representation_list
+    assert "u_r_r_p" in representation_list
+
+
+def test_reaction_presentations_r_p(molecules_map):
+    r_p = ReactantProduct().get_reaction_identifier(molecules_map)
+    assert r_p == "CC(=O)O.CN>>CNC(C)=O"
+
+
+def test_reaction_presentations_r_r_p(molecules_map):
+    r_r_p = ReactantReagentProduct().get_reaction_identifier(molecules_map)
+    assert r_r_p == "CC(=O)O.CN>O>CNC(C)=O"
+
+
+def test_reaction_presentations_u_r_p(molecules_map):
+    u_r_p = UnorderedReactantProduct().get_reaction_identifier(molecules_map)
+    assert u_r_p == "CC(=O)O.CN>>CNC(C)=O"
+
+
+def test_reaction_presentations_u_r_r_p(molecules_map):
+    u_r_r_p = UnorderedReactantReagentProduct().get_reaction_identifier(molecules_map)
+    assert u_r_r_p == "CC(=O)O.CN>>CNC(C)=O>>O"
+
+
+def test_all_reaction_identifiers_are_listed():
+    identifiers = get_all_reaction_identifiers()
+    assert "r_p" in identifiers
+    assert "u_r_p" in identifiers
+
+
+def test_reaction_identifier_is_valid():
+    assert is_valid_reaction_identifier("r_r_p") is True
+    assert is_valid_reaction_identifier("smiles") is False
+
+
+def test_reaction_identifier_validation():
+    validate_reaction_identifier("u_r_r_p")
+    with pytest.raises(UnavailableReactionIdentifier):
+        validate_reaction_identifier("something_wrong")

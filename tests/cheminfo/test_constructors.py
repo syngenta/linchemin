@@ -7,7 +7,7 @@ import linchemin.cheminfo.depiction as cid
 import linchemin.cheminfo.functions as cif
 from linchemin.cheminfo.chemical_hashes import (
     UnavailableMolIdentifier,
-    calculate_molecular_hash_map,
+    UnavailableReactionIdentifier,
 )
 from linchemin.cheminfo.constructors import (
     BadMapping,
@@ -302,6 +302,25 @@ def test_ce_from_block():
     block3 = cif.rdrxn_to_string(rxn, "rxn")
     ce_from_block = ce_constructor.build_from_reaction_string(block3, "rxn_block")
     assert ce_from_block == ce
+
+
+def test_chemical_eq_constructor_arguments():
+    # with valid arguments
+    ChemicalEquationConstructor(
+        molecular_identity_property_name="smiles",
+        chemical_equation_identity_name="r_r_p",
+    )
+    # with invalid molecule_identity_property_name
+    with pytest.raises(UnavailableMolIdentifier):
+        ChemicalEquationConstructor(
+            molecular_identity_property_name="not_existing",
+            chemical_equation_identity_name="r_p",
+        )
+    with pytest.raises(UnavailableReactionIdentifier):
+        ChemicalEquationConstructor(
+            molecular_identity_property_name="smiles",
+            chemical_equation_identity_name="not_existing",
+        )
 
 
 def test_instantiate_chemical_equation():
