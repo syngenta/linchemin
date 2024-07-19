@@ -1,7 +1,4 @@
 import json
-import unittest
-
-import pytest
 
 from linchemin.cgu.route_mining import RouteFinder, mine_routes
 from linchemin.cgu.translate import nx, translator
@@ -33,7 +30,7 @@ def compare_routes(expected_route, route_graph):
     )
 
 
-def test_RouteFinder(trees_path):
+def test_route_finder(trees_path):
     with open(trees_path) as f:
         json_content = json.load(f)
 
@@ -41,10 +38,12 @@ def test_RouteFinder(trees_path):
     for case_idx, data in json_content.items():
         tree_data = data.get("tree")
         routes_data = data.get("routes")
-        G = build_graph_from_tree_data(tree_data)
-        routes = RouteFinder(G, root_node_uid).find_routes()
+        graph = build_graph_from_tree_data(tree_data)
+        routes = RouteFinder(graph, root_node_uid).find_routes()
         assert len(routes) == len(routes_data)
         for idx, route in enumerate(routes, start=1):
+            # print(route.nodes())
+            # print(route.edges())
             matches = [
                 compare_routes(expected_route, route) for expected_route in routes_data
             ]

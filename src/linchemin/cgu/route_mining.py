@@ -11,8 +11,7 @@ from linchemin.cgu.syngraph import (
 from linchemin.cgu.syngraph_operations import merge_syngraph
 from linchemin.cgu.translate import nx, translator
 from linchemin.cheminfo.constructors import MoleculeConstructor
-from linchemin.cheminfo.models import ChemicalEquation, Molecule
-from linchemin.rem.route_descriptors import find_path
+from linchemin.cheminfo.models import Molecule
 from linchemin.utilities import console_logger
 
 """ Module containing functions and classes to identify, extract and mine routes """
@@ -182,7 +181,7 @@ class RouteFinder:
     ) -> None:
         """To handle 'OR' Molecule nodes --> Molecule nodes that are product of more than one ChemicalEquation node."""
         for i, (u, v, edge_data) in enumerate(p_neighbors):
-            if self.is_loop(u, seen):
+            if self.is_loop(u, v, edge_data, seen, route_graph):
                 continue
 
             if i < len(p_neighbors) - 1:  # Only create new routes for non-last P edges
@@ -216,7 +215,7 @@ class RouteFinder:
         self, route_graph: nx.DiGraph, p_neighbors: List[tuple], seen: set, stack: dict
     ) -> None:
         u, v, edge_data = p_neighbors[0]
-        if self.is_loop(u, seen):
+        if self.is_loop(u, v, edge_data, seen, route_graph):
             return
         route_graph.add_edge(u, v, **edge_data)
         self.traverse_route(
@@ -226,12 +225,31 @@ class RouteFinder:
             stack,
         )
 
-    def is_loop(self, node: str, seen: set) -> bool:
+    def is_loop(
+        self,
+        node: str,
+        previous_node: str,
+        edge_data: dict,
+        seen: set,
+        route_graph: nx.DiGraph,
+    ) -> bool:
         """To check if the next node is involved in a loop."""
 
         r_edge_list = self.get_r_neighbors(node)
         r_neighbors = {m for (m, ce, d) in r_edge_list}
-        return r_neighbors.issubset(seen)
+        if r_neighbors.issubset(seen):
+            return True
+        if n := next((neighbor for neighbor in r_neighbors if neighbor in seen), None):
+            graph_test = copy.deepcopy(route_graph)
+            (u, v, edge_data_new) = next(tup for tup in r_edge_list if tup[0] == n)
+            graph_test.add_edge(u, v, **edge_data_new)
+            graph_test.add_edge(node, previous_node, **edge_data)
+            try:
+                nx.find_cycle(graph_test, orientation="original")
+                return True
+            except nx.NetworkXNoCycle:
+                return False
+        return False
 
     def get_p_neighbors(self, node: str) -> List[tuple]:
         """To get the ChemicalEquation nodes, parents of a Molecule node, following the 'PRODUCT' edges."""
