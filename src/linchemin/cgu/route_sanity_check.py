@@ -1,7 +1,7 @@
 import copy
 import itertools
 from abc import ABC, abstractmethod
-from typing import List, Type, Union
+from typing import List, Type, Union, Optional
 
 import networkx as nx
 
@@ -44,7 +44,7 @@ class RouteChecker(ABC):
 
     @abstractmethod
     def check_route(
-        self, route: MonopartiteReacSynGraph, fix_issues: bool
+        self, route: MonopartiteReacSynGraph, fix_issue: bool
     ) -> MonopartiteReacSynGraph:
         pass
 
@@ -132,13 +132,13 @@ class CheckerFactory:
 class CyclesChecker(RouteChecker):
     """Concrete class to check and handle cycles in route"""
 
-    def check_route(self, route: MonopartiteReacSynGraph, fix_issues: bool):
+    def check_route(self, route: MonopartiteReacSynGraph, fix_issue: bool):
         nx_route = translator("syngraph", route, "networkx", "monopartite_reactions")
         try:
             if cycle_info := nx.find_cycle(nx_route, orientation="original"):
                 # a cycle is found
-                if fix_issues:
-                    # if fix_issues is True, the problematic nodes are removed
+                if fix_issue:
+                    # if fix_issue is True, the problematic nodes are removed
                     cycle_nodes = self.identify_cycle_nodes(cycle_info)
                     route = self.handle_issue(nx_route, cycle_nodes)
                 else:
@@ -156,16 +156,30 @@ class CyclesChecker(RouteChecker):
         return MonopartiteReacSynGraph(d)
 
     @staticmethod
-    def identify_cycle_nodes(cycle_info: List) -> List:
+    def identify_cycle_nodes(cycle_info: List) -> set:
         """To identify the nodes belonging to a cycle"""
-        cycle_nodes = []
+        cycle_nodes = set()
         for tup in cycle_info:
-            cycle_nodes.extend((tup[0], tup[1]))
+            cycle_nodes.update((tup[0], tup[1]))
         return cycle_nodes
 
-    def handle_issue(self, route: nx.DiGraph, problematic_nodes: List) -> nx.DiGraph:
+    def handle_issue(self, route: nx.DiGraph, problematic_nodes: set) -> nx.DiGraph:
         """To remove the redundant nodes from a cycle"""
-        nodes_to_remove = []
+        nodes_to_remove = self._identify_self_loop_nodes(route, problematic_nodes)
+        if len(nodes_to_remove) == 0:
+            hook_node = self._find_hook_node(route, problematic_nodes)
+            if hook_node:
+                nodes_to_remove = self._identify_nodes_to_remove(
+                    route, problematic_nodes, hook_node
+                )
+
+        route.remove_nodes_from(nodes_to_remove)
+        return route
+
+    @staticmethod
+    def _identify_self_loop_nodes(route: nx.DiGraph, problematic_nodes: set) -> set:
+        """To identify nodes included in a self loop, if any"""
+        nodes_to_remove = set()
         for (i, n1), (j, n2) in itertools.product(
             enumerate(problematic_nodes), enumerate(problematic_nodes)
         ):
@@ -175,9 +189,31 @@ class CyclesChecker(RouteChecker):
                 + route.number_of_edges(u=n2, v=n1)
                 > 1
             ):
-                nodes_to_remove.extend([n1, n2])
-        route.remove_nodes_from(nodes_to_remove)
-        return route
+                nodes_to_remove.update([n1, n2])
+        return nodes_to_remove
+
+    @staticmethod
+    def _find_hook_node(route: nx.DiGraph, problematic_nodes: set) -> Optional[str]:
+        """To find the node connected to the graph outside the cycle, if any"""
+        for node in problematic_nodes:
+            neighbors = set(route.neighbors(node))
+            if any(neighbor not in problematic_nodes for neighbor in neighbors):
+                return node
+        return None
+
+    @staticmethod
+    def _identify_nodes_to_remove(
+        route: nx.DiGraph, problematic_nodes: set, hook_node: str
+    ) -> set:
+        """To identify nodes to remove from the cycle"""
+        nodes_to_remove = set()
+        for node in problematic_nodes:
+            if node != hook_node:
+                in_edges = route.in_edges(node)
+                source_nodes = [tup[0] for tup in in_edges]
+                if hook_node in source_nodes:
+                    nodes_to_remove.add(node)
+        return nodes_to_remove
 
 
 @CheckerFactory.register_checker(
@@ -187,7 +223,7 @@ class IsolatedNodesChecker(RouteChecker):
     """Concrete class to check and handle isolated sequences of nodes in a route"""
 
     def check_route(
-        self, route: MonopartiteReacSynGraph, fix_issues: bool
+        self, route: MonopartiteReacSynGraph, fix_issue: bool
     ) -> MonopartiteReacSynGraph:
         """To check if the input route could contain isolated sequences of nodes"""
         # if there is only one molecule root, there are no isolated sequences of nodes
@@ -195,13 +231,13 @@ class IsolatedNodesChecker(RouteChecker):
         if len(mol_roots) == 1:
             return route
 
-        return self.search_isolated_nodes(route, mol_roots, fix_issues)
+        return self.search_isolated_nodes(route, mol_roots, fix_issue)
 
     def search_isolated_nodes(
         self,
         route: MonopartiteReacSynGraph,
         mol_roots: List[Molecule],
-        fix_issues: bool,
+        fix_issue: bool,
     ) -> MonopartiteReacSynGraph:
         """To search any isolated sequences of nodes"""
         reaction_roots = route.get_roots()
@@ -223,8 +259,8 @@ class IsolatedNodesChecker(RouteChecker):
                 if find_path(route_copy, reaction_with_reagents, reaction_root):
                     continue
                 # otherwise,the reaction root is generating an isolated sequence
-                if fix_issues:
-                    # if fix_issues is True, the problematic nodes are removed
+                if fix_issue:
+                    # if fix_issue is True, the problematic nodes are removed
                     self.handle_issue(route_copy, reaction_root)
                 else:
                     # otherwise an error is raised
