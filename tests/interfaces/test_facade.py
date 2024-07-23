@@ -49,7 +49,7 @@ def test_descriptors_valid_routes(
 
     # Assertions to verify the method behavior
     assert isinstance(output, pd.DataFrame)
-    assert isinstance(output.configuration, list)
+    assert isinstance(output.attrs["configuration"], list)
     assert "nr_steps" in output.columns
     assert "nr_branches" in output.columns
     assert all(output["nr_steps"] == "nr_steps_value")
@@ -170,7 +170,7 @@ def test_clustering(mock_clusterer, mock_metrics, az_as_dict):
 
 @patch("linchemin.interfaces.facade.clusterer")
 def test_clustering_parallelization(mock_cluster, bp_syngraph_instance):
-    cluster4, _ = facade("clustering", [bp_syngraph_instance], parallelization=True)
+    facade("clustering", [bp_syngraph_instance], parallelization=True)
     mock_cluster.assert_called()
 
 

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Union, Optional
 
 import networkx as nx
 import pydot
@@ -36,7 +36,7 @@ class TranslationParameters:
 
     input_format: str = field(default_factory=str)
     output_format: str = field(default_factory=str)
-    data_model_converter: Union[DataModelConverter, None] = None
+    data_model_converter: Optional[DataModelConverter] = None
 
 
 class Translation:
@@ -91,12 +91,11 @@ class InputToIron(Handler):
         )
         graph = input_to_iron_translator.to_iron(graph)
         if parameters.output_format == "iron":
-            graph = graph
+            return graph
         elif graph is None:
             return None
         else:
-            graph = IronToSynGraph().translate(graph, parameters)
-        return graph
+            return IronToSynGraph().translate(graph, parameters)
 
 
 class IronToSynGraph(Handler):

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Type, Union
+from typing import Type, Union, List
 
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
@@ -7,8 +7,14 @@ from linchemin.cheminfo.models import Disconnection
 from linchemin.utilities import console_logger
 
 
-class UnavailableMolIdentifier(Exception):
-    """To be raised if the selected name for the molecular property name is not among the supported ones"""
+class UnavailableMolIdentifier(KeyError):
+    """To be raised if the selected name for the molecular property name is not among the available ones"""
+
+    pass
+
+
+class UnavailableReactionIdentifier(KeyError):
+    """To be raised if the selected name for the reaction identifier is not among the available ones"""
 
     pass
 
@@ -178,47 +184,204 @@ def calculate_molecular_hash_map(
     return hash_map
 
 
+def get_all_molecular_identifiers() -> List:
+    """To list all the available molecular identifiers"""
+    return (
+        list(cif.HashFunction.names.keys())
+        + MolIdentifierFactory.list_mol_identifiers()
+        + ["smiles"]
+    )
+
+
+def is_valid_molecular_identifier(molecular_identifier: str) -> bool:
+    """To check if the input molecule identifier is among the valid ones"""
+    return molecular_identifier in get_all_molecular_identifiers()
+
+
+def validate_molecular_identifier(molecular_identifier: str) -> None:
+    """To validate the input molecule identifier"""
+    if not is_valid_molecular_identifier(molecular_identifier):
+        logger.error(f"{molecular_identifier} is not a valid molecular identifier.")
+        raise UnavailableMolIdentifier
+
+
 # ChemicalEquation hash calculations
+class ReactionIdentifier(ABC):
+    name: str
+
+    @staticmethod
+    @abstractmethod
+    def get_reaction_identifier(molecules_identity_property_map: dict) -> str:
+        pass
+
+
+class ReactionIdentifiersFactory:
+    """Factory to give access to the ReactionRepresentation objects"""
+
+    _reaction_identifiers = {}
+
+    @classmethod
+    def register_reaction_identifier(cls, identifier: Type[ReactionIdentifier]):
+        """
+        Decorator method to register a ReactionIdentifier implementation.
+        Adds the 'name' attribute of the class to the registry.
+        """
+        if (
+            hasattr(identifier, "name")
+            and identifier.name not in cls._reaction_identifiers
+        ):
+            cls._reaction_identifiers[identifier.name.lower()] = identifier
+        return identifier
+
+    @classmethod
+    def select_reaction_identifier(cls, name: str) -> ReactionIdentifier:
+        """
+        To get an instance of the specified ReactionIdentifier.
+
+        Parameters:
+        ------------
+        name: str
+            The name of the reaction identifier.
+
+        Returns:
+        ---------
+        ReactionIdentifier: An instance of the specified reaction representation.
+
+        Raises:
+        -------
+        UnavailableReactionIdentifier: If the specified identifier is not registered.
+        """
+        representation = cls._reaction_identifiers.get(name.lower())
+        if representation is None:
+            logger.error(f"Reaction property '{name}' not found")
+            raise UnavailableReactionIdentifier
+        return representation()
+
+    @classmethod
+    def list_reaction_identifiers(cls) -> list:
+        """
+        To list the names of all available reaction identifiers
+        Returns:
+        ---------
+        list
+            The names of the available reaction identifiers
+        """
+        return list(cls._reaction_identifiers.keys())
+
+
+@ReactionIdentifiersFactory.register_reaction_identifier
+class ReactantProduct(ReactionIdentifier):
+    """Class corresponding to a representation of a reaction which includes reactants and products"""
+
+    name = "r_p"
+
+    @staticmethod
+    def get_reaction_identifier(molecules_identity_property_map: dict) -> str:
+        return ">>".join(
+            [
+                molecules_identity_property_map.get("reactants"),
+                molecules_identity_property_map.get("products"),
+            ]
+        )
+
+
+@ReactionIdentifiersFactory.register_reaction_identifier
+class ReactantReagentProduct(ReactionIdentifier):
+    """Class corresponding to a representation of a reaction which includes reactants,reagents and products"""
+
+    name = "r_r_p"
+
+    @staticmethod
+    def get_reaction_identifier(molecules_identity_property_map: dict) -> str:
+        return ">".join(
+            [
+                molecules_identity_property_map.get("reactants"),
+                molecules_identity_property_map.get("reagents"),
+                molecules_identity_property_map.get("products"),
+            ]
+        )
+
+
+@ReactionIdentifiersFactory.register_reaction_identifier
+class UnorderedReactantProduct(ReactionIdentifier):
+    """Class corresponding to a representation of a reaction which includes reactants
+    and products sorted alphanumerically"""
+
+    name = "u_r_p"
+
+    @staticmethod
+    def get_reaction_identifier(molecules_identity_property_map: dict) -> str:
+        return ">>".join(
+            sorted(
+                [
+                    molecules_identity_property_map.get("reactants"),
+                    molecules_identity_property_map.get("products"),
+                ]
+            )
+        )
+
+
+@ReactionIdentifiersFactory.register_reaction_identifier
+class UnorderedReactantReagentProduct(ReactionIdentifier):
+    """Class corresponding to a representation of a reaction which includes reactants, reagents
+    and products sorted alphanumerically"""
+
+    name = "u_r_r_p"
+
+    @staticmethod
+    def get_reaction_identifier(molecules_identity_property_map: dict) -> str:
+        return ">>".join(
+            sorted(
+                [
+                    molecules_identity_property_map.get("reactants"),
+                    molecules_identity_property_map.get("reagents"),
+                    molecules_identity_property_map.get("products"),
+                ]
+            )
+        )
+
+
 def calculate_reaction_like_hash_map(catalog: dict, role_map: dict) -> dict:
     """To calculate the hash keys for reaction-like objects"""
     mol_list_map = {
         role: [catalog.get(uid) for uid in uid_list]
         for role, uid_list in role_map.items()
     }
-
     # get the identity_property for each molecule
     idp_list_map = {
         role: [m.identity_property for m in molecule_list]
         for role, molecule_list in mol_list_map.items()
     }
-
     # for each role concatenate the properties
     idp_str_map = {role: ".".join(sorted(v)) for role, v in idp_list_map.items()}
 
-    # add some more strings
-    idp_str_map["r_p"] = ">>".join(
-        [idp_str_map.get("reactants"), idp_str_map.get("products")]
-    )
-    idp_str_map["r_r_p"] = ">".join(
-        [
-            idp_str_map.get("reactants"),
-            idp_str_map.get("reagents"),
-            idp_str_map.get("products"),
-        ]
-    )
-    idp_str_map["u_r_p"] = ">>".join(
-        sorted([idp_str_map.get("reactants"), idp_str_map.get("products")])
-    )
-    idp_str_map["u_r_r_p"] = ">>".join(
-        sorted(
-            [
-                idp_str_map.get("reactants"),
-                idp_str_map.get("reagents"),
-                idp_str_map.get("products"),
-            ]
+    # get all the available reaction representations
+    for identifier in ReactionIdentifiersFactory.list_reaction_identifiers():
+        reaction_identifier = ReactionIdentifiersFactory.select_reaction_identifier(
+            identifier
         )
-    )
+        idp_str_map[
+            reaction_identifier.name
+        ] = reaction_identifier.get_reaction_identifier(idp_str_map)
     return {role: utilities.create_hash(v) for role, v in idp_str_map.items()}
+
+
+def get_all_reaction_identifiers():
+    return ReactionIdentifiersFactory.list_reaction_identifiers()
+
+
+def is_valid_reaction_identifier(reaction_identifier: str) -> bool:
+    """To check if the input reaction identifier is among the valid ones"""
+    return reaction_identifier in get_all_reaction_identifiers()
+
+
+def validate_reaction_identifier(reaction_identifier: str) -> None:
+    """To validate the input reaction identifier"""
+    if not is_valid_reaction_identifier(reaction_identifier):
+        logger.error(
+            f"{reaction_identifier} is not a valid reaction identity property."
+        )
+        raise UnavailableReactionIdentifier
 
 
 def calculate_disconnection_hash_map(disconnection: Disconnection) -> dict:

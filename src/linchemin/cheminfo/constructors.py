@@ -12,10 +12,14 @@ from linchemin import settings
 from linchemin.cheminfo.chemical_hashes import (
     MolIdentifierFactory,
     UnavailableMolIdentifier,
+    UnavailableReactionIdentifier,
     calculate_disconnection_hash_map,
     calculate_molecular_hash_map,
     calculate_pattern_hash_map,
     calculate_reaction_like_hash_map,
+    validate_reaction_identifier,
+    get_all_molecular_identifiers,
+    validate_molecular_identifier,
 )
 from linchemin.cheminfo.models import (
     ChemicalEquation,
@@ -57,23 +61,14 @@ class MoleculeConstructor:
 
     """
 
-    all_available_identifiers = (
-        list(cif.HashFunction.names.keys())
-        + MolIdentifierFactory.list_mol_identifiers()
-        + ["smiles"]
-    )
-
     def __init__(
         self,
         molecular_identity_property_name: str = settings.CONSTRUCTORS.molecular_identity_property_name,
         hash_list: list = settings.CONSTRUCTORS.molecular_hash_list,
     ):
-        if molecular_identity_property_name not in self.all_available_identifiers:
-            logger.error(
-                "The selected molecular identity property is not available."
-                f"Available options are {self.all_available_identifiers}"
-            )
-            raise UnavailableMolIdentifier
+        validate_molecular_identifier(
+            molecular_identifier=molecular_identity_property_name
+        )
 
         self.molecular_identity_property_name = molecular_identity_property_name
         self.hash_list = set(hash_list + [self.molecular_identity_property_name])
@@ -98,7 +93,7 @@ class MoleculeConstructor:
         rdmol_mapped_canonical = cif.new_molecule_canonicalization(rdmol_mapped)
 
         hash_map = calculate_molecular_hash_map(
-            self.all_available_identifiers,
+            get_all_molecular_identifiers(),
             rdmol=rdmol_unmapped_canonical,
             hash_list=self.hash_list,
         )
@@ -324,25 +319,40 @@ class RatamConstructor:
         products = full_map_info["products"]
         reactants = full_map_info["reactants"]
 
-        for product_uid, prod_maps in products.items():
-            for prod_map in prod_maps:
-                for reactant_uid, reactant_maps in reactants.items():
-                    for reactant_map in reactant_maps:
-                        matching_map_num = [
-                            map_num
-                            for map_num in reactant_map.values()
-                            if map_num in prod_map.values() and map_num not in [0, -1]
-                        ]
-                        if matching_map_num:
-                            atom_transformations.update(
-                                build_atom_transformations(
-                                    matching_map_num,
-                                    prod_map,
-                                    product_uid,
-                                    reactant_map,
-                                    reactant_uid,
-                                )
-                            )
+        def get_matching_map_numbers(reactant_map: dict, product_map: dict) -> list:
+            return [
+                map_num
+                for map_num in reactant_map.values()
+                if map_num in product_map.values() and map_num not in [0, -1]
+            ]
+
+        def process_product_reactant_maps(
+            prod_uid: str, prod_map: dict, react_uid: str, react_map: dict
+        ) -> None:
+            matching_map_numbers = get_matching_map_numbers(react_map, prod_map)
+            if matching_map_numbers:
+                atom_transformations.update(
+                    build_atom_transformations(
+                        matching_map_numbers,
+                        prod_map,
+                        prod_uid,
+                        react_map,
+                        react_uid,
+                    )
+                )
+
+        def process_reactant_maps(
+            product_uid: str, product_map: dict, r_maps: dict
+        ) -> None:
+            for r_uid, r_maps_group in r_maps.items():
+                for r_map in r_maps_group:
+                    process_product_reactant_maps(
+                        product_uid, product_map, r_uid, r_map
+                    )
+
+        for p_uid, p_maps_group in products.items():
+            for p_map in p_maps_group:
+                process_reactant_maps(p_uid, p_map, reactants)
 
         return atom_transformations
 
@@ -852,7 +862,10 @@ class ChemicalEquationConstructor:
     ---------------
     molecular_identity_property_name: a string indicating the property determining the identity
                                       of the molecules in the chemical equation (e.g. 'smiles')
-
+    chemical_equation_identity_name: a string indicating the components of the chemical equation
+                                     participating in the definition of its uid (e.g., 'r_p' to
+                                     include only reactants and products; 'r_r_p' to include also
+                                     reagents
     """
 
     def __init__(
@@ -860,11 +873,18 @@ class ChemicalEquationConstructor:
         molecular_identity_property_name: str = settings.CONSTRUCTORS.molecular_identity_property_name,
         chemical_equation_identity_name: str = settings.CONSTRUCTORS.chemical_equation_identity_name,
     ):
+        validate_molecular_identifier(
+            molecular_identifier=molecular_identity_property_name
+        )
         self.molecular_identity_property_name = molecular_identity_property_name
+        validate_reaction_identifier(
+            reaction_identifier=chemical_equation_identity_name
+        )
         self.chemical_equation_identity_name = chemical_equation_identity_name
 
+    @staticmethod
     def read_reaction(
-        self, reaction_string: str, inp_fmt: str
+        reaction_string: str, inp_fmt: str
     ) -> Tuple[cif.rdChemReactions.ChemicalReaction, utilities.OutcomeMetadata]:
         """To start the building of a ChemicalEquation instance from a reaction string"""
         try:

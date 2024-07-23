@@ -299,7 +299,7 @@ class RoutesDescriptorsFacade(Facade):
 
             except Exception as e:
                 exceptions.append(e)
-        output.configuration = configuration
+        output.attrs["configuration"] = configuration
         meta = {
             "descriptors": descriptors,
             "invalid_routes": invalid_routes,
@@ -406,7 +406,7 @@ class GedFacade(Facade):
                 "ged_algorithm": ged_method,
                 "ged_params": ged_params,
                 "graph_type": "monopartite"
-                if type(routes[0]) == MonopartiteReacSynGraph
+                if isinstance(routes[0], MonopartiteReacSynGraph)
                 else "bipartite",
                 "invalid_routes": len(routes) - len(checked_routes),
                 "errors": exceptions,
@@ -418,7 +418,7 @@ class GedFacade(Facade):
                 "ged_algorithm": ged_method,
                 "ged_params": ged_params,
                 "graph_type": "monopartite"
-                if type(routes[0]) == MonopartiteReacSynGraph
+                if isinstance(routes[0], MonopartiteReacSynGraph)
                 else "bipartite",
                 "invalid_routes": len(routes) - len(checked_routes),
                 "errors": exceptions,
@@ -581,7 +581,7 @@ class ClusteringFacade:
             )
             meta = {
                 "graph_type": "monopartite"
-                if type(routes[0]) == MonopartiteReacSynGraph
+                if isinstance(routes[0], MonopartiteReacSynGraph)
                 else "bipartite",
                 "clustering_algorithm": clustering_method,
                 "clustering_params": kwargs,
@@ -598,7 +598,7 @@ class ClusteringFacade:
             exceptions.append(sre)
             meta = {
                 "graph_type": "monopartite"
-                if type(checked_routes[0]) == MonopartiteReacSynGraph
+                if isinstance(checked_routes[0], MonopartiteReacSynGraph)
                 else "bipartite",
                 "clustering_algorithm": clustering_method,
                 "clustering_params": kwargs,

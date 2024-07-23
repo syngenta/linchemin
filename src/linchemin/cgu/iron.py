@@ -32,7 +32,7 @@ class Direction:
         self.tup = (dir_string.split(">")[0], dir_string.split(">")[1])
 
     def __eq__(self, other):
-        return type(other) == Direction and self.string == other.string
+        return isinstance(other, Direction) and self.string == other.string
 
 
 @dataclass(frozen=True, order=True)
@@ -150,9 +150,12 @@ class Iron:
         """To get the list of edge ids connecting the nodes a and b (direction ignored)"""
         ids_lst = []
         for id_e, edge in self.edges.items():
-            if edge.a_iid == str(a) and edge.b_iid == str(b):
-                ids_lst.append(id_e)
-            elif edge.b_iid == str(a) and edge.a_iid == str(b):
+            if (
+                edge.a_iid == str(a)
+                and edge.b_iid == str(b)
+                or edge.b_iid == str(a)
+                and edge.a_iid == str(b)
+            ):
                 ids_lst.append(id_e)
         return ids_lst
 

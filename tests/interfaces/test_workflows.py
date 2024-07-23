@@ -5,6 +5,8 @@ import pytest
 from linchemin.interfaces.facade import facade
 from linchemin.interfaces.workflows import get_workflow_options, process_routes
 
+routes_csv_filename = "routes.csv"
+
 
 @patch("linchemin.cgu.graph_transformations.format_translators.AzRetro.to_iron")
 @patch("linchemin.cgu.graph_transformations.format_translators.IbmRetro.to_iron")
@@ -17,7 +19,7 @@ def test_workflow_basic(
     out = process_routes(input_dict)
     assert out
 
-    routes, meta = facade(
+    routes, _ = facade(
         "translate", "syngraph", out.routes_list, "noc", out_data_model="bipartite"
     )
     mock_reaxys.assert_called()
@@ -30,7 +32,7 @@ def test_workflow_basic(
     mock_ibm.assert_called()
     assert out
 
-    routes, meta = facade(
+    routes, _ = facade(
         "translate", "syngraph", out.routes_list, "noc", out_data_model="bipartite"
     )
     mock_os.assert_called_with(routes, "routes.json")
@@ -66,11 +68,11 @@ def test_workflow_metric(mock_dataframe, mock_csv, ibm2_path):
         parallelization=True,
         n_cpu=16,
     )
-    routes, meta = facade(
+    routes, _ = facade(
         "translate", "syngraph", out.routes_list, "noc", out_data_model="bipartite"
     )
-    assert out.descriptors.configuration
-    mock_csv.assert_called_with(routes, "routes.csv")
+    assert out.descriptors.attrs["configuration"]
+    mock_csv.assert_called_with(routes, routes_csv_filename)
     mock_dataframe.assert_called_with(out.descriptors, "descriptors.csv")
 
 
@@ -90,10 +92,10 @@ def test_workflow_cluster_dist_matrix(mock_dataframe, mock_csv, mit_path):
     out = process_routes(
         input_dict, output_format="csv", functionalities=["clustering"]
     )
-    routes, meta = facade(
+    routes, _ = facade(
         "translate", "syngraph", out.routes_list, "noc", out_data_model="bipartite"
     )
-    mock_csv.assert_called_with(routes, "routes.csv")
+    mock_csv.assert_called_with(routes, routes_csv_filename)
     mock_dataframe.assert_called_with(out.clustered_descriptors, "cluster_metrics.csv")
 
 
@@ -106,10 +108,10 @@ def test_workflow_graphml(mock_graphml, mit_path):
 
 
 def test_helper(capfd):
-    assert type(get_workflow_options()) == dict
+    assert isinstance(get_workflow_options(), dict)
     assert "functionalities" in get_workflow_options()
     get_workflow_options(verbose=True)
-    out, err = capfd.readouterr()
+    out, _ = capfd.readouterr()
     assert "input_dict" in out
 
 
@@ -121,10 +123,10 @@ def test_reaction_strings_extraction(mock_json, mock_csv, az_path):
     out = process_routes(
         input_dict, output_format="csv", functionalities=["extracting_reactions"]
     )
-    routes, meta = facade(
+    routes, _ = facade(
         "translate", "syngraph", out.routes_list, "noc", out_data_model="bipartite"
     )
-    mock_csv.assert_called_with(routes, "routes.csv")
+    mock_csv.assert_called_with(routes, routes_csv_filename)
     mock_json.assert_called_with(out.reaction_strings, "reaction_strings.json")
 
 
@@ -136,10 +138,10 @@ def test_graphml(mock_json, mock_csv, az_path):
     out = process_routes(
         input_dict, output_format="csv", functionalities=["extracting_reactions"]
     )
-    routes, meta = facade(
+    routes, _ = facade(
         "translate", "syngraph", out.routes_list, "noc", out_data_model="bipartite"
     )
-    mock_csv.assert_called_with(routes, "routes.csv")
+    mock_csv.assert_called_with(routes, routes_csv_filename)
     mock_json.assert_called_with(out.reaction_strings, "reaction_strings.json")
 
 
