@@ -357,7 +357,7 @@ def populate_metric_df(
     d = pd.DataFrame(columns=columns)
     for n, graph in enumerate(graphs):
         n_step = descriptor_calculator(graph, "nr_steps")
-        route_id = graph.source
+        route_id = graph.name
         d.loc[n, "routes_id"] = route_id
         d.loc[n, "n_steps"] = n_step
         b = descriptor_calculator(graph, "nr_branches")

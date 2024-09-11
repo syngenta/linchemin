@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Type, Union
+from typing import List, Type, Union, Optional
 
 import linchemin.IO.io as lio
 from linchemin.cgu.syngraph import (
@@ -26,7 +26,9 @@ class SyngraphWriter(ABC):
     file_format: str
 
     @abstractmethod
-    def write_file(self, syngraphs: list, out_data_model: str, file_name: str) -> None:
+    def write_file(
+        self, syngraphs: list, out_data_model: str, file_name: Optional[str]
+    ) -> None:
         pass
 
 
@@ -69,7 +71,9 @@ class JsonWriter(SyngraphWriter):
 
     file_format = "json"
 
-    def write_file(self, syngraphs: list, out_data_model: str, file_name: str):
+    def write_file(
+        self, syngraphs: list, out_data_model: str, file_name: Optional[str]
+    ):
         routes, meta = facade(
             functionality="translate",
             routes=syngraphs,
@@ -77,6 +81,8 @@ class JsonWriter(SyngraphWriter):
             output_format="noc",
             out_data_model=out_data_model,
         )
+        if file_name is None:
+            file_name = syngraphs[0].name
         file_name = "".join([file_name, ".", self.file_format])
         lio.write_json(routes, file_name)
 
@@ -87,7 +93,9 @@ class CsvWriter(SyngraphWriter):
 
     file_format = "csv"
 
-    def write_file(self, syngraphs: list, out_data_model: str, file_name: str):
+    def write_file(
+        self, syngraphs: list, out_data_model: str, file_name: Optional[str]
+    ):
         routes, meta = facade(
             functionality="translate",
             routes=syngraphs,
@@ -95,6 +103,8 @@ class CsvWriter(SyngraphWriter):
             output_format="noc",
             out_data_model=out_data_model,
         )
+        if file_name is None:
+            file_name = syngraphs[0].name
         file_name = "".join([file_name, ".", self.file_format])
         lio.dict_list_to_csv(routes, file_name)
 
@@ -105,7 +115,9 @@ class PngWriter(SyngraphWriter):
 
     file_format = "png"
 
-    def write_file(self, syngraphs: list, out_data_model: str, file_name: str):
+    def write_file(
+        self, syngraphs: list, out_data_model: str, file_name: Optional[str]
+    ):
         facade(
             functionality="translate",
             routes=syngraphs,
@@ -121,7 +133,9 @@ class GraphMLWriter(SyngraphWriter):
 
     file_format = "graphml"
 
-    def write_file(self, syngraphs: list, out_data_model: str, file_name: str):
+    def write_file(
+        self, syngraphs: list, out_data_model: str, file_name: Optional[str]
+    ):
         nx_routes, meta = facade(
             functionality="translate",
             routes=syngraphs,
@@ -131,7 +145,7 @@ class GraphMLWriter(SyngraphWriter):
         )
         for nx_route in nx_routes:
             for n, data in nx_route.nodes.items():
-                r_id = data["source"]
+                r_id = data["name"]
                 del nx_route.nodes[n]["properties"]
 
             for n1, n2, d in nx_route.edges(data=True):
@@ -146,7 +160,7 @@ def write_syngraph(
     ],
     out_data_model: str,
     output_format: str,
-    file_name: str,
+    file_name: Optional[str] = None,
 ) -> None:
     """
     To write a list of SynGraph instances to a file
@@ -159,8 +173,8 @@ def write_syngraph(
         The data model to be used for the output graphs
     output_format: str
         The format of the output file
-    file_name: str
-        The name of the output file
+    file_name: Optional[str]
+        The name of the output file (default None)
     """
 
     writer = SyngraphWriterFactory.select_writer(output_format=output_format)

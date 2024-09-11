@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 import linchemin.utilities as utilities
 from linchemin.cgu.iron import Iron, Node
@@ -24,7 +24,7 @@ class SynGraph(ABC):
     Attributes:
             graph: a dictionary of sets
 
-            source: a string containing the sources of the graph
+            name: an optional string containing the name of the graph
 
             uid: a string uniquely identifying the SynGraph instance based on the underlying graph
     """
@@ -43,7 +43,7 @@ class SynGraph(ABC):
                     [{'query_id': n, 'output_string': reaction}]
 
         """
-        self.source = str
+        self.name: Optional[str] = None
         self.graph = defaultdict(set)
 
         if initiator is not None:
@@ -133,9 +133,9 @@ class SynGraph(ABC):
         """To get the set of unique nodes included in a SynGraph instance"""
         return {parent for parent in self.graph}
 
-    def set_source(self, source):
-        """To set the source attribute of a SynGraph instance"""
-        self.source = source
+    def set_name(self, name: str) -> None:
+        """To set the name attribute of a SynGraph instance"""
+        self.name = name
 
     def __iter__(self):
         self._iter_obj = iter(self.graph.items())
@@ -168,7 +168,7 @@ class SynGraph(ABC):
         Format of the input tuple: (parent_node, [child1, child2, ...])"""
         # The nodes are added to the SynGraph instance
         if nodes_tup[0] not in self.graph:
-            # If the source node is not in the SynGraph instance yet, it is added with its connections
+            # If the parent node is not in the SynGraph instance yet, it is added with its connections
             self.graph[nodes_tup[0]] = set(nodes_tup[1])
         else:
             # otherwise, the connections are added to the pre-existing node
@@ -247,8 +247,7 @@ class BipartiteSynGraph(SynGraph):
         self.add_molecular_roots()
         # this is to avoid disconnected nodes due to reactions producing reagents of other reactions
         self.remove_isolated_ces()
-
-        self.set_source(str(self.uid))
+        self.set_name(self.uid)
 
     def builder_from_iron(self, iron_graph: Iron) -> None:
         """To build a BipartiteSynGraph instance from an Iron instance"""
@@ -268,7 +267,7 @@ class BipartiteSynGraph(SynGraph):
                 self.add_nodes_sequence(reactant, product, chemical_equation)
         self.add_molecular_roots()
 
-        self.set_source(iron_graph.source)
+        self.set_name(iron_graph.name)
 
     def add_nodes_sequence(
         self, reactant: str, product: str, chemical_equation: ChemicalEquation
@@ -370,8 +369,7 @@ class MonopartiteReacSynGraph(SynGraph):
             self.add_node((ch_equation, next_ch_equations))
         # this is to avoid disconnected nodes due to reactions producing reagents of other reactions
         self.remove_isolated_ces()
-
-        self.set_source(str(self.uid))
+        self.set_name(self.uid)
 
     def builder_from_iron(self, iron_graph: Iron) -> None:
         """To build a MonopartiteReacSynGraph from an Iron instance."""
@@ -411,7 +409,7 @@ class MonopartiteReacSynGraph(SynGraph):
         for node1, node2 in connections:
             process_connection(node1, node2)
 
-        self.set_source(iron_graph.source)
+        self.set_name(iron_graph.name)
 
     def get_leaves(self) -> list:
         """To get the list of ChemicalEquation leaves in a MonopartiteSynGraph."""
@@ -483,8 +481,7 @@ class MonopartiteMolSynGraph(SynGraph):
                 self.add_node((reactant, products))
         self.add_molecular_roots()
         # self.remove_isolate_nodes()
-
-        self.set_source(str(self.uid))
+        self.set_name(self.uid)
 
     def builder_from_iron(self, iron_graph: Iron) -> None:
         connections = [edge.direction.tup for id_e, edge in iron_graph.edges.items()]
@@ -511,7 +508,7 @@ class MonopartiteMolSynGraph(SynGraph):
                 self.add_node((reactant_canonical, [product_canonical]))
         self.add_molecular_roots()
 
-        self.set_source(iron_graph.source)
+        self.set_name(iron_graph.name)
 
     def get_leaves(self) -> list:
         """To get the list of leaves of a MonopartiteMolSynGraph instance."""

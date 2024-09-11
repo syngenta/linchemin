@@ -94,14 +94,14 @@ def test_graphml_writer(mock_facade, mock_lio, mpr_syngraph_instance):
     out_data_model = "bipartite"
     syngraphs = [mpr_syngraph_instance] * 2
     # Creating test networkx graph to be returned by the translation facade
-    G1 = nx.DiGraph()
-    G1.add_nodes_from([1, 2, 3], source="route_id_1", properties={"prop1": "value1"})
-    G1.add_edges_from([(1, 2), (2, 3)], label="edge_label")
-    G2 = nx.DiGraph()
-    G2.add_nodes_from([4, 5, 6], source="route_id_2", properties={"prop2": "value1"})
-    G2.add_edges_from([(4, 5), (5, 6)], label="edge_label")
+    g1 = nx.DiGraph()
+    g1.add_nodes_from([1, 2, 3], name="route_id_1", properties={"prop1": "value1"})
+    g1.add_edges_from([(1, 2), (2, 3)], label="edge_label")
+    g2 = nx.DiGraph()
+    g2.add_nodes_from([4, 5, 6], name="route_id_2", properties={"prop2": "value1"})
+    g2.add_edges_from([(4, 5), (5, 6)], label="edge_label")
 
-    out_routes = [G1, G2]
+    out_routes = [g1, g2]
     mock_facade.return_value = (out_routes, {})
     writer = GraphMLWriter()
     writer.write_file(

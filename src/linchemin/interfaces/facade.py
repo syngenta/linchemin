@@ -787,13 +787,13 @@ class AtomMappingFacade(Facade):
         tot_success_rate: Union[float, int] = 0
         exceptions = []
         for route in routes:
-            source = route.source
+            name = route.name
             route_id = route.uid
             reaction_list = extract_reactions_from_syngraph(route)
             mapping_out = self._map_reaction_strings(reaction_list)
             try:
                 mapped_route = syngraph_type(mapping_out.mapped_reactions)
-                mapped_route.source = source
+                mapped_route.name = name
                 out_syngraphs.append(mapped_route)
             except Exception as e:
                 exceptions.append({"route_uid": route_id, "exception": e})

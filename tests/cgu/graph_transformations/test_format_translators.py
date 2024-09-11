@@ -135,6 +135,7 @@ def test_pydot_translation(iron_test_instance):
         node.properties["node_smiles"] for node in iron_test_instance.nodes.values()
     ]
     assert sorted(new_node_smiles) == sorted(original_node_smiles)
+    assert new_iron.name is not None
 
 
 def test_nx_translation(iron_test_instance):
@@ -155,6 +156,7 @@ def test_nx_translation(iron_test_instance):
         node.properties["node_smiles"] for node in iron_test_instance.nodes.values()
     ]
     assert sorted(new_node_smiles) == sorted(original_node_smiles)
+    assert new_iron.name is not None
 
 
 def test_nx_translation_single_node():
@@ -215,11 +217,10 @@ def test_sparrow_translation():
     iron = translator.to_iron(graph)
     assert iron.i_node_number() == 2
     assert iron.i_edge_number() == 0
+    assert iron.name is not None
 
     new_sparrow = translator.from_iron(iron)
-    import pprint
 
-    pprint.pprint(new_sparrow)
     assert "Reaction Nodes" in new_sparrow
     assert "Compound Nodes" in new_sparrow
     assert len(new_sparrow["Reaction Nodes"]) == 2

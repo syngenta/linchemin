@@ -157,7 +157,7 @@ def test_compute_distance_matrix(az_as_dict, ibm1_as_dict):
     ]
     m = compute_distance_matrix(mp_syngraphs, ged_method="nx_ged")
     diag = pd.Series([m.iat[n, n] for n in range(len(m))], index=[m.index, m.columns])
-    routes = [graph.source for graph in mp_syngraphs]
+    routes = [graph.name for graph in mp_syngraphs]
     proof_diag = pd.Series(np.zeros(len(routes)), index=[m.index, m.columns])
     assert diag.all() == proof_diag.all()
 
@@ -169,7 +169,7 @@ def test_compute_distance_matrix(az_as_dict, ibm1_as_dict):
     diag2 = pd.Series(
         [m2.iat[n, n] for n in range(len(m2))], index=[m2.index, m2.columns]
     )
-    r2 = [graph.source for graph in mp_syngraphs]
+    r2 = [graph.name for graph in mp_syngraphs]
     proof_diag = pd.Series(np.zeros(len(r2)), index=[m2.index, m2.columns])
     assert diag2.all() == proof_diag.all()
 

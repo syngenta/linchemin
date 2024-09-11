@@ -3,10 +3,10 @@ import unittest
 import pytest
 
 from linchemin.cgu.graph_transformations.data_model_converters import (
-    Bipartite,
+    BipartiteGenerator,
     DataModelCatalog,
-    MonopartiteMolecules,
-    MonopartiteReactions,
+    MonopartiteMoleculesGenerator,
+    MonopartiteReactionsGenerator,
 )
 from linchemin.cgu.graph_transformations.exceptions import UnavailableDataModel
 from linchemin.cgu.syngraph import (
@@ -18,20 +18,22 @@ from linchemin.cgu.syngraph import (
 
 def test_iron_bp_syngraph(iron_w_smiles):
     """To test the Iron -> SynGraph transformation (mainly tested in the test_syngraph)."""
-    converter = Bipartite()
+    converter = BipartiteGenerator()
     bp_syngraph = converter.iron_to_syngraph(iron_w_smiles)
+    bp_syngraph.set_name("test_graph")
     assert isinstance(bp_syngraph, BipartiteSynGraph)
     assert len(bp_syngraph.graph) == 4
     new_iron = converter.syngraph_to_iron(bp_syngraph)
     assert new_iron.i_node_number() == 4
     assert new_iron.i_edge_number() == 3
+    assert new_iron.name == "test_graph"
 
 
 def test_failing_iron_bp_syngraph():
     """To test that a warning is raised if an empty route is encountered"""
     # iron to syngraph
     iron = None
-    converter = Bipartite()
+    converter = BipartiteGenerator()
     with unittest.TestCase().assertLogs(
         "linchemin.cgu.graph_transformations.data_model_converters", level="WARNING"
     ) as cm:
@@ -56,19 +58,21 @@ def test_failing_iron_bp_syngraph():
 
 def test_iron_to_mpm_syngraph(iron_w_smiles):
     """To test the Iron -> SynGraph transformation (mainly tested in the test_syngraph)."""
-    converter = MonopartiteMolecules()
+    converter = MonopartiteMoleculesGenerator()
     mpm_syngraph = converter.iron_to_syngraph(iron_w_smiles)
     assert isinstance(mpm_syngraph, MonopartiteMolSynGraph)
     assert len(mpm_syngraph.graph) == 3
+    assert mpm_syngraph.name is None
     new_iron = converter.syngraph_to_iron(mpm_syngraph)
     assert new_iron.i_node_number() == 3
     assert new_iron.i_edge_number() == 2
+    assert new_iron.name == mpm_syngraph.uid
 
 
 def test_failing_iron_mpm_syngraph():
     """To test that a warning is raised if an empty route is encountered"""
     iron = None
-    converter = MonopartiteMolecules()
+    converter = MonopartiteMoleculesGenerator()
     with unittest.TestCase().assertLogs(
         "linchemin.cgu.graph_transformations.data_model_converters", level="WARNING"
     ) as cm:
@@ -95,19 +99,21 @@ def test_failing_iron_mpm_syngraph():
 
 def test_iron_to_mpr_syngraph(iron_w_smiles):
     """To test the Iron -> SynGraph transformation (mainly tested in the test_syngraph)."""
-    converter = MonopartiteReactions()
+    converter = MonopartiteReactionsGenerator()
     mpr_syngraph = converter.iron_to_syngraph(iron_w_smiles)
+    mpr_syngraph.set_name("mpr")
     assert isinstance(mpr_syngraph, MonopartiteReacSynGraph)
     assert len(mpr_syngraph.graph) == 1
     new_iron = converter.syngraph_to_iron(mpr_syngraph)
     assert new_iron.i_node_number() == 1
     assert new_iron.i_edge_number() == 0
+    assert new_iron.name == "mpr"
 
 
 def test_failing_iron_mpr_syngraph():
     """To test that a warning is raised if an empty route is encountered"""
     iron = None
-    converter = MonopartiteReactions()
+    converter = MonopartiteReactionsGenerator()
     with unittest.TestCase().assertLogs(
         "linchemin.cgu.graph_transformations.data_model_converters", level="WARNING"
     ) as cm:

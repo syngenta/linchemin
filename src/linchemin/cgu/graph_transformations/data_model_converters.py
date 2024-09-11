@@ -162,7 +162,7 @@ class DataModelCatalog:
 @DataModelCatalog.register_datamodel(
     "monopartite_reactions", "A graph with only reaction nodes"
 )
-class MonopartiteReactions(DataModelConverter):
+class MonopartiteReactionsGenerator(DataModelConverter):
     """DataModelConverter subclass to handle translations into and from MonopartiteReacSynGraph instances"""
 
     def iron_to_syngraph(
@@ -196,8 +196,10 @@ class MonopartiteReactions(DataModelConverter):
                     e = build_iron_edge(str(id_n1), str(id_n2), str(id_e))
                     iron.add_edge(str(id_e), e)
                     id_e += 1
-
-            iron.source = syngraph.uid
+            if syngraph.name is None:
+                iron.name = syngraph.uid
+            else:
+                iron.name = syngraph.name
             return iron
 
         except exceptions.EmptyRoute:
@@ -219,7 +221,7 @@ class MonopartiteReactions(DataModelConverter):
 @DataModelCatalog.register_datamodel(
     "bipartite", "A graph with reaction and molecule nodes"
 )
-class Bipartite(DataModelConverter):
+class BipartiteGenerator(DataModelConverter):
     """DataModelConverter subclass to handle translations into and from BipartiteSynGraph instances"""
 
     def iron_to_syngraph(self, iron_graph: Iron) -> Union[BipartiteSynGraph, None]:
@@ -251,7 +253,10 @@ class Bipartite(DataModelConverter):
                     iron.add_edge(str(id_e), e)
                     id_e += 1
 
-            iron.source = syngraph.uid
+            if syngraph.name is None:
+                iron.name = syngraph.uid
+            else:
+                iron.name = syngraph.name
             return iron
         except exceptions.EmptyRoute:
             logger.warning(
@@ -271,7 +276,7 @@ class Bipartite(DataModelConverter):
 @DataModelCatalog.register_datamodel(
     "monopartite_molecules", "A graph with only molecule nodes"
 )
-class MonopartiteMolecules(DataModelConverter):
+class MonopartiteMoleculesGenerator(DataModelConverter):
     """DataModelConverter subclass to handle translations into and from MonopartiteMolSynGraph instances"""
 
     def iron_to_syngraph(self, iron_graph: Iron) -> Union[MonopartiteMolSynGraph, None]:
@@ -304,7 +309,10 @@ class MonopartiteMolecules(DataModelConverter):
                     iron.add_edge(str(id_e), e)
                     id_e += 1
 
-            iron.source = syngraph.uid
+            if syngraph.name is None:
+                iron.name = syngraph.uid
+            else:
+                iron.name = syngraph.name
             return iron
         except exceptions.EmptyRoute:
             logger.warning(
