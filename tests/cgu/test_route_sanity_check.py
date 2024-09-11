@@ -1,9 +1,10 @@
 import pytest
+
 from linchemin.cgu.route_sanity_check import (
+    CyclesChecker,
     CyclicRouteError,
     get_available_route_sanity_checks,
     route_checker,
-    CyclesChecker,
 )
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
@@ -112,9 +113,7 @@ def test_isolated_nodes():
         },
     ]
     route = MonopartiteReacSynGraph(reactions)
-    from linchemin.cgu.translate import translator
 
-    translator("syngraph", route, "pydot_visualization", "monopartite_reactions")
     # if the fix_issues option is set to False, an error is raised if the route contains isolated nodes
     # with pytest.raises(IsolatedNodesError) as e:
     #     route_checker(

@@ -9,7 +9,6 @@ from linchemin.cgu.graph_transformations.data_model_converters import (
     MonopartiteReactions,
 )
 from linchemin.cgu.graph_transformations.exceptions import UnavailableDataModel
-from linchemin.cgu.iron import Direction, Edge, Iron, Node
 from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,

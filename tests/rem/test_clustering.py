@@ -18,8 +18,10 @@ def test_clusterer(az_path):
         for g in graph
     ]
 
-    # An Exception is raised if the clustering method identifies all the datapoints as noise.
-    # E.g., if the dataset is composed of less than 15 routes, hdbscan classifies all points as noise.
+    # An Exception is raised if the clustering
+    # method identifies all the datapoints as noise.
+    # E.g., if the dataset is composed of less than 15 routes,
+    # hdbscan classifies all points as noise.
     with pytest.raises(ClusteringError) as ke:
         clusterer(
             syngraphs,
@@ -45,7 +47,8 @@ def test_clusterer(az_path):
         )
     assert "SingleRouteClustering" in str(ke.type)
 
-    # If everything works, the distance matrix, the clustering algorithm output and the silhouette score are
+    # If everything works, the distance matrix,
+    # the clustering algorithm output and the silhouette score are
     # returned
     cluster1, score1, matrix = clusterer(
         syngraphs,
@@ -58,7 +61,7 @@ def test_clusterer(az_path):
     assert score1
     assert len(matrix) == len(syngraphs)
 
-    cluster2, score2, matrix2 = clusterer(
+    cluster2, _, matrix2 = clusterer(
         syngraphs,
         ged_method="nx_optimized_ged",
         clustering_method="agglomerative_cluster",
@@ -78,7 +81,7 @@ def test_get_cluster_metrics(az_path):
         translator("az_retro", g, "syngraph", out_data_model="monopartite_reactions")
         for g in graph
     ]
-    cluster1, score1 = clusterer(
+    cluster1, _ = clusterer(
         syngraphs,
         ged_method="nx_optimized_ged",
         clustering_method="agglomerative_cluster",
@@ -88,7 +91,6 @@ def test_get_cluster_metrics(az_path):
 
 
 def test_get_available_clustering():
-    assert (
-        type(get_available_clustering()) == dict
-        and "hdbscan" in get_available_clustering()
-    )
+    available_clustering = get_available_clustering()
+    assert isinstance(available_clustering, dict)
+    assert "hdbscan" in available_clustering

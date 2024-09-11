@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Union, Optional
+from typing import Optional, Union
 
 import networkx as nx
 import pydot

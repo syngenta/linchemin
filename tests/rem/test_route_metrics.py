@@ -1,3 +1,5 @@
+import math
+
 import pytest
 
 from linchemin.cgu.syngraph import (
@@ -8,6 +10,7 @@ from linchemin.cgu.syngraph import (
 from linchemin.cheminfo.models import Molecule
 from linchemin.rem.route_metrics import (
     StartingMaterialsAmount,
+    YieldMetric,
     distance_function_calculator,
     route_metric_calculator,
 )
@@ -67,35 +70,40 @@ def test_reactant_availability():
     # best case scenario: all starting materials are available internally
     external_data = {s: "syngenta" for s in starting_materials}
     output = route_metric_calculator("reactant_availability", syngraph, external_data)
-    assert output.metric_value == 1.0
+    assert math.isclose(output.metric_value, 1.0, rel_tol=1e-9)
     assert output.raw_data
     assert "distance_function" in output.raw_data
     # worst case scenario: none of the starting materials is available
     syngraph = MonopartiteMolSynGraph(d)
     external_data = {s: "none" for s in starting_materials}
     output = route_metric_calculator("reactant_availability", syngraph, external_data)
-    assert output.metric_value == 0.0
+    assert math.isclose(output.metric_value, 0.0, rel_tol=1e-9)
     # medium case: all starting materials are available at vendors
     external_data = {s: "vendor" for s in starting_materials}
-    assert (
+    assert math.isclose(
         route_metric_calculator(
             "reactant_availability", syngraph, external_data
-        ).metric_value
-        == 0.5
+        ).metric_value,
+        0.5,
+        rel_tol=1e-9,
     )
-    # medium-good case: the starting materials for the leaf reactions are available internally; those for the root no
+
+    # medium-good case: the starting materials for the leaf
+    # reactions are available internally; those for the root no
     external_data = {
         "CC(=O)O": "none",
         "O=C(n1ccnc1)n1ccnc1": "vendor",
         "Nc1ccc(N2CCOCC2)cc1": "syngenta",
         "O=C1c2ccccc2C(=O)N1CC1CO1": "syngenta",
     }
-    assert (
+    assert math.isclose(
         route_metric_calculator(
             "reactant_availability", syngraph, external_data
-        ).metric_value
-        == 0.79
+        ).metric_value,
+        0.79,
+        rel_tol=1e-9,
     )
+
     syngraph = BipartiteSynGraph(d)
     # medium-bad case: the starting materials for the leaf reactions are not available internally; those for the root are
     external_data = {
@@ -104,11 +112,12 @@ def test_reactant_availability():
         "Nc1ccc(N2CCOCC2)cc1": "none",
         "O=C1c2ccccc2C(=O)N1CC1CO1": "none",
     }
-    assert (
+    assert math.isclose(
         route_metric_calculator(
             "reactant_availability", syngraph, external_data
-        ).metric_value
-        == 0.21
+        ).metric_value,
+        0.21,
+        rel_tol=1e-9,
     )
 
 
@@ -116,10 +125,19 @@ def test_yield_score():
     syngraph = BipartiteSynGraph(d)
     # best case scenario:all involved reactions have 100% yield
     external_data = {step["output_string"]: 1.0 for step in d}
-    assert route_metric_calculator("yield", syngraph, external_data).metric_value == 1.0
+    metric = YieldMetric()
+    assert math.isclose(
+        metric.compute_metric(syngraph, external_data).metric_value,
+        1.0,
+        rel_tol=1e-9,
+    )
     # worst case scenario: all involved reactions have 0% yield
     external_data = {step["output_string"]: 0.0 for step in d}
-    assert route_metric_calculator("yield", syngraph, external_data).metric_value == 0.0
+    assert math.isclose(
+        metric.compute_metric(syngraph, external_data).metric_value,
+        0.0,
+        rel_tol=1e-9,
+    )
     # medium-good case: reactions close to the root have higher yield than those close to the leaves
     external_data = {
         "CC(=O)O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 0.95,
@@ -127,9 +145,13 @@ def test_yield_score():
         "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1>>O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 0.45,
         "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1>>O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1": 0.25,
     }
-    output_mg = route_metric_calculator("yield", syngraph, external_data)
+    output_mg = metric.compute_metric(syngraph, external_data)
     assert output_mg.raw_data
-    assert output_mg.metric_value == 0.71
+    assert math.isclose(
+        output_mg.metric_value,
+        0.71,
+        rel_tol=1e-9,
+    )
     # medium-bad case: reactions close to the root have lower yield than those close to the leaves
     external_data = {
         "CC(=O)O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 0.25,
@@ -137,8 +159,12 @@ def test_yield_score():
         "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1>>O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 0.65,
         "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1>>O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1": 0.95,
     }
-    output_mb = route_metric_calculator("yield", syngraph, external_data)
-    assert output_mb.metric_value == 0.44
+    output_mb = metric.compute_metric(syngraph, external_data)
+    assert math.isclose(
+        output_mb.metric_value,
+        0.44,
+        rel_tol=1e-9,
+    )
     assert output_mg.metric_value > output_mb.metric_value
 
 

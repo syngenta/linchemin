@@ -808,9 +808,9 @@ class Sparrow(GraphFormatTranslator):
         """To get the list of reagents smiles of a chemical equation"""
         return [reactant.smiles for reactant in chemical_equation.get_reagents()]
 
-    def handle_reaction_smiles(self, reaction_smiles: str) -> dict:
+    @staticmethod
+    def handle_reaction_smiles(reaction_smiles: str) -> dict:
         molecules = reaction_smiles.split(">")
-        print(molecules)
         return {
             "smiles": molecules[0] + ">>" + molecules[-1],
             "conditions": molecules[1],

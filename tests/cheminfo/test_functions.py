@@ -779,7 +779,8 @@ def test_mapped_rdmol_atom_ids_canonicalization():
     d2 = {a.GetIdx(): [a.GetSymbol()] for a in mol2.GetAtoms()}
     # even if canonicalized, the two rdmol have different atom ids
     assert d1 != d2
-    # to get the identical atom ids, we need to canonicalize the atoms order after the map numbers have been removed
+    # to get the identical atom ids, we need to canonicalize
+    # the atoms order after the map numbers have been removed
     mol1_canonical_atoms = cif.canonicalize_mapped_rdmol(
         cif.rdmol_from_string(s1, inp_fmt="smiles")
     )

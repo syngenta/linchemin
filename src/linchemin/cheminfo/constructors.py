@@ -17,9 +17,9 @@ from linchemin.cheminfo.chemical_hashes import (
     calculate_molecular_hash_map,
     calculate_pattern_hash_map,
     calculate_reaction_like_hash_map,
-    validate_reaction_identifier,
     get_all_molecular_identifiers,
     validate_molecular_identifier,
+    validate_reaction_identifier,
 )
 from linchemin.cheminfo.models import (
     ChemicalEquation,

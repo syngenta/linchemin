@@ -532,8 +532,8 @@ def get_reaction_similarity(
         fp_name=reaction_fingerprint,
         params=reaction_fp_params,
     )
-    tanimoto = compute_similarity(fp1, fp2, similarity_name=reaction_similarity)
-    return 1.0 - tanimoto
+    similarity = compute_similarity(fp1, fp2, similarity_name=reaction_similarity)
+    return 1.0 - similarity
 
 
 def get_molecular_similarity(
@@ -557,8 +557,8 @@ def get_molecular_similarity(
         parameters=molecular_fp_params,
         count_fp_vector=molecular_fp_count_vect,
     )
-    tanimoto = compute_similarity(fp1, fp2, similarity_name=molecular_similarity_name)
-    return 1.0 - tanimoto
+    similarity = compute_similarity(fp1, fp2, similarity_name=molecular_similarity_name)
+    return 1.0 - similarity
 
 
 def get_mol_fp_dict(

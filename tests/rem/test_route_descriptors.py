@@ -1,4 +1,5 @@
 import json
+import math
 from unittest.mock import patch
 
 import pytest
@@ -47,6 +48,7 @@ class MockDescriptor(RouteDescriptor):
     info = "A mocked descriptor"
 
     def compute_descriptor(self, graph: MonopartiteReacSynGraph) -> int:
+        """Mocked abstract method"""
         pass
 
 
@@ -155,8 +157,10 @@ def test_subset(az_path):
     mp_syngraphs = translator(
         "az_retro", graph[2], "syngraph", out_data_model="monopartite_reactions"
     )
-    # A route is subset of another when: (i) the Syngraph dictionary is subset, (ii) the two routes have the same
-    # target (iii) the two routes have different leaves
+    # A route is subset of another when:
+    # (i) the Syngraph dictionary is subset,
+    # (ii) the two routes have the same target
+    # (iii) the two routes have different leaves
     reaction_leaf = mp_syngraphs.get_leaves()[0]
     subset = MonopartiteReacSynGraph()
     for r, conn in mp_syngraphs.graph.items():
@@ -197,7 +201,8 @@ def test_find_duplicates(
     assert d2 is not None
     assert len(d2) == 1
 
-    # Exception raised when the two provided syngraphs have different types (MonopartiteSynGraph and BipartiteSynGraph)
+    # Exception raised when the two provided syngraphs
+    # have different types (MonopartiteSynGraph and BipartiteSynGraph)
     with pytest.raises(DescriptorError) as ke:
         find_duplicates(l2, [bp_syngraph_instance])
     assert "MismatchingGraphType" in str(ke.type)
@@ -260,8 +265,15 @@ def test_cdscores(branched_syngraph):
 
 def test_branchedness(mpr_syngraph_instance, branched_syngraph):
     branchedness = Branchedness()
-    assert branchedness.compute_descriptor(mpr_syngraph_instance) == 0.0
-    assert branchedness.compute_descriptor(branched_syngraph) == 2.0
+    b = branchedness.compute_descriptor(mpr_syngraph_instance)
+    assert math.isclose(
+        b, 0.0, rel_tol=1e-9
+    ), f"Expected similarity close to 1.0, but got {b}"
+
+    b = branchedness.compute_descriptor(branched_syngraph)
+    assert math.isclose(
+        b, 2.0, rel_tol=1e-9
+    ), f"Expected similarity close to 1.0, but got {b}"
     assert {"title": "Branchedness"}.items() <= get_configuration(
         "branchedness"
     ).items()

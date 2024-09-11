@@ -1,28 +1,20 @@
-from __future__ import annotations
-
+import inspect
 import multiprocessing as mp
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import pandas as pd
 
 from linchemin import settings
-from linchemin.cgu.convert import Converter, converter
 from linchemin.cgu.graph_transformations.exceptions import TranslationError
 from linchemin.cgu.route_sanity_check import (
     get_available_route_sanity_checks,
     route_checker,
 )
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-    MonopartiteReacSynGraph,
-    SynGraph,
-)
+from linchemin.cgu.syngraph import MonopartiteReacSynGraph
 from linchemin.cgu.syngraph_operations import (
+    GraphTypeError,
     extract_reactions_from_syngraph,
-    merge_syngraph,
-    remove_reaction_from_syngraph,
 )
 from linchemin.cgu.translate import (
     get_available_data_models,
@@ -36,32 +28,28 @@ from linchemin.cheminfo.atom_mapping import (
     perform_atom_mapping,
     pipeline_atom_mapping,
 )
-from linchemin.configuration.defaults import DEFAULT_FACADE
+from linchemin.interfaces.utils_interfaces import get_ged_dict, get_parallelization_dict
 from linchemin.rem.clustering import (
     ClusteringError,
     clusterer,
     get_available_clustering,
     get_clustered_routes_metrics,
 )
-from linchemin.rem.graph_distance import (
-    GraphDistanceError,
-    compute_distance_matrix,
-    get_available_ged_algorithms,
-    get_ged_parameters,
-)
+from linchemin.rem.graph_distance import GraphDistanceError, compute_distance_matrix
 from linchemin.rem.route_descriptors import (
     DescriptorError,
     descriptor_calculator,
-    find_duplicates,
     get_available_descriptors,
     get_configuration,
-    is_subset,
 )
+from linchemin.utilities import console_logger
 
 """
-Module containing high level functionalities/"user stories" to work in stream; it provides a simplified interface for the user.
-The functionalities are implemented as methods of the Functionality class.
+Module containing high level functionalities/"user stories" to work in stream;
+it provides a simplified interface for the user.
 """
+
+logger = console_logger(__name__)
 
 
 class FacadeError(Exception):
@@ -76,60 +64,151 @@ class UnavailableFunctionality(FacadeError):
     pass
 
 
+class MissingParameterError(FacadeError):
+    """Raised if a mandatory parameter for the functionality is missing"""
+
+    pass
+
+
 class Facade(ABC):
     """Definition of the abstract class for high level functionalities' facade."""
 
-    @abstractmethod
-    def perform_functionality(self, *args, **kwargs):
-        pass
+    name: str
+    info: str
 
     @abstractmethod
-    def get_available_options(self):
+    def perform_functionality(self, routes: list) -> Tuple[Any, Dict]:
         pass
 
-    @abstractmethod
-    def print_available_options(self):
-        pass
+    @classmethod
+    def get_available_options(cls) -> dict:
+        return {
+            "routes": {
+                "name_or_flags": ["-routes"],
+                "default": None,
+                "required": True,
+                "type": list,
+                "choices": None,
+                "dest": "routes",
+            }
+        }
+
+    @classmethod
+    def print_available_options(cls) -> dict:
+        data = cls.get_available_options()
+        for d, info in data.items():
+            print("argument:", d)
+            print("     info: ", info["help"])
+            print("     default: ", info["default"])
+            print("     available options: ", info["choices"])
+        return data
 
 
+class FacadeFactory:
+    """Factory class for facade functionalities"""
+
+    _functionalities = {}
+
+    @classmethod
+    def register_facade(cls, facade_class: Type[Facade]):
+        """
+        Decorator method to register a Facade implementation.
+        """
+        if hasattr(facade_class, "name") and hasattr(facade_class, "info"):
+            name = facade_class.name
+            info = facade_class.info
+            if name not in cls._functionalities:
+                cls._functionalities[name] = {"value": facade_class, "info": info}
+        return facade_class
+
+    @classmethod
+    def select_functionality(cls, facade_name: str):
+        """Takes a string indicating a functionality and its arguments and performs the functionality"""
+        if facade_name not in cls._functionalities:
+            logger.error(
+                f"'{facade_name}' is not a valid functionality."
+                f"Available functionalities are: {list(cls._functionalities.keys())}"
+            )
+            raise UnavailableFunctionality
+
+        return cls._functionalities[facade_name]["value"]
+
+    @classmethod
+    def get_helper(cls, facade_name: str) -> dict:
+        """Takes a string indicating a functionality and returns the available options"""
+        facade_class = cls.select_functionality(facade_name)
+        return facade_class.get_available_options()
+
+    @classmethod
+    def get_helper_verbose(cls, facade_name: str) -> dict:
+        """Takes a string indicating a functionality and prints the available options"""
+        facade_class = cls.select_functionality(facade_name)
+        facade_class.print_available_options()
+        return facade_class.get_available_options()
+
+    @classmethod
+    def list_functionalities(cls) -> list:
+        """To list the registered Facade names."""
+        return list(cls._functionalities.keys())
+
+    @classmethod
+    def list_functionalities_w_info(cls) -> dict:
+        """To list the registered Facade names."""
+        return {
+            f: additional_info["info"]
+            for f, additional_info in cls._functionalities.items()
+        }
+
+
+@FacadeFactory.register_facade
 class TranslateFacade(Facade):
     """Subclass of Facade for translating list of routes between formats."""
 
-    functionality = "translate"
-    info = ("To translate a list of routes from a format to another one.",)
+    name = "translate"
+    info = "To translate a list of routes from a format to another one."
 
-    def perform_functionality(
+    def __init__(
         self,
         input_format: str,
-        input_list: List,
-        out_format: str = settings.FACADE.data_format,
+        output_format: str = settings.FACADE.data_format,
         out_data_model: str = settings.FACADE.out_data_model,
         parallelization: bool = settings.FACADE.parallelization,
         n_cpu: int = settings.FACADE.n_cpu,
-    ) -> tuple:
+    ):
+        """
+        Parameters:
+        ------------
+        input_format: str
+            The format of the input file
+        output_format: str
+            The desired output format (format as for the translator factory) (default syngraph)
+        out_data_model: str
+            The desired output data model (default bipartite)
+        parallelization: bool
+            Whether parallelization should be used (default False)
+        n_cpu: int
+            The number of cpus to be used in the parallel calculation (default 4)
+        """
+        self.input_format = input_format
+        self.out_format = output_format
+        self.out_data_model = out_data_model
+        self.parallelization = parallelization
+        self.n_cpu = n_cpu
+
+    def perform_functionality(self, routes: List) -> Tuple[Any, Dict]:
         """
         Takes a list of routes in the specified input format and converts it into the desired format (default: SynGraph).
         Returns the converted routes and some metadata.
 
         Parameters:
         ------------
-        input_format: str
-            The format of the input file
-        input_list: List
-            The list of routes in the specified input format
-        out_format: Optional[str]
-            The desired output format (format as for the translator factory) (default syngraph)
-        out_data_model: Optional[str]
-            The desired output data model (default bipartite)
-        parallelization: Optional[bool]
-            Whether parallelization should be used (default False)
-        n_cpu: Optional[int]
-            The number of cpus to be used in the parallel calculation (default 8)
+        routes: List
+            The list of routes to be translated
 
         Returns:
         ---------
         tuple
-            output: a list whose elements are the converted routes
+            output: The list of translated routes
 
             meta: a dictionary storing information about the original file and the CASP tool that produced the routes
         """
@@ -137,20 +216,11 @@ class TranslateFacade(Facade):
         out_routes: List = []
 
         try:
-            if parallelization:
-                pool = mp.Pool(n_cpu)
-                converted_routes = pool.starmap(
-                    translator,
-                    [
-                        (input_format, route, out_format, out_data_model)
-                        for route in input_list
-                    ],
-                )
+            if self.parallelization:
+                converted_routes = self._run_parallel_functionality(routes=routes)
+
             else:
-                converted_routes = [
-                    translator(input_format, route, out_format, out_data_model)
-                    for route in input_list
-                ]
+                converted_routes = self._run_serial_functionality(routes=routes)
 
             out_routes.extend([r for r in converted_routes if r is not None])
 
@@ -160,104 +230,108 @@ class TranslateFacade(Facade):
         except Exception as e:
             exceptions.append(e)
 
-        invalid_routes = len(input_list) - len(out_routes)
+        invalid_routes = len(routes) - len(out_routes)
 
         meta = {
-            "nr_routes_in_input_list": len(input_list),
-            "input_format": input_format,
+            "nr_routes_in_input_list": len(routes),
+            "input_format": routes,
             "nr_output_routes": len(out_routes),
             "invalid_routes": invalid_routes,
         }
 
         return out_routes, meta
 
-    def get_available_options(self) -> dict:
+    def _run_parallel_functionality(self, routes: List) -> List:
+        """To run the translation using parallelization"""
+        pool = mp.Pool(self.n_cpu)
+        converted_routes = pool.starmap(
+            translator,
+            [
+                (self.input_format, route, self.out_format, self.out_data_model)
+                for route in routes
+            ],
+        )
+        return converted_routes
+
+    def _run_serial_functionality(self, routes: List) -> List:
+        """To run the translation serially"""
+        return [
+            translator(self.input_format, route, self.out_format, self.out_data_model)
+            for route in routes
+        ]
+
+    @classmethod
+    def get_available_options(cls) -> dict:
         """
         Returns the available options for output formats as a dictionary.
         """
-        return {
-            "input_list": {
-                "name_or_flags": ["-input_list"],
-                "default": None,
-                "required": True,
-                "type": list,
-                "choices": None,
-                "help": "A list of routes to be translated",
-                "dest": "input_list",
-            },
-            "input_format": {
-                "name_or_flags": ["-input_format"],
-                "default": None,
-                "required": True,
-                "type": str,
-                "choices": get_input_formats(),
-                "help": "CASP tool that generated the input file",
-                "dest": "casp",
-            },
-            "out_format": {
-                "name_or_flags": ["-out_format"],
-                "default": settings.FACADE.data_format,
-                "required": False,
-                "type": str,
-                "choices": get_output_formats(),
-                "help": "Format of the output graphs",
-                "dest": "out_format",
-            },
-            "out_data_model": {
-                "name_or_flags": ["-out_data_model"],
-                "default": settings.FACADE.out_data_model,
-                "required": False,
-                "type": str,
-                "choices": get_available_data_models(),
-                "help": "Data model of the output graphs",
-                "dest": "out_data_model",
-            },
-            "parallelization": {
-                "name_or_flags": ["-parallelization"],
-                "default": settings.FACADE.parallelization,
-                "required": False,
-                "type": bool,
-                "choices": [True, False],
-                "help": "Whether parallelization should be used",
-                "dest": "parallelization",
-            },
-            "n_cpu": {
-                "name_or_flags": ["-n_cpu"],
-                "default": settings.FACADE.n_cpu,
-                "required": False,
-                "type": int,
-                "choices": None,
-                "help": "Number of CPUs to be used in parallelization",
-                "dest": "n_cpu",
-            },
-        }
+        options = super().get_available_options()
+        options["routes"]["help"] = "A list of routes to be translated"
+        options.update(get_parallelization_dict())
+        options.update(
+            {
+                "input_format": {
+                    "name_or_flags": ["-input_format"],
+                    "default": None,
+                    "required": True,
+                    "type": str,
+                    "choices": get_input_formats(),
+                    "help": "CASP tool that generated the input file",
+                    "dest": "casp",
+                },
+                "out_format": {
+                    "name_or_flags": ["-out_format"],
+                    "default": settings.FACADE.data_format,
+                    "required": False,
+                    "type": str,
+                    "choices": get_output_formats(),
+                    "help": "Format of the output graphs",
+                    "dest": "out_format",
+                },
+                "out_data_model": {
+                    "name_or_flags": ["-out_data_model"],
+                    "default": settings.FACADE.out_data_model,
+                    "required": False,
+                    "type": str,
+                    "choices": get_available_data_models(),
+                    "help": "Data model of the output graphs",
+                    "dest": "out_data_model",
+                },
+            }
+        )
+        return options
 
-    def print_available_options(self):
+    @classmethod
+    def print_available_options(cls):
         """
         Prints the available options for output formats.
         """
         print('"Translate" options and default:')
-        data = self.get_available_options()
-        for d, info in data.items():
-            print("argument:", d)
-            print("     info: ", info["help"])
-            print("     default: ", info["default"])
-            print("     available options: ", info["choices"])
-        return data
+        return super().print_available_options()
 
 
+@FacadeFactory.register_facade
 class RoutesDescriptorsFacade(Facade):
     """Subclass of Facade for computing routes metrics."""
 
+    name = "routes_descriptors"
     info = "To compute metrics of a list of SynGraph objects"
 
-    def perform_functionality(
-        self,
-        routes: List[
-            Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-        ],
-        descriptors: Union[List[str], None] = settings.FACADE.descriptors,
-    ) -> tuple:
+    def __init__(self, descriptors: Optional[List[str]] = settings.FACADE.descriptors):
+        """
+        Parameters:
+        ------------
+        descriptors: Optional[Union[List, None]]
+            The list of strings indicating the desired descriptors to be computed
+            (default None -> all the available descriptors)
+        """
+        available_descriptors = get_available_descriptors()
+        if descriptors is None:
+            self.descriptors = available_descriptors
+        else:
+            self.descriptors = descriptors
+
+    def perform_functionality(self, routes: List) -> Tuple[Any, Dict]:
         """
         Computes the desired descriptors (default: all the available descriptors) for the routes in the provided list.
 
@@ -265,9 +339,6 @@ class RoutesDescriptorsFacade(Facade):
         ------------
         routes: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]
             The list of SynGraph instances
-        descriptors: Optional[Union[List, None]]
-            The list of strings indicating the desired descriptors to be computed
-            (default None -> all the available descriptors)
 
         Returns:
         --------
@@ -276,11 +347,7 @@ class RoutesDescriptorsFacade(Facade):
 
             meta: a dictionary storing information about the computed descriptors
         """
-
         output = pd.DataFrame()
-
-        if descriptors is None:
-            descriptors = get_available_descriptors()
 
         exceptions = []
         checked_routes = [r for r in routes if r is not None]
@@ -288,7 +355,7 @@ class RoutesDescriptorsFacade(Facade):
         output["route_id"] = [route.uid for route in checked_routes]
         configuration: List = []
 
-        for d in descriptors:
+        for d in self.descriptors:
             try:
                 output[d] = [
                     descriptor_calculator(route, d) for route in checked_routes
@@ -299,71 +366,84 @@ class RoutesDescriptorsFacade(Facade):
 
             except Exception as e:
                 exceptions.append(e)
+
         output.attrs["configuration"] = configuration
         meta = {
-            "descriptors": descriptors,
+            "descriptors": self.descriptors,
             "invalid_routes": invalid_routes,
             "errors": exceptions,
         }
         return output, meta
 
-    def get_available_options(self) -> dict:
+    @classmethod
+    def get_available_options(cls) -> dict:
         """
         Returns the available options for route descriptors as a dictionary.
         """
-        return {
-            "routes": {
-                "name_or_flags": ["-routes"],
-                "default": None,
-                "required": True,
-                "type": List[SynGraph],
-                "choices": None,
-                "help": "List of SynGraph objects for which the selected descriptors should be calculated",
-                "dest": "routes",
-            },
-            "descriptors": {
-                "name_or_flags": ["-descriptors"],
-                "default": DEFAULT_FACADE["routes_descriptors"]["value"],
-                "required": False,
-                "type": List[str],
-                "choices": get_available_descriptors(),
-                "help": "List of descriptors to be calculated",
-                "dest": "descriptors",
-            },
-        }
+        options = super().get_available_options()
+        options["routes"][
+            "help"
+        ] = "List of SynGraph objects for which the selected descriptors should be calculated"
+        options.update(
+            {
+                "descriptors": {
+                    "name_or_flags": ["-descriptors"],
+                    "default": settings.FACADE["routes_descriptors"]["value"],
+                    "required": False,
+                    "type": List[str],
+                    "choices": get_available_descriptors(),
+                    "help": "List of descriptors to be calculated",
+                    "dest": "descriptors",
+                },
+            }
+        )
+        return options
 
-    def print_available_options(self):
+    @classmethod
+    def print_available_options(cls):
         """
         Prints the available options for routes descriptors.
         """
         print("Routes descriptors options and default:")
-        data = self.get_available_options()
-        for d, info in data.items():
-            print("argument:", d)
-            print("     info: ", info["help"])
-            print("     default: ", info["default"])
-            print("     available options: ", info["choices"])
-        return data
+        return super().print_available_options()
 
 
+@FacadeFactory.register_facade
 class GedFacade(Facade):
     """Subclass of Facade for computing the distance matrix of a list of routes with GED algorithms."""
 
+    name = "distance_matrix"
     info = "To compute the distance matrix of a list of SynGraph objects via a Graph Edit Distance algorithm"
+
+    def __init__(
+        self,
+        ged_method: str = settings.FACADE["ged_method"],
+        ged_params: Union[dict, None] = settings.FACADE["ged_params"],
+        parallelization: bool = settings.FACADE["parallelization"],
+        n_cpu: int = settings.FACADE["n_cpu"],
+    ):
+        """
+        Parameters:
+        ------------
+        ged_method: Optional[str]
+            The GED algorithm to be used (default 'nx_optimized_ged')
+        ged_params: Optional[Union[dict, None]]
+            The optional parameters for chemical similarity and fingerprints
+            (default None ->the default parameters are used)
+        parallelization: Optional[bool]
+            Whether parallelization should be used (default False)
+        n_cpu: Optional[int]
+            The number of cpus to be used in the parallel calculation (default 8)
+
+        """
+        self.ged_method = ged_method
+        self.ged_params = ged_params
+        self.parallelization = parallelization
+        self.n_cpu = n_cpu
 
     def perform_functionality(
         self,
-        routes: List[
-            Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-        ],
-        ged_method: str = DEFAULT_FACADE["distance_matrix"]["value"]["ged_method"],
-        ged_params: Union[dict, None] = DEFAULT_FACADE["distance_matrix"]["value"][
-            "ged_params"
-        ],
-        parallelization: bool = DEFAULT_FACADE["distance_matrix"]["value"][
-            "parallelization"
-        ],
-        n_cpu: int = DEFAULT_FACADE["distance_matrix"]["value"]["n_cpu"],
+        routes: List,
     ) -> tuple:
         """
         Computes the distance matrix for the routes in the provided list.
@@ -373,15 +453,6 @@ class GedFacade(Facade):
         routes: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]
             The list of SynGraph instances for which should be computed; it is recommended to use the monopartite
             representation for performance reasons
-        ged_method: Optional[str]
-            The GED algorithm to be used (default 'nx_optimized_ged')
-        ged_params: Optional[Union[dict, None]]
-            The optional parameters for chemical similarity and fingerprints
-            (default None ->the default parametrs are used)
-        parallelization: Optional[bool]
-            Whether parallelization should be used (default False)
-        n_cpu: Optional[int]
-            The number of cpus to be used in the parallel calculation (default 8)
 
         Returns:
         -----------
@@ -397,14 +468,14 @@ class GedFacade(Facade):
         try:
             dist_matrix = compute_distance_matrix(
                 checked_routes,
-                ged_method=ged_method,
-                ged_params=ged_params,
-                parallelization=parallelization,
-                n_cpu=n_cpu,
+                ged_method=self.ged_method,
+                ged_params=self.ged_params,
+                parallelization=self.parallelization,
+                n_cpu=self.n_cpu,
             )
             meta = {
-                "ged_algorithm": ged_method,
-                "ged_params": ged_params,
+                "ged_algorithm": self.ged_method,
+                "ged_params": self.ged_params,
                 "graph_type": "monopartite"
                 if isinstance(routes[0], MonopartiteReacSynGraph)
                 else "bipartite",
@@ -415,8 +486,8 @@ class GedFacade(Facade):
         except GraphDistanceError as ke:
             exceptions.append(ke)
             meta = {
-                "ged_algorithm": ged_method,
-                "ged_params": ged_params,
+                "ged_algorithm": self.ged_method,
+                "ged_params": self.ged_params,
                 "graph_type": "monopartite"
                 if isinstance(routes[0], MonopartiteReacSynGraph)
                 else "bipartite",
@@ -426,110 +497,49 @@ class GedFacade(Facade):
             dist_matrix = pd.DataFrame()
         return dist_matrix, meta
 
-    def get_available_options(self) -> dict:
+    @classmethod
+    def get_available_options(cls) -> dict:
         """
         Returns the available options for GED calculations.
         """
-        return {
-            "routes": {
-                "name_or_flags": ["-routes"],
-                "default": None,
-                "required": True,
-                "type": List[SynGraph],
-                "choices": None,
-                "help": "List of SynGraph objects for which the distance matrix should be calculated",
-                "dest": "routes",
-            },
-            "ged_method": {
-                "name_or_flags": ["-ged_method"],
-                "default": DEFAULT_FACADE["distance_matrix"]["value"]["ged_method"],
-                "required": False,
-                "type": str,
-                "choices": get_available_ged_algorithms(),
-                "help": "Method to be used to calculate the GED",
-                "dest": "ged_method",
-            },
-            "ged_params": {
-                "name_or_flags": ["-ged_params"],
-                "default": DEFAULT_FACADE["distance_matrix"]["value"]["ged_params"],
-                "required": False,
-                "type": dict,
-                "choices": get_ged_parameters(),
-                "help": "Parameters of the molecular and/or reaction chemical similarity",
-                "dest": "ged_params",
-            },
-            "parallelization": {
-                "name_or_flags": ["-parallelization"],
-                "default": DEFAULT_FACADE["distance_matrix"]["value"][
-                    "parallelization"
-                ],
-                "required": False,
-                "type": bool,
-                "choices": [True, False],
-                "help": "Whether parallelization should be used",
-                "dest": "parallelization",
-            },
-            "n_cpu": {
-                "name_or_flags": ["-n_cpu"],
-                "default": 'All the available CPUs as given by "multiprocessing.cpu_count()"',
-                "required": False,
-                "type": int,
-                "choices": None,
-                "help": "Number of CPUs to be used in parallelization",
-                "dest": "n_cpu",
-            },
-        }
+        options = super().get_available_options()
+        options["routes"][
+            "help"
+        ] = "List of SynGraph objects for which the distance matrix should be calculated"
+        options.update(get_parallelization_dict())
+        options.update(get_ged_dict())
+        return options
 
-    def print_available_options(self):
+    @classmethod
+    def print_available_options(cls):
         """
         Prints the available options for GED calculations as a dictionary.
         """
         print("GED options and default:")
-        data = self.get_available_options()
-        for d, info in data.items():
-            print("argument:", d)
-            print("     info: ", info["help"])
-            print("     default: ", info["default"])
-            print("     available options: ", info["choices"])
-        return data
+        return super().print_available_options()
 
 
-class ClusteringFacade:
+@FacadeFactory.register_facade
+class ClusteringFacade(Facade):
     """Facade Factory to give access to the functionalities"""
 
+    name = "clustering"
     info = "To cluster a list of SynGraph objects"
 
-    def perform_functionality(
+    def __init__(
         self,
-        routes: List[
-            Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-        ],
-        clustering_method: Union[str, None] = DEFAULT_FACADE["clustering"]["value"][
-            "clustering_method"
-        ],
-        ged_method: str = DEFAULT_FACADE["clustering"]["value"]["ged_method"],
-        ged_params: Union[dict, None] = DEFAULT_FACADE["clustering"]["value"][
-            "ged_params"
-        ],
-        save_dist_matrix: bool = DEFAULT_FACADE["clustering"]["value"][
-            "save_dist_matrix"
-        ],
-        compute_metrics: bool = DEFAULT_FACADE["clustering"]["value"][
-            "compute_metrics"
-        ],
-        parallelization: bool = DEFAULT_FACADE["clustering"]["value"][
-            "parallelization"
-        ],
-        n_cpu: int = DEFAULT_FACADE["clustering"]["value"]["n_cpu"],
+        clustering_method: Union[str, None] = settings.FACADE["clustering_method"],
+        ged_method: str = settings.FACADE["ged_method"],
+        ged_params: Union[dict, None] = settings.FACADE["ged_params"],
+        save_dist_matrix: bool = settings.FACADE["save_dist_matrix"],
+        compute_metrics: bool = settings.FACADE["compute_metrics"],
+        parallelization: bool = settings.FACADE["parallelization"],
+        n_cpu: int = settings.FACADE["n_cpu"],
         **kwargs,
     ):
         """
-        Performs clustering of the routes in the provided list.
-
         Parameters:
         -----------
-        routes: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]
-            The input list of SynGraph
         clustering_method: Optional[Union[str, None]]
             The clustering algorithm to be used. If None is given,
             agglomerative_cluster is used when there are less than 15 routes, otherwise hdbscan is used (default None)
@@ -537,17 +547,36 @@ class ClusteringFacade:
             The GED algorithm to be used (default 'nx_optimized_ged')
         ged_params: Union[dict, None]
             The optional parameters for chemical similarity and fingerprints
-            (default None ->the default parametrs are used)
+            (default None ->the default parameters are used)
         save_dist_matrix: Optional[bool]
             Whether the distance matrix should be saved and returned as output
         compute_metrics: Optional[bool]
             Whether the average metrics for each cluster should be computed
-        arallelization: Optional[bool]
+        parallelization: Optional[bool]
             Whether parallelization should be used (default False)
         n_cpu: Optional[int]
             The number of cpus to be used in the parallel calculation (default 8)
         kwargs: the type of linkage can be indicated when using the agglomerative_cluster; the minimum size of the
                 clusters can be indicated when using hdbscan
+
+        """
+        self.clustering_method = clustering_method
+        self.ged_method = ged_method
+        self.ged_params = ged_params
+        self.save_dist_matrix = save_dist_matrix
+        self.compute_metrics = compute_metrics
+        self.additional_args = kwargs
+        self.parallelization = parallelization
+        self.n_cpu = n_cpu
+
+    def perform_functionality(self, routes: List) -> Tuple[Any, Dict]:
+        """
+        Performs clustering of the routes in the provided list.
+
+        Parameters:
+        -----------
+        routes: List
+            The input list of SynGraph
 
         Returns:
         ----------
@@ -560,8 +589,8 @@ class ClusteringFacade:
                 the ged calculations and the parameters for chemical similarity and fingerprints
         """
 
-        if clustering_method is None:
-            clustering_method = (
+        if self.clustering_method is None:
+            self.clustering_method = (
                 "hdbscan" if len(routes) > 15 else "agglomerative_cluster"
             )
 
@@ -571,27 +600,27 @@ class ClusteringFacade:
         try:
             results = clusterer(
                 checked_routes,
-                ged_method=ged_method,
-                clustering_method=clustering_method,
-                ged_params=ged_params,
-                save_dist_matrix=save_dist_matrix,
-                parallelization=parallelization,
-                n_cpu=n_cpu,
-                **kwargs,
+                ged_method=self.ged_method,
+                clustering_method=self.clustering_method,
+                ged_params=self.ged_params,
+                save_dist_matrix=self.save_dist_matrix,
+                parallelization=self.parallelization,
+                n_cpu=self.n_cpu,
+                **self.additional_args,
             )
             meta = {
                 "graph_type": "monopartite"
                 if isinstance(routes[0], MonopartiteReacSynGraph)
                 else "bipartite",
-                "clustering_algorithm": clustering_method,
-                "clustering_params": kwargs,
-                "ged_algorithm": ged_method,
-                "ged_parameters": ged_params,
+                "clustering_algorithm": self.clustering_method,
+                "clustering_params": self.additional_args,
+                "ged_algorithm": self.ged_method,
+                "ged_parameters": self.ged_params,
                 "invalid_routes": len(routes) - len(checked_routes),
                 "errors": exceptions,
             }
 
-            if compute_metrics:
+            if self.compute_metrics:
                 metrics = get_clustered_routes_metrics(routes, results[0])
 
         except ClusteringError as sre:
@@ -600,61 +629,39 @@ class ClusteringFacade:
                 "graph_type": "monopartite"
                 if isinstance(checked_routes[0], MonopartiteReacSynGraph)
                 else "bipartite",
-                "clustering_algorithm": clustering_method,
-                "clustering_params": kwargs,
-                "ged_algorithm": ged_method,
-                "ged_parameters": ged_params,
+                "clustering_algorithm": self.clustering_method,
+                "clustering_params": self.additional_args,
+                "ged_algorithm": self.ged_method,
+                "ged_parameters": self.ged_params,
                 "invalid_routes": len(routes) - len(checked_routes),
                 "errors": exceptions,
             }
             results = None
 
-        return (results, metrics, meta) if compute_metrics else (results, meta)
+        return ((results, metrics), meta) if self.compute_metrics else (results, meta)
 
-    def get_available_options(self) -> dict:
+    @classmethod
+    def get_available_options(cls) -> dict:
         """
         Returns the available options for clustering calculations.
         """
+        options = super().get_available_options()
+        options["routes"]["help"] = "List of SynGraph objects to be clustered"
+        options.update(get_parallelization_dict())
+        options.update(get_ged_dict())
         return {
-            "routes": {
-                "name_or_flags": ["-routes"],
-                "default": None,
-                "required": True,
-                "type": List[SynGraph],
-                "choices": None,
-                "help": "List of SynGraph objects to be clustered",
-                "dest": "routes",
-            },
             "clustering_method": {
                 "name_or_flags": ["-clustering_method"],
-                "default": DEFAULT_FACADE["clustering"]["value"]["clustering_method"],
+                "default": settings.FACADE["clustering_method"],
                 "required": False,
                 "type": str,
                 "choices": get_available_clustering(),
                 "help": "Method to be used to calculate the GED",
                 "dest": "ged_method",
             },
-            "ged_method": {
-                "name_or_flags": ["-ged_method"],
-                "default": DEFAULT_FACADE["distance_matrix"]["value"]["ged_method"],
-                "required": False,
-                "type": str,
-                "choices": get_available_ged_algorithms(),
-                "help": "Method to be used to calculate the GED",
-                "dest": "ged_method",
-            },
-            "ged_params": {
-                "name_or_flags": ["-ged_params"],
-                "default": DEFAULT_FACADE["distance_matrix"]["value"]["ged_params"],
-                "required": False,
-                "type": dict,
-                "choices": get_ged_parameters(),
-                "help": "Parameters of the molecular and/or reaction chemical similarity",
-                "dest": "ged_params",
-            },
             "save_dist_matrix": {
                 "name_or_flags": ["-save_dist_matrix"],
-                "default": DEFAULT_FACADE["clustering"]["value"]["save_dist_matrix"],
+                "default": settings.FACADE["save_dist_matrix"],
                 "required": False,
                 "type": bool,
                 "choices": [True, False],
@@ -663,233 +670,48 @@ class ClusteringFacade:
             },
             "compute_metrics": {
                 "name_or_flags": ["-compute_metrics"],
-                "default": DEFAULT_FACADE["clustering"]["value"]["compute_metrics"],
+                "default": settings.FACADE["compute_metrics"],
                 "required": False,
                 "type": bool,
                 "choices": [True, False],
                 "help": "Whether metrics aggregated by clusters should be computed",
                 "dest": "compute_metrics",
             },
-            "parallelization": {
-                "name_or_flags": ["-parallelization"],
-                "default": DEFAULT_FACADE["clustering"]["value"]["parallelization"],
-                "required": False,
-                "type": bool,
-                "choices": [True, False],
-                "help": "Whether parallelization should be used",
-                "dest": "parallelization",
-            },
-            "n_cpu": {
-                "name_or_flags": ["-n_cpu"],
-                "default": 'All the available CPUs as given by "multiprocessing.cpu_count()"',
-                "required": False,
-                "type": int,
-                "choices": None,
-                "help": "Number of CPUs to be used in parallelization",
-                "dest": "n_cpu",
-            },
         }
 
-    def print_available_options(self):
+    @classmethod
+    def print_available_options(cls):
         """
         Prints the available options for clustering calculations as a dictionary.
         """
         print("Clustering options and default:")
-        data = self.get_available_options()
-        for d, info in data.items():
-            print("argument:", d)
-            print("     info: ", info["help"])
-            print("     default: ", info["default"])
-            print("     available options: ", info["choices"])
-        return data
+        return super().print_available_options()
 
 
-class SubsetsFacade(Facade):
-    """Subclass of Facade for searching subsets in a list of routes."""
-
-    info = "To check whether there are subsets in a list of SynGraph objects"
-
-    def perform_functionality(self, routes: List) -> list:
-        """
-        To check the presence of subsets in the provided list of SynGraph objects.
-
-        Parameters:
-        -----------
-        routes: list
-            The list of SynGraph instances
-
-        Returns:
-        --------
-        subsets: list
-            The list of uid pairs in which the first is subset of the second
-        """
-        subsets = []
-        for route1 in routes:
-            subsets.extend(
-                [route1.uid, route2.uid]
-                for route2 in routes
-                if is_subset(route1, route2)
-            )
-
-        return subsets
-
-    def get_available_options(self) -> dict:
-        return {
-            "routes": {
-                "name_or_flags": ["-routes"],
-                "default": None,
-                "required": True,
-                "type": List[SynGraph],
-                "choices": None,
-                "help": "List of SynGraph objects in which subsets should be searched",
-                "dest": "routes",
-            }
-        }
-
-    def print_available_options(self):
-        print("Subset search options and default:")
-        data = self.get_available_options()
-        for d, info in data.items():
-            print("argument:", d)
-            print("     info: ", info["help"])
-            print("     default: ", info["default"])
-            print("     available options: ", info["choices"])
-        return data
-
-
-class DuplicatesFacade(Facade):
-    """Subclass of Facade for searching duplicates in a list of routes."""
-
-    info = "To check whether there are duplicates in a list of SynGraph objects"
-
-    def perform_functionality(self, routes: list):
-        """
-        To check the presence of duplicated routes in the provided list of SynGraph instances.
-
-        Parameters:
-        ------------
-        routes: list
-            The list of SynGraph instances
-
-        Returns:
-        list: The list of duplicates
-        """
-        routes1 = routes[: len(routes) // 2]
-        routes2 = routes[len(routes) // 2 :]
-        return find_duplicates(routes1, routes2)
-
-    def get_available_options(self) -> dict:
-        return {
-            "routes": {
-                "name_or_flags": ["-routes"],
-                "default": None,
-                "required": True,
-                "type": List[SynGraph],
-                "choices": None,
-                "help": "List of SynGraph objects in which duplicates should be searched",
-                "dest": "routes",
-            }
-        }
-
-    def print_available_options(self):
-        print("Duplicates search options and default:")
-        data = self.get_available_options()
-        for d, info in data.items():
-            print("argument:", d)
-            print("     info: ", info["help"])
-            print("     default: ", info["default"])
-            print("     available options: ", info["choices"])
-        return data
-
-
-class MergingFacade(Facade):
-    """Subclass of Facade for merging a list of routes."""
-
-    info = "To merge a list of SynGraph objects"
-
-    def perform_functionality(
-        self,
-        routes: List[
-            Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-        ],
-        out_data_model: str = DEFAULT_FACADE["merging"]["value"]["out_data_model"],
-    ) -> Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]:
-        """
-        To merge the provided list of SynGraph instances in a new SynGraph instance.
-
-        Parameters:
-        -------------
-        routes: list
-            The list of SynGraph instances
-        out_data_model: str
-            the data model of the output SynGraph
-
-        Returns:
-        ----------
-        merged: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-            The new SynGraph instance resulting from the merging of the input routes
-        """
-        routes_checked_type = [converter(r, out_data_model) for r in routes]
-        merged_graph = merge_syngraph(routes_checked_type)
-        return converter(merged_graph, out_data_model)
-
-    def get_available_options(self) -> dict:
-        return {
-            "routes": {
-                "name_or_flags": ["-routes"],
-                "default": None,
-                "required": True,
-                "type": List[SynGraph],
-                "choices": None,
-                "help": "List of SynGraph objects in which duplicates should be searched",
-                "dest": "routes",
-            },
-            "out_data_model": {
-                "name_or_flags": ["-out_data_model"],
-                "default": DEFAULT_FACADE["merging"]["value"]["out_data_model"],
-                "required": False,
-                "type": str,
-                "choices": get_available_data_models(),
-                "help": "Data model of the output graphs",
-                "dest": "out_data_model",
-            },
-        }
-
-    def print_available_options(self):
-        print("Merging search options and default:")
-        data = self.get_available_options()
-        for d, info in data.items():
-            print("argument:", d)
-            print("     info: ", info["help"])
-            print("     default: ", info["default"])
-            print("     available options: ", info["choices"])
-        return data
-
-
+@FacadeFactory.register_facade
 class ReactionExtractionFacade(Facade):
     """Subclass of Facade for extracting unique reaction strings from a list of routes."""
 
+    name = "extract_reactions_strings"
     info = (
         "To extract a list of unique reaction strings from a list of SynGraph objects"
     )
 
     def perform_functionality(
         self,
-        routes: List[
-            Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-        ],
-    ) -> Tuple[List, dict]:
+        routes: List,
+    ) -> Tuple[List, Dict]:
         """
         To extract a list of reaction strings
 
         Parameters:
         ---------------
-        routes: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]
+        routes: List
             The list of SynGraph instances
 
         Returns:
         ---------
-        Tuple[List, dict]:
+        Tuple[List, Dict]:
             output: the list of dictionaries with the extracted reactions smiles
             meta: the dictionary storing information about the run
 
@@ -903,7 +725,7 @@ class ReactionExtractionFacade(Facade):
                 reactions = extract_reactions_from_syngraph(route)
                 output.append({route.uid: reactions})
 
-        except TypeError as ke:
+        except GraphTypeError as ke:
             print("Found route in wrong format: only SynGraph object are accepted.")
             exceptions.append(ke)
 
@@ -919,72 +741,58 @@ class ReactionExtractionFacade(Facade):
 
         return output, meta
 
-    def get_available_options(self) -> dict:
-        return {
-            "routes": {
-                "name_or_flags": ["-routes"],
-                "default": None,
-                "required": True,
-                "type": List[SynGraph],
-                "choices": None,
-                "help": "List of SynGraph objects from which reaction strings should be extracted",
-                "dest": "routes",
-            }
-        }
+    @classmethod
+    def get_available_options(cls) -> dict:
+        return super().get_available_options()
 
-    def print_available_options(self):
+    @classmethod
+    def print_available_options(cls):
         print("Reaction strings extraction options and default:")
-        data = self.get_available_options()
-        for d, info in data.items():
-            print("argument:", d)
-            print("     info: ", info["help"])
-            print("     default: ", info["default"])
-            print("     available options: ", info["choices"])
-        return data
+        return super().print_available_options()
 
 
+@FacadeFactory.register_facade
 class AtomMappingFacade(Facade):
     """Subclass of Facade for mapping the chemical equations in a list of routes."""
 
+    name = "atom_mapping"
     info = "To get a list of mapped SynGraph objects"
+
+    def __init__(
+        self,
+        mapper: Union[str, None] = settings.FACADE["mapper"],
+    ):
+        self.mapper = mapper
 
     def perform_functionality(
         self,
-        routes: List[
-            Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]
-        ],
-        mapper: Union[str, None] = DEFAULT_FACADE["atom_mapping"]["value"]["mapper"],
-        out_data_model: str = DEFAULT_FACADE["atom_mapping"]["value"]["out_data_model"],
-    ) -> Tuple[List, dict]:
+        routes: List,
+    ) -> Tuple[List, Dict]:
         """
         To generate a list of SynGraph objects with mapped chemical equations
 
         Parameters:
         ------------
-        routes: List[Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]]
+        routes: List
             The list of SynGraph instances
-        mapper: Optional[Union[str, None]]
-            The mapper to be used; if it is not provided, the mapping pipeline is used (default rxnmapper)
-        out_data_model: Optional[str]
-            The desired output data model (default bipartite)
 
         Returns:
         ---------
         Tuple[List, dict]:
-            output: a list of SynGraph objects with mapped chemical reaction
+            output: The list of mapped SynGraph objects of the same type as the input objects
             meta: The dictionary storing information about the run
         """
         out_syngraphs: List = []
-        out_syngraph_type = Converter.out_datamodels[out_data_model]
+        syngraph_type = type(routes[0])
         tot_success_rate: Union[float, int] = 0
         exceptions = []
         for route in routes:
             source = route.source
             route_id = route.uid
             reaction_list = extract_reactions_from_syngraph(route)
-            mapping_out = self.map_reaction_strings(mapper, reaction_list)
+            mapping_out = self._map_reaction_strings(reaction_list)
             try:
-                mapped_route = out_syngraph_type(mapping_out.mapped_reactions)
+                mapped_route = syngraph_type(mapping_out.mapped_reactions)
                 mapped_route.source = source
                 out_syngraphs.append(mapped_route)
             except Exception as e:
@@ -995,7 +803,7 @@ class AtomMappingFacade(Facade):
         tot_success_rate = float(tot_success_rate / len(routes))
 
         meta = {
-            "mapper": mapper,
+            "mapper": self.mapper,
             "mapping_success_rate": tot_success_rate,
             "exception": exceptions,
             "nr_invalid_routes": len(routes) - len(out_syngraphs),
@@ -1003,94 +811,76 @@ class AtomMappingFacade(Facade):
 
         return out_syngraphs, meta
 
-    @staticmethod
-    def map_reaction_strings(
-        mapper: Union[None, str], reaction_list: List
-    ) -> MappingOutput:
+    def _map_reaction_strings(self, reaction_list: List) -> MappingOutput:
         """To perform the mapping of the reaction strings"""
-        if mapper is None:
+        if self.mapper is None:
             # the full pipeline is used
             mapping_out = pipeline_atom_mapping(reaction_list)
         else:
             # the selected mapper is used
-            mapping_out = perform_atom_mapping(reaction_list, mapper)
+            mapping_out = perform_atom_mapping(reaction_list, self.mapper)
         if mapping_out.success_rate != 1:
             # if not all the reactions are mapped, a warning is raised and
             # the output graph is built using all the mapped and the unmapped reactions (so that it is complete)
             mapping_out.mapped_reactions.extend(mapping_out.unmapped_reactions)
         return mapping_out
 
-    def get_available_options(self) -> dict:
-        return {
-            "routes": {
-                "name_or_flags": ["-routes"],
-                "default": None,
-                "required": True,
-                "type": List[SynGraph],
-                "choices": None,
-                "help": "List of SynGraph objects in which duplicates should be searched",
-                "dest": "routes",
-            },
-            "mapper": {
-                "name_or_flags": ["-mapper"],
-                "default": DEFAULT_FACADE["atom_mapping"]["value"]["mapper"],
-                "required": False,
-                "type": str,
-                "choices": get_available_mappers(),
-                "help": "Which mapper should be used",
-                "dest": "mapper",
-            },
-            "out_data_model": {
-                "name_or_flags": ["-out_data_model"],
-                "default": DEFAULT_FACADE["atom_mapping"]["value"]["out_data_model"],
-                "required": False,
-                "type": str,
-                "choices": get_available_data_models(),
-                "help": "Data model of the output graphs",
-                "dest": "out_data_model",
-            },
-        }
+    @classmethod
+    def get_available_options(cls) -> dict:
+        options = super().get_available_options()
+        options["routes"]["help"] = ("List of SynGraph to be mapped",)
+        options.update(
+            {
+                "mapper": {
+                    "name_or_flags": ["-mapper"],
+                    "default": settings.FACADE["mapper"],
+                    "required": False,
+                    "type": str,
+                    "choices": get_available_mappers(),
+                    "help": "Which mapper should be used",
+                    "dest": "mapper",
+                }
+            }
+        )
+        return options
 
-    def print_available_options(self):
+    @classmethod
+    def print_available_options(cls):
         print("Atom mapping of routes reactions options and default:")
-        data = self.get_available_options()
-        for d, info in data.items():
-            print("argument:", d)
-            print("     info: ", info["help"])
-            print("     default: ", info["default"])
-            print("     available options: ", info["choices"])
-        return data
+        return super().print_available_options()
 
 
+@FacadeFactory.register_facade
 class RouteSanityCheckFacade(Facade):
     """Subclass of Facade for performing sanity checks on a list of routes."""
 
+    name = "routes_sanity_checks"
     info = "To perform sanity checks on a list of routes"
+
+    def __init__(
+        self,
+        checks: Union[List[str], None] = settings.FACADE["checks"],
+    ):
+        """
+        Parameters:
+        ------------
+        check: Optional[Union[List[str], None]]
+            The list of sanity checks to be performed; if it is not provided, all the available
+            sanity check are applied (default None)
+        """
+        self.checks = checks
 
     def perform_functionality(
         self,
-        routes: List[
-            Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]
-        ],
-        checks: Union[List[str], None] = DEFAULT_FACADE["route_sanity_checks"]["value"][
-            "checks"
-        ],
-        out_data_model: str = DEFAULT_FACADE["route_sanity_checks"]["value"][
-            "out_data_model"
-        ],
-    ) -> Tuple[List, dict]:
+        routes: List,
+    ) -> Tuple[List, Dict]:
         """
         Returns a list of routes in which possible issues are removed
 
         Parameters:
         ------------
-        routes: List[Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]]
+        routes: List
             The list of SynGraph instances
-        check: Optional[Union[List[str], None]]
-            The list of sanity checks to be performed; if it is not provided, all the available
-            sanity check are applied (default None)
-        out_data_model: Optional[str]
-            The desired output data model (default bipartite)
 
         Returns:
         ---------
@@ -1099,9 +889,8 @@ class RouteSanityCheckFacade(Facade):
 
             meta: The dictionary storing information about the run
         """
-        if checks is None:
-            checks = get_available_route_sanity_checks()
-
+        if self.checks is None:
+            self.checks = get_available_route_sanity_checks()
         checked_routes: List = []
         exceptions = []
         valid_routes = [r for r in routes if r is not None]
@@ -1109,215 +898,54 @@ class RouteSanityCheckFacade(Facade):
 
         for r in valid_routes:
             checked_route = r
-            for check in checks:
+            for check in self.checks:
                 try:
                     checked_route = route_checker(checked_route, check, fix_issue=True)
                 except Exception as ke:
                     exceptions.append(ke)
             checked_routes.append(checked_route)
 
-        out_routes = [converter(r, out_data_model) for r in checked_routes]
-
         meta = {
-            "checks": checks,
+            "checks": self.checks,
             "invalid_routes": invalid_routes,
             "errors": exceptions,
         }
-        return out_routes, meta
+        return checked_routes, meta
 
-    def get_available_options(self):
+    @classmethod
+    def get_available_options(cls):
         """
         Returns the available options for route sanity checks as a dictionary.
         """
-        return {
-            "routes": {
-                "name_or_flags": ["-routes"],
-                "default": None,
-                "required": True,
-                "type": List[SynGraph],
-                "choices": None,
-                "help": "List of SynGraph objects for which the selected sanity checks should be performed",
-                "dest": "routes",
-            },
-            "checks": {
-                "name_or_flags": ["-checks"],
-                "default": DEFAULT_FACADE["route_sanity_checks"]["value"],
-                "required": False,
-                "type": List[str],
-                "choices": get_available_descriptors(),
-                "help": "List of sanity checks to be performed",
-                "dest": "checks",
-            },
-            "out_data_model": {
-                "name_or_flags": ["-out_data_model"],
-                "default": DEFAULT_FACADE["route_sanity_checks"]["value"][
-                    "out_data_model"
-                ],
-                "required": False,
-                "type": str,
-                "choices": get_available_data_models(),
-                "help": "Data model of the output graphs",
-                "dest": "out_data_model",
-            },
-        }
+        options = super().get_available_options()
+        options["routes"][
+            "help"
+        ] = "List of SynGraphs for which the selected sanity checks should be performed"
+        options.update(
+            {
+                "checks": {
+                    "name_or_flags": ["-checks"],
+                    "default": settings.FACADE["checks"],
+                    "required": False,
+                    "type": List[str],
+                    "choices": get_available_route_sanity_checks(),
+                    "help": "List of sanity checks to be performed",
+                    "dest": "checks",
+                },
+            }
+        )
+        return options
 
-    def print_available_options(self):
+    @classmethod
+    def print_available_options(cls):
         """
         Prints the available options for routes sanity checks.
         """
         print("Routes sanity checks options and default:")
-        data = self.get_available_options()
-        for d, info in data.items():
-            print("argument:", d)
-            print("     info: ", info["help"])
-            print("     default: ", info["default"])
-            print("     available options: ", info["choices"])
-        return data
+        return super().print_available_options()
 
 
-class NodeRemovalFacade(Facade):
-    """Subclass of Facade for removing a node and its connections from a list of SynGraph."""
-
-    info = "To remove a node from a list of routes"
-
-    def perform_functionality(
-        self,
-        routes: List[
-            Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-        ],
-        node_to_remove: str,
-    ) -> Tuple[List, dict]:
-        """
-        Returns a list of routes from which the selected node and its connections are removed
-
-        Parameters:
-        ------------
-        routes: List[Union[BipartiteSynGraph, MonopartiteReacSynGraph, MonopartiteMolSynGraph]]
-            The list of SynGraph instances
-        node_to_remove: str
-            The smiles of the reaction to be removed
-
-        Returns:
-        ---------
-        Tuple[List, dict]:
-            output: The list of SynGraph objects without the selected node and its connections
-
-            meta: The dictionary storing information about the run
-        """
-        exceptions = []
-        valid_routes = [r for r in routes if r is not None]
-        unchanged_routes: List = []
-        modified_routes: List = []
-        invalid_routes = len(routes) - len(valid_routes)
-
-        for r in valid_routes:
-            try:
-                modified_route = remove_reaction_from_syngraph(r, node_to_remove)
-                if modified_route == r:
-                    unchanged_routes.append(r)
-                else:
-                    modified_routes.append(modified_route)
-
-            except Exception as ke:
-                exceptions.append(ke)
-
-        meta = {
-            "removed_node": node_to_remove,
-            "invalid_routes": invalid_routes,
-            "modified_routes": len(modified_routes),
-            "unchanged_routes": len(unchanged_routes),
-            "errors": exceptions,
-        }
-        out_routes = unchanged_routes + modified_routes
-        return out_routes, meta
-
-    def get_available_options(self):
-        """
-        Returns the available options for route sanity checks as a dictionary.
-        """
-        return {
-            "routes": {
-                "name_or_flags": ["-routes"],
-                "default": None,
-                "required": True,
-                "type": List[SynGraph],
-                "choices": None,
-                "help": "List of SynGraph objects from which the selected node should be removed",
-                "dest": "routes",
-            },
-            "node_to_remove": {
-                "name_or_flags": ["-node_to_remove"],
-                "default": None,
-                "required": True,
-                "type": str,
-                "choices": None,
-                "help": "Smiles of the node to be removed",
-                "dest": "node_to_remove",
-            },
-        }
-
-    def print_available_options(self):
-        """
-        Prints the available options for routes sanity checks.
-        """
-        print("Node removal options and default:")
-        data = self.get_available_options()
-        for d, info in data.items():
-            print("argument:", d)
-            print("     info: ", info["help"])
-            print("     default: ", info["default"])
-            print("     available options: ", info["choices"])
-        return data
-
-
-class FacadeFactory:
-    functionalities = {
-        "translate": {"value": TranslateFacade, "info": TranslateFacade.info},
-        "routes_descriptors": {
-            "value": RoutesDescriptorsFacade,
-            "info": RoutesDescriptorsFacade.info,
-        },
-        "distance_matrix": {"value": GedFacade, "info": GedFacade.info},
-        "clustering": {"value": ClusteringFacade, "info": ClusteringFacade.info},
-        "subsets": {"value": SubsetsFacade, "info": SubsetsFacade.info},
-        "duplicates": {"value": DuplicatesFacade, "info": DuplicatesFacade.info},
-        "merging": {"value": MergingFacade, "info": MergingFacade.info},
-        "extract_reactions_strings": {
-            "value": ReactionExtractionFacade,
-            "info": ReactionExtractionFacade.info,
-        },
-        "atom_mapping": {"value": AtomMappingFacade, "info": AtomMappingFacade.info},
-        "routes_sanity_checks": {
-            "value": RouteSanityCheckFacade,
-            "info": RouteSanityCheckFacade.info,
-        },
-        "node_removal": {"value": NodeRemovalFacade, "info": NodeRemovalFacade.info},
-    }
-
-    def select_functionality(self, functionality: str, *args, **kwargs):
-        """Takes a string indicating a functionality and its arguments and performs the functionality"""
-        if functionality not in self.functionalities:
-            raise UnavailableFunctionality(
-                f"'{functionality}' is not a valid functionality."
-                f"Available functionalities are: {self.functionalities.keys()}"
-            )
-
-        performer = self.functionalities[functionality]["value"]
-        return performer().perform_functionality(*args, **kwargs)
-
-    def get_helper(self, functionality):
-        """Takes a string indicating a functionality and returns the available options"""
-        helper = self.functionalities[functionality]["value"]
-        return helper().get_available_options()
-
-    def get_helper_verbose(self, functionality):
-        """Takes a string indicating a functionality and prints the available options"""
-        helper = self.functionalities[functionality]["value"]
-        helper().print_available_options()
-        return helper().get_available_options()
-
-
-def facade(functionality: str, *args, **kwargs):
+def facade(functionality: str, routes: List, **kwargs) -> Tuple[Any, Dict]:
     """
     To perform one of the main functionality of the package.
 
@@ -1325,18 +953,19 @@ def facade(functionality: str, *args, **kwargs):
     -------------
     functionality: str
         The name of the functionality to be performed
-    *args:
-        the mandatory arguments of the selected functionality
+    routes:
+        The list of routes on which the functionality should be performed
     **kwargs:
-        the optional arguments of the selected functionality
+        the arguments of the selected functionality
 
     Returns:
     --------
     the output of the selected functionality
 
     """
-    functionality_selector = FacadeFactory()
-    return functionality_selector.select_functionality(functionality, *args, **kwargs)
+    facade_class = FacadeFactory.select_functionality(functionality)
+    facade_object = facade_class(**kwargs)
+    return facade_object.perform_functionality(routes)
 
 
 def facade_helper(
@@ -1367,10 +996,7 @@ def facade_helper(
     >>> info = facade_helper(functionality='translate')
     """
     if functionality is None:
-        av_functionalities = {
-            f: additional_info["info"]
-            for f, additional_info in FacadeFactory.functionalities.items()
-        }
+        av_functionalities = FacadeFactory.list_functionalities_w_info()
         if verbose:
             print("Available functionalities are:")
             for f, info in av_functionalities.items():
@@ -1381,7 +1007,3 @@ def facade_helper(
     if verbose:
         return helper_selector.get_helper_verbose(functionality)
     return helper_selector.get_helper(functionality)
-
-
-if __name__ == "__main__":
-    print("main")
