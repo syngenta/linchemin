@@ -173,7 +173,7 @@ def test_get_available_options():
 def test_out_format():
     out = get_output_formats()
     assert isinstance(out, dict) and "pydot_visualization" in out and "iron" in out
-    assert "mit_retro" not in out
+    assert "askcosv1" not in out
 
 
 def test_in_format():

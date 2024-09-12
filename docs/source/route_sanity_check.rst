@@ -33,8 +33,7 @@ routes that you would like to check as :class:`~syngraph.BipartiteSynGraph`
 or :class:`~syngraph.MonopartiteReacSynGraph` objects. To determine which sanity checks should be performed,
 we can pass a list of names
 to the ``checks`` argument; if the latter is not specified all the implemented
-will be applied. You can also decide in which data model the output routes should be returned
-by specifying the ``out_data_model`` argument (the default is the one specified in the configuration file)
+will be applied. The resulting SynGraph objects will have the same model as the input ones.
 
 .. code-block:: python
 
@@ -45,10 +44,10 @@ by specifying the ``out_data_model`` argument (the default is the one specified 
                                   routes)           # the list of routes to be checked
 
     # only the cycle check is performed and the routes are returned as MonopartiteReacSynGraph objects
-    checked_routes, meta = facade('routes_sanity_checks',
-                                  routes,                   # the list of routes to be checked
-                                  checks=['cycle_check'],   # a specific check is selected
-                                  out_data_model='monopartite_reactions')   # the data model of the output routes is selected
+    checked_routes, meta = facade(functionality='routes_sanity_checks', # the functionality to be applied
+                                  routes=routes,                        # the list of routes to be checked
+                                  checks=['cycle_check'],               # a specific check is selected
+                                  )
 
 
 If you want to know more of the options and default values for this functionality, you can call

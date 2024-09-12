@@ -110,7 +110,8 @@ class TranslationStep(WorkflowStep):
     casps = {
         "ibmrxn": "ibm_retro",
         "az": "az_retro",
-        "askcos": "mit_retro",
+        "askcosv1": "askcosv1",
+        "askcosv2": "askcosv2",
         "reaxys": "reaxys",
     }
 

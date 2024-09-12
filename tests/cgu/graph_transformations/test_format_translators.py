@@ -5,11 +5,12 @@ import pytest
 from linchemin.cgu.graph_transformations.format_translators import (
     AzRetro,
     IbmRetro,
-    MitRetro,
+    AskcosV1,
     Networkx,
     PyDot,
     ReaxysRT,
     Sparrow,
+    AskcosV2,
     get_input_translators,
     get_output_translators,
 )
@@ -160,7 +161,7 @@ def test_nx_translation(iron_test_instance):
 
 
 def test_nx_translation_single_node():
-    """To test that a single node graph is correctly translated to a netwoekx object"""
+    """To test that a single node graph is correctly translated to a networkx object"""
     iron = Iron()
     node = Node(iid="1", properties={"id": "1", "node_smiles": "smile_1"}, labels=["C"])
     iron.add_node("1", node)
@@ -185,7 +186,7 @@ def test_az_output(az_as_dict):
 
 
 def test_mit_output(mit_as_dict):
-    translator = MitRetro()
+    translator = AskcosV1()
     route_mit = mit_as_dict[0]
     iron = translator.to_iron(route_mit)
     assert iron.i_edge_number() == 7
@@ -245,10 +246,18 @@ def test_reaxys_translation(reaxys_as_dict):
     assert iron.i_edge_number() == 2
 
 
+def test_askcosv2_translation(askcosv2_as_dict):
+    translator = AskcosV2()
+    route = askcosv2_as_dict[0]
+    iron = translator.to_iron(route)
+    assert iron.i_node_number() == len(route["nodes"])
+    assert iron.i_edge_number() == len(route["edges"])
+
+
 def test_get_input():
     d = get_input_translators()
     assert isinstance(d, dict)
-    assert "mit_retro" in d
+    assert "askcosv1" in d
     assert "pydot_visualization" not in d
 
 
