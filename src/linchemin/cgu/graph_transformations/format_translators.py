@@ -758,7 +758,7 @@ class Sparrow(GraphFormatTranslator):
         reactions = [
             reaction
             for target, data in graph.items()
-            for reaction in data["Reaction Nodes"]
+            for reaction in data["Reactions"]
             if not reaction["smiles"].startswith(">>")
         ]
         iron = Iron()

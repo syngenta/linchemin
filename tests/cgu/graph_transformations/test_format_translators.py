@@ -198,7 +198,7 @@ def test_sparrow_translation():
     graph = {
         "CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": {
             "Compound Nodes": ["CC(=O)Cl", "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"],
-            "Reaction Nodes": [
+            "Reactions": [
                 {
                     "smiles": "CC(=O)Cl.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
                     "conditions": ["CCN(CC)CC", "[Na+].[OH-]"],
