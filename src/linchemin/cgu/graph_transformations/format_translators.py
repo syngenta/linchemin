@@ -10,11 +10,11 @@ import linchemin.cgu.graph_transformations.exceptions as exceptions
 import linchemin.cheminfo.depiction as cid
 from linchemin import settings
 from linchemin.cgu.graph_transformations.supporting_functions import (
+    askcosv2_dict_to_iron,
     az_dict_to_iron,
     build_iron_edge,
     ibm_dict_to_iron,
     mit_dict_to_iron,
-    askcosv2_dict_to_iron,
 )
 from linchemin.cgu.iron import Edge, Iron, Node
 from linchemin.cheminfo.models import ChemicalEquation, Molecule

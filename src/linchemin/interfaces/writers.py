@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Type, Union, Optional
+from typing import List, Optional, Type, Union
 
 import linchemin.IO.io as lio
 from linchemin.cgu.syngraph import (
@@ -74,7 +74,7 @@ class JsonWriter(SyngraphWriter):
     def write_file(
         self, syngraphs: list, out_data_model: str, file_name: Optional[str]
     ):
-        routes, meta = facade(
+        routes, _ = facade(
             functionality="translate",
             routes=syngraphs,
             input_format="syngraph",
@@ -96,7 +96,7 @@ class CsvWriter(SyngraphWriter):
     def write_file(
         self, syngraphs: list, out_data_model: str, file_name: Optional[str]
     ):
-        routes, meta = facade(
+        routes, _ = facade(
             functionality="translate",
             routes=syngraphs,
             input_format="syngraph",
@@ -136,7 +136,7 @@ class GraphMLWriter(SyngraphWriter):
     def write_file(
         self, syngraphs: list, out_data_model: str, file_name: Optional[str]
     ):
-        nx_routes, meta = facade(
+        nx_routes, _ = facade(
             functionality="translate",
             routes=syngraphs,
             input_format="syngraph",

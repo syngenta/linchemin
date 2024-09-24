@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import List, Tuple, Union, Optional
+from typing import List, Optional, Tuple, Union
 
 import linchemin.utilities as utilities
 from linchemin.cgu.iron import Iron, Node

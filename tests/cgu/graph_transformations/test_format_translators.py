@@ -3,14 +3,14 @@ import pydot
 import pytest
 
 from linchemin.cgu.graph_transformations.format_translators import (
+    AskcosV1,
+    AskcosV2,
     AzRetro,
     IbmRetro,
-    AskcosV1,
     Networkx,
     PyDot,
     ReaxysRT,
     Sparrow,
-    AskcosV2,
     get_input_translators,
     get_output_translators,
 )

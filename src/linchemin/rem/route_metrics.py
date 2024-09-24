@@ -10,12 +10,21 @@ from linchemin.cgu.syngraph import (
     MonopartiteReacSynGraph,
 )
 from linchemin.cgu.syngraph_operations import find_all_paths, find_path
+from linchemin.cheminfo.constructors import MoleculeConstructor
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.route_descriptors import descriptor_calculator
+from linchemin.rem.step_descriptors import step_descriptor_calculator
 from linchemin.utilities import console_logger
 
-"""Module containing functions and classes for computing route metrics that depend on external information"""
+"""Module containing functions and classes for computing
+route metrics that depend on external information"""
 logger = console_logger(__name__)
+
+
+class NotFullyMappedRouteError(Exception):
+    """Raised if the input route is not fully mapped"""
+
+    pass
 
 
 @dataclass
@@ -25,7 +34,9 @@ class MetricOutput:
     metric_value: float = field(default=0.0)
     """ The value of the route metrics"""
     raw_data: dict = field(default_factory=dict)
-    """ Raw data of the route metric calculation (metric non-normalized value, normalization term"""
+    """ Raw data of the route metric calculation
+    (metric non-normalized value, normalization term"""
+    additional_info: dict = field(default_factory=dict)
 
 
 class RouteMetric(ABC):
@@ -61,7 +72,8 @@ class MetricsFactory:
     Attributes:
     -------------
     _metrics: a dictionary
-        It maps the string representing the names of the available metrics to the correct RouteMetrics subclass
+        It maps the string representing the names of the
+        available metrics to the correct RouteMetrics subclass
     """
 
     _metrics = {}
@@ -130,7 +142,7 @@ class StartingMaterialsAmount(RouteMetric):
     Subclass to compute the amount of starting materials needed to produce a certain amount of target
     The external data is expected to have the following format:
     {'target_amount': n (gr),
-     'yield': {ChemicalEquation.smiles: yield (0 < y < 1}}
+     'yield': {ChemicalEquation.smiles: yield (0 < y < 1)}}
     """
 
     def compute_metric(
@@ -348,6 +360,145 @@ class YieldMetric(RouteMetric):
         if isinstance(route, MonopartiteReacSynGraph):
             return route
         return converter(route, "monopartite_reactions")
+
+
+@MetricsFactory.register_metrics("renewable_carbon")
+class RenewableCarbonMetric(RouteMetric):
+    """
+    Subclass to compute the renewable carbon metric: % of atoms
+    in the target molecule coming from starting materials in
+    the specified list.
+    The external data is expected to have the following format:
+    {'building_blocks':[smiles]}
+    """
+
+    def compute_metric(
+        self,
+        route: Union[
+            BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
+        ],
+        external_data: dict,
+    ) -> MetricOutput:
+        route = self.check_route_format(route)
+
+        if not self.is_mapped_route(route):
+            self._handle_unmapped_route_error()
+
+        bb_molecules = self._get_building_block_molecules(external_data)
+        target_c_atoms = self._get_target_carbon_atoms(route)
+
+        starting_materials = self._get_starting_materials(route, bb_molecules)
+
+        if starting_materials:
+            contributing_atoms = self._calculate_contributing_atoms(
+                route, starting_materials, target_c_atoms
+            )
+            output = self._calculate_metric_output(contributing_atoms, target_c_atoms)
+        else:
+            output = self._handle_no_building_blocks_found()
+
+        return output
+
+    @staticmethod
+    def _handle_unmapped_route_error():
+        """To raise an error if the provided route has unmapped chemical equations"""
+        logger.error(
+            "Unmapped reactions were found."
+            "A fully mapped route is needed to compute this metrics"
+        )
+        raise NotFullyMappedRouteError
+
+    @staticmethod
+    def _get_building_block_molecules(external_data: dict) -> set:
+        """To build Molecule objects corresponding to the provided building blocks"""
+        mol_constructor = MoleculeConstructor()
+        return {
+            mol_constructor.build_from_molecule_string(s, "smiles")
+            for s in external_data["building_blocks"]
+        }
+
+    @staticmethod
+    def _get_target_carbon_atoms(route: MonopartiteReacSynGraph) -> list:
+        """To get the list of atom ids corresponding to the Carbon atoms in the target"""
+        target = route.get_molecule_roots()[0]
+        return [
+            atom.GetIdx()
+            for atom in target.rdmol_mapped.GetAtoms()
+            if atom.GetSymbol() == "C"
+        ]
+
+    @staticmethod
+    def _get_starting_materials(
+        route: MonopartiteReacSynGraph, bb_molecules: set
+    ) -> set:
+        """To get the set of starting materials which are also among the provided building blocks"""
+        leaves = route.get_molecule_leaves()
+        return set(leaves).intersection(bb_molecules)
+
+    @staticmethod
+    def _calculate_contributing_atoms(
+        route: MonopartiteReacSynGraph, starting_materials: set, target_c_atoms: list
+    ) -> dict:
+        """To get the atoms from the starting materials which appear in the target"""
+        steps_w_bb = [
+            ce
+            for ce in route.get_unique_nodes()
+            if any(sm in ce.get_reactants() for sm in starting_materials)
+        ]
+        contributing_atoms = {}
+        for step in steps_w_bb:
+            out = step_descriptor_calculator("step_effectiveness", route, step.smiles)
+            sm_uids = {
+                sm.uid
+                for sm in starting_materials
+                if sm.uid in out.additional_info["contributing_atoms"].keys()
+            }
+            for uid in sm_uids:
+                contributing_atoms[uid] = []
+                atom_info_list = out.additional_info["contributing_atoms"][uid]
+                for atom_info in atom_info_list:
+                    if atom_info["target_atom"] in target_c_atoms:
+                        contributing_atoms[uid].append(atom_info)
+        return contributing_atoms
+
+    @staticmethod
+    def _calculate_metric_output(
+        contributing_atoms: dict, target_c_atoms: list
+    ) -> MetricOutput:
+        """To populate the output object"""
+        output = MetricOutput()
+        n_target_c_atoms = len(target_c_atoms)
+        n_target_c_atoms_from_bb = sum(
+            len(atom_info_list) for atom_info_list in contributing_atoms.values()
+        )
+        output.metric_value = round(n_target_c_atoms_from_bb / n_target_c_atoms, 2)
+        output.additional_info["contributing_atoms"] = contributing_atoms
+        return output
+
+    @staticmethod
+    def _handle_no_building_blocks_found() -> MetricOutput:
+        """To populate the output object if none of the specified building block appears in the route"""
+        msg = "None of the specified building blocks is found in the route"
+        logger.warning(msg)
+        output = MetricOutput()
+        output.metric_value = 0.0
+        output.raw_data = msg
+        return output
+
+    @staticmethod
+    def check_route_format(
+        route: Union[
+            BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
+        ],
+    ) -> MonopartiteReacSynGraph:
+        """To ensure that the route is in the expected format"""
+        if isinstance(route, MonopartiteReacSynGraph):
+            return route
+        return converter(route, "monopartite_reactions")
+
+    @staticmethod
+    def is_mapped_route(route: MonopartiteReacSynGraph) -> bool:
+        return all(ce.disconnection is not None for ce in route.get_unique_nodes())
 
 
 def route_metric_calculator(
