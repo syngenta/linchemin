@@ -16,7 +16,7 @@ from rdkit.Chem import (
 from rdkit.Chem.rdchem import Atom, Mol
 from rdkit.Chem.rdMolHash import HashFunction, MolHash
 
-import linchemin.cheminfo.models as models
+
 import linchemin.utilities as utilities
 
 # RDLogger.DisableLog('rdApp.*')
@@ -604,7 +604,7 @@ def has_mapped_products(rdrxn: rdChemReactions.ChemicalReaction) -> bool:
     return any(is_mapped_molecule(mol) for mol in list(rdrxn.GetProducts()))
 
 
-def select_desired_product(mol_catalog: list) -> models.Molecule:
+def select_desired_product(mol_catalog: list):
     """
     To select the 'desired product' among the products of a reaction.
 
@@ -700,9 +700,7 @@ def rdrxn_role_reassignment(
     return rdrxn_from_rxn_mol_catalog(rxn_mol_catalog=rxn_mol_catalog)
 
 
-def role_reassignment(
-    reaction_mols: dict, ratam: models.Ratam, desired_product: models.Molecule
-) -> Union[dict, None]:
+def role_reassignment(reaction_mols: dict, ratam, desired_product) -> Union[dict, None]:
     """
     To reassign the roles of reactants and reagents based on the mapping on the desired product.
 
@@ -781,9 +779,7 @@ def clean_full_map_info(full_map_info_new: dict) -> dict:
     return full_map_info_new
 
 
-def mapping_diagnosis(
-    chemical_equation: models.ChemicalEquation, desired_product: models.Molecule
-) -> Union[list, None]:
+def mapping_diagnosis(chemical_equation, desired_product) -> Union[list, None]:
     """
     To validate the chemical equation with atom mapping.
     To check possible issues in the atom mapping:
@@ -826,9 +822,7 @@ def check_reactants_mapping(reactants: list) -> list:
     return unmapped_fragments
 
 
-def check_product_mapping(
-    desired_product: models.Molecule, atom_transformations: list
-) -> None:
+def check_product_mapping(desired_product, atom_transformations: list) -> None:
     """To check if there are unmapped atoms in the desired product"""
     at_desired_product = [
         at for at in atom_transformations if at.product_uid == desired_product.uid
