@@ -15,6 +15,7 @@ from linchemin.rem.route_metrics import (
     YieldMetric,
     distance_function_calculator,
     route_metric_calculator,
+    MissingDataError,
 )
 
 
@@ -71,22 +72,31 @@ def test_reactant_availability(route):
         "O=C(n1ccnc1)n1ccnc1",
         "O=C1c2ccccc2C(=O)N1CC1CO1",
     ]
+    categories = [
+        {"name": "best", "criterion": "syngenta", "score": 1.0},
+        {"name": "medium", "criterion": "vendor", "score": 0.5},
+        {"name": "worst", "criterion": "none", "score": 0.0},
+    ]
     # best case scenario: all starting materials are available internally
     external_data = {s: "syngenta" for s in starting_materials}
-    output = route_metric_calculator("reactant_availability", syngraph, external_data)
+    output = route_metric_calculator(
+        "reactant_availability", syngraph, external_data, categories
+    )
     assert math.isclose(output.metric_value, 1.0, rel_tol=1e-9)
     assert output.raw_data
     assert "distance_function" in output.raw_data
     # worst case scenario: none of the starting materials is available
     syngraph = MonopartiteMolSynGraph(route)
     external_data = {s: "none" for s in starting_materials}
-    output = route_metric_calculator("reactant_availability", syngraph, external_data)
+    output = route_metric_calculator(
+        "reactant_availability", syngraph, external_data, categories
+    )
     assert math.isclose(output.metric_value, 0.0, rel_tol=1e-9)
     # medium case: all starting materials are available at vendors
     external_data = {s: "vendor" for s in starting_materials}
     assert math.isclose(
         route_metric_calculator(
-            "reactant_availability", syngraph, external_data
+            "reactant_availability", syngraph, external_data, categories
         ).metric_value,
         0.5,
         rel_tol=1e-9,
@@ -102,7 +112,7 @@ def test_reactant_availability(route):
     }
     assert math.isclose(
         route_metric_calculator(
-            "reactant_availability", syngraph, external_data
+            "reactant_availability", syngraph, external_data, categories
         ).metric_value,
         0.79,
         rel_tol=1e-9,
@@ -118,11 +128,24 @@ def test_reactant_availability(route):
     }
     assert math.isclose(
         route_metric_calculator(
-            "reactant_availability", syngraph, external_data
+            "reactant_availability", syngraph, external_data, categories
         ).metric_value,
         0.21,
         rel_tol=1e-9,
     )
+
+
+def test_reactant_availability_no_cat(route):
+    syngraph = MonopartiteReacSynGraph(route)
+    starting_materials = [
+        "CC(=O)O",
+        "Nc1ccc(N2CCOCC2)cc1",
+        "O=C(n1ccnc1)n1ccnc1",
+        "O=C1c2ccccc2C(=O)N1CC1CO1",
+    ]
+    external_data = {s: "syngenta" for s in starting_materials}
+    with pytest.raises(MissingDataError):
+        route_metric_calculator("reactant_availability", syngraph, external_data)
 
 
 def test_yield_score(route):

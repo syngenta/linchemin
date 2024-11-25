@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Type, Union
+from typing import Type, Union, Optional, List, Dict
 
 import linchemin.cheminfo.functions as cif
 from linchemin.cgu.convert import converter
@@ -15,6 +15,7 @@ from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.route_descriptors import descriptor_calculator
 from linchemin.rem.step_descriptors import step_descriptor_calculator
 from linchemin.utilities import console_logger
+from linchemin.rem.classification_schema import ClassificationSchema
 
 """Module containing functions and classes for computing
 route metrics that depend on external information"""
@@ -25,6 +26,10 @@ class NotFullyMappedRouteError(Exception):
     """Raised if the input route is not fully mapped"""
 
     pass
+
+
+class MissingDataError(Exception):
+    """Raised if a missing"""
 
 
 @dataclass
@@ -47,6 +52,9 @@ class RouteMetric(ABC):
             BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
         ],
         external_info: dict,
+        categories: Optional[
+            Optional[List[Dict[str, Union[str, Dict[str, float], float]]]]
+        ],
     ) -> MetricOutput:
         """
         To compute a route metric dependent on external information
@@ -57,11 +65,13 @@ class RouteMetric(ABC):
             The input SynGraph for which the metrics should be computed
         external_info: TOBEDEFINED
             The external information necessary for computing the route metric
+        categories: Optional[dict]
+            The categorical or numerical classes used to assign a score to categories of entries
 
         Returns:
         --------
-        route_metric: float
-            The computed route metric
+        MetricOutput
+            An object containing the value of the metric, as well as metadata and raw data
         """
         pass
 
@@ -151,6 +161,7 @@ class StartingMaterialsAmount(RouteMetric):
             BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
         ],
         external_info: dict,
+        categories=None,
     ) -> MetricOutput:
         """To compute the amount of starting materials needed to produce a certain amount of target"""
         route = self.check_route_format(route)
@@ -265,11 +276,16 @@ class ReactantAvailability(RouteMetric):
             BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
         ],
         external_info: dict,
+        categories: List[Dict[str, Union[str, Dict[str, float], float]]],
     ) -> MetricOutput:
         """To compute the reactant availability metric"""
+        if categories is None:
+            logger.info("No categories provided.")
+            raise MissingDataError
+
         route = self.check_route_format(route)
         starting_materials = route.get_leaves()
-        data = self.fix_external_info_format(external_info)
+        data = self.compute_scores(external_info, categories)
         output = MetricOutput()
         distance_function = "simple"
         score = 0
@@ -301,16 +317,16 @@ class ReactantAvailability(RouteMetric):
         return converter(route, "bipartite")
 
     @staticmethod
-    def fix_external_info_format(external_info: dict) -> dict:
+    def compute_scores(
+        external_info: dict,
+        categories: List[Dict[str, Union[str, Dict[str, float], float]]],
+    ) -> dict:
+        """To compute the score for each entry based on the provided categories"""
+        schema = ClassificationSchema(categories)
         new_data = {}
         for smiles, provider in external_info.items():
-            if provider == "syngenta":
-                cat_value = 1.0
-            elif provider == "vendor":
-                cat_value = 0.5
-            else:
-                cat_value = 0.0
-            new_data[smiles] = cat_value
+            provider_score = schema.compute_score(provider)
+            new_data[smiles] = provider_score
         return new_data
 
 
@@ -328,6 +344,7 @@ class YieldMetric(RouteMetric):
             BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
         ],
         external_data: dict,
+        categories=None,
     ) -> MetricOutput:
         """To compute the yield metric"""
         route = self.check_route_format(route)
@@ -378,6 +395,7 @@ class RenewableCarbonMetric(RouteMetric):
             BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
         ],
         external_data: dict,
+        categories=None,
     ) -> MetricOutput:
         route = self.check_route_format(route)
 
@@ -505,6 +523,7 @@ def route_metric_calculator(
     metric_name: str,
     route: Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph],
     external_data: dict,
+    categories: Optional[List[Dict[str, Union[str, Dict[str, float], float]]]] = None,
 ) -> MetricOutput:
     """
     To compute a route metric
@@ -517,6 +536,8 @@ def route_metric_calculator(
         The route for which the metric should be computed
     external_data: dict
         The external data needed for computing the route metric
+    categories: Optional[List[Dict[str, Union[str, Dict[str, float], float]]]] = None
+        Categorical or numerical criterion to assign scores to entries
 
     Returns:
     ----------
@@ -529,7 +550,7 @@ def route_metric_calculator(
         route, (BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph)
     ):
         metric = MetricsFactory.get_metric_instance(metric_name)
-        return metric.compute_metric(route, external_data)
+        return metric.compute_metric(route, external_data, categories)
     logger.error(
         f"The input route must be a SynGraph object. {type(route)} cannot be processed."
     )
