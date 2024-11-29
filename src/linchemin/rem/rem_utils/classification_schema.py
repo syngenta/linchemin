@@ -100,7 +100,11 @@ class Category:
 
     def __repr__(self):
         criterion_str = self._get_criterion_repr()
-        return f"Category(name='{self.name}', criterion={criterion_str}, score={self.score})"
+        return (
+            f"Category(name='{self.name}',"
+            f"criterion={criterion_str}, "
+            f"score={self.score})"
+        )
 
 
 class ClassificationSchema:

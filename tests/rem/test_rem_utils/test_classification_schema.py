@@ -1,4 +1,4 @@
-from linchemin.rem.classification_schema import (
+from linchemin.rem.rem_utils.classification_schema import (
     Criterion,
     CriterionTypeError,
     Category,

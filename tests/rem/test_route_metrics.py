@@ -1,22 +1,29 @@
 import math
 
 import pytest
-
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
 )
-from linchemin.cheminfo.models import Molecule
 from linchemin.rem.route_metrics import (
     NotFullyMappedRouteError,
+    ReactantAvailability,
+    RouteMetric,
     RenewableCarbonMetric,
     StartingMaterialsAmount,
     YieldMetric,
-    distance_function_calculator,
     route_metric_calculator,
     MissingDataError,
+    RouteComponentType,
+    RouteComponents,
+    InvalidComponentTypeError,
+    UnavailableMetricError,
+    UnavailableMoleculeFormat,
 )
+
+from unittest.mock import patch, Mock
 
 
 @pytest.fixture
@@ -41,37 +48,119 @@ def route():
     ]
 
 
+def test_route_component_type_enum():
+    assert RouteComponentType.MOLECULES.value == "molecules"
+    assert RouteComponentType.CHEMICAL_EQUATIONS.value == "chemical_equations"
+
+
+def test_route_components():
+    components = RouteComponents(component_type=RouteComponentType.MOLECULES)
+    components.structural_format = "smiles"
+    components.uid_structure_map = {"m1": "smiles1", "m2": "smiles1"}
+    assert components
+
+    components = RouteComponents(component_type="chemical_equations")
+    components.structural_format = "smiles"
+    components.uid_structure_map = {"ce1": "smiles1", "ce": "smiles1"}
+    assert components
+
+
+def test_route_components_init_with_invalid_string():
+    with pytest.raises(InvalidComponentTypeError, match="Invalid component_type"):
+        RouteComponents("reactions")
+
+
+def test_route_components_init_with_invalid_type():
+    with pytest.raises(
+        InvalidComponentTypeError,
+        match="component_type must be RouteComponentType or str",
+    ):
+        RouteComponents(123)
+
+
+@pytest.mark.parametrize("fmt", ["smarts", "mol_blockV3K", "mol_blockV2K"])
+def test_validate_format_valid(fmt):
+    RouteComponents.validate_format(fmt)
+
+
+def test_validate_format_invalid():
+    with pytest.raises(UnavailableMoleculeFormat):
+        RouteComponents.validate_format("invalid_format")
+
+
+@pytest.mark.parametrize("fmt", ["smarts", "mol_blockV3K", "mol_blockV2K"])
+def test_get_mol_to_string_function(fmt):
+    func = RouteComponents.get_mol_to_string_function(fmt)
+    assert callable(func)
+    assert func == RouteComponents.molecule_func_map[fmt]
+
+
 def test_basic_factory():
     route = MonopartiteReacSynGraph()
     external_data = {}
     # if an unavailable metric is chosen, a KeyError is raised
-    with pytest.raises(KeyError) as ke:
+    with pytest.raises(UnavailableMetricError) as ke:
         route_metric_calculator("wrong_metric", route, external_data)
-    assert "KeyError" in str(ke.type)
     # if the provided route is of the wrong type, a TypeError is raised
     with pytest.raises(TypeError) as ke:
         route_metric_calculator("reactant_availability", [], external_data)
     assert "TypeError" in str(ke.type)
 
 
-def test_distance_strategy():
-    route = BipartiteSynGraph()
-    node = Molecule()
-    root = Molecule()
-    # if an unavailable distance function is chosen, a KeyError is raised
-    with pytest.raises(KeyError) as ke:
-        distance_function_calculator("wrong_function", route, node, root)
-    assert "KeyError" in str(ke.type)
+@pytest.fixture
+def mock_route():
+    return Mock(spec=BipartiteSynGraph)
+
+
+@pytest.fixture
+def reactant_availability(mock_route):
+    return ReactantAvailability(mock_route)
+
+
+def test_init(mock_route):
+    metric = ReactantAvailability(mock_route)
+    assert metric.route == mock_route
+    assert metric.name == "reactant_availability"
+
+
+def test_check_route_format_bipartite():
+    bipartite_route = Mock(spec=BipartiteSynGraph)
+    assert ReactantAvailability._check_route_format(bipartite_route) == bipartite_route
+
+
+@patch("linchemin.rem.route_metrics.converter")
+def test_check_route_format_conversion(mock_converter):
+    monopartite_route = Mock()
+    mock_converter.return_value = Mock(spec=BipartiteSynGraph)
+    result = ReactantAvailability._check_route_format(monopartite_route)
+    mock_converter.assert_called_once_with(monopartite_route, "bipartite")
+    assert isinstance(result, BipartiteSynGraph)
+
+
+@patch.object(RouteMetric, "_get_molecules_map")
+def test_get_route_components_for_metric(mock_get_molecules_map, reactant_availability):
+    mock_leaves = [Mock(spec=Molecule) for _ in range(3)]
+    reactant_availability.route.get_leaves.return_value = mock_leaves
+    uid_map = {"uid1": "SMILES1", "uid2": "SMILES2", "uid3": "SMILES3"}
+    mock_get_molecules_map.return_value = uid_map
+
+    result = reactant_availability.get_route_components_for_metric("smiles")
+
+    assert isinstance(result, RouteComponents)
+    assert result.component_type == RouteComponentType.MOLECULES
+    assert result.structural_format == "smiles"
+    assert result.uid_structure_map == uid_map
+    mock_get_molecules_map.assert_called_once_with(
+        molecule_list=mock_leaves, structural_format="smiles"
+    )
 
 
 def test_reactant_availability(route):
     syngraph = MonopartiteReacSynGraph(route)
-    starting_materials = [
-        "CC(=O)O",
-        "Nc1ccc(N2CCOCC2)cc1",
-        "O=C(n1ccnc1)n1ccnc1",
-        "O=C1c2ccccc2C(=O)N1CC1CO1",
-    ]
+    ra = ReactantAvailability(syngraph)
+
+    leaves = syngraph.get_molecule_leaves()
+    starting_materials = [l.uid for l in leaves]
     categories = [
         {"name": "best", "criterion": "syngenta", "score": 1.0},
         {"name": "medium", "criterion": "vendor", "score": 0.5},
@@ -79,101 +168,126 @@ def test_reactant_availability(route):
     ]
     # best case scenario: all starting materials are available internally
     external_data = {s: "syngenta" for s in starting_materials}
-    output = route_metric_calculator(
-        "reactant_availability", syngraph, external_data, categories
-    )
+    output = ra.compute_metric(external_data, categories)
     assert math.isclose(output.metric_value, 1.0, rel_tol=1e-9)
     assert output.raw_data
     assert "distance_function" in output.raw_data
+
     # worst case scenario: none of the starting materials is available
-    syngraph = MonopartiteMolSynGraph(route)
     external_data = {s: "none" for s in starting_materials}
-    output = route_metric_calculator(
-        "reactant_availability", syngraph, external_data, categories
-    )
+    output = ra.compute_metric(external_data, categories)
     assert math.isclose(output.metric_value, 0.0, rel_tol=1e-9)
+
     # medium case: all starting materials are available at vendors
     external_data = {s: "vendor" for s in starting_materials}
+    output = ra.compute_metric(external_data, categories)
     assert math.isclose(
-        route_metric_calculator(
-            "reactant_availability", syngraph, external_data, categories
-        ).metric_value,
+        output.metric_value,
         0.5,
         rel_tol=1e-9,
     )
 
     # medium-good case: the starting materials for the leaf
-    # reactions are available internally; those for the root no
     external_data = {
-        "CC(=O)O": "none",
-        "O=C(n1ccnc1)n1ccnc1": "vendor",
-        "Nc1ccc(N2CCOCC2)cc1": "syngenta",
-        "O=C1c2ccccc2C(=O)N1CC1CO1": "syngenta",
+        m.uid: "syngenta"
+        for m in leaves
+        if m.smiles in ["Nc1ccc(N2CCOCC2)cc1", "O=C1c2ccccc2C(=O)N1CC1CO1"]
     }
+    external_data.update(
+        {m.uid: "vendor" for m in leaves if m.smiles == "O=C(n1ccnc1)n1ccnc1"}
+    )
+    external_data.update({m.uid: "none" for m in leaves if m.smiles == "CC(=O)O"})
+    output = ra.compute_metric(external_data, categories)
     assert math.isclose(
-        route_metric_calculator(
-            "reactant_availability", syngraph, external_data, categories
-        ).metric_value,
+        output.metric_value,
         0.79,
         rel_tol=1e-9,
     )
 
-    syngraph = BipartiteSynGraph(route)
     # medium-bad case: the starting materials for the leaf reactions are not available internally; those for the root are
     external_data = {
-        "CC(=O)O": "syngenta",
-        "O=C(n1ccnc1)n1ccnc1": "vendor",
-        "Nc1ccc(N2CCOCC2)cc1": "none",
-        "O=C1c2ccccc2C(=O)N1CC1CO1": "none",
+        m.uid: "none"
+        for m in leaves
+        if m.smiles in ["Nc1ccc(N2CCOCC2)cc1", "O=C1c2ccccc2C(=O)N1CC1CO1"]
     }
+    external_data.update(
+        {m.uid: "vendor" for m in leaves if m.smiles == "O=C(n1ccnc1)n1ccnc1"}
+    )
+    external_data.update({m.uid: "syngenta" for m in leaves if m.smiles == "CC(=O)O"})
+    output = ra.compute_metric(external_data, categories)
     assert math.isclose(
-        route_metric_calculator(
-            "reactant_availability", syngraph, external_data, categories
-        ).metric_value,
+        output.metric_value,
         0.21,
         rel_tol=1e-9,
     )
 
 
-def test_reactant_availability_no_cat(route):
-    syngraph = MonopartiteReacSynGraph(route)
-    starting_materials = [
-        "CC(=O)O",
-        "Nc1ccc(N2CCOCC2)cc1",
-        "O=C(n1ccnc1)n1ccnc1",
-        "O=C1c2ccccc2C(=O)N1CC1CO1",
-    ]
-    external_data = {s: "syngenta" for s in starting_materials}
+@patch.object(ReactantAvailability, "_check_route_format")
+def test_reactant_availability_no_cat(mock_fmt_check):
+    route = Mock(specc=MonopartiteReacSynGraph)
+    mock_fmt_check.return_value = route
+    ra = ReactantAvailability(route)
+    external_data = {}
+
     with pytest.raises(MissingDataError):
-        route_metric_calculator("reactant_availability", syngraph, external_data)
+        ra.compute_metric(external_data, categories=None)
 
 
 def test_yield_score(route):
-    syngraph = BipartiteSynGraph(route)
+    syngraph = MonopartiteReacSynGraph(route)
+    all_steps = syngraph.get_unique_nodes()
+    steps_uid = [ce.uid for ce in all_steps]
+    yield_sc = YieldMetric(syngraph)
+
     # best case scenario:all involved reactions have 100% yield
-    external_data = {step["output_string"]: 1.0 for step in route}
-    metric = YieldMetric()
+    external_data = {uid: 1.0 for uid in steps_uid}
+    output = yield_sc.compute_metric(external_data)
     assert math.isclose(
-        metric.compute_metric(syngraph, external_data).metric_value,
+        output.metric_value,
         1.0,
         rel_tol=1e-9,
     )
     # worst case scenario: all involved reactions have 0% yield
-    external_data = {step["output_string"]: 0.0 for step in route}
+    external_data = {uid: 0.0 for uid in steps_uid}
+    output = yield_sc.compute_metric(external_data)
     assert math.isclose(
-        metric.compute_metric(syngraph, external_data).metric_value,
+        output.metric_value,
         0.0,
         rel_tol=1e-9,
     )
     # medium-good case: reactions close to the root have higher yield than those close to the leaves
     external_data = {
-        "CC(=O)O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 0.95,
-        "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 0.65,
-        "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1>>O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 0.45,
-        "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1>>O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1": 0.25,
+        ce.uid: 0.95
+        for ce in all_steps
+        if ce.smiles
+        == "CC(=O)O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"
     }
-    output_mg = metric.compute_metric(syngraph, external_data)
-    assert output_mg.raw_data
+    external_data.update(
+        {
+            ce.uid: 0.65
+            for ce in all_steps
+            if ce.smiles
+            == "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"
+        }
+    )
+    external_data.update(
+        {
+            ce.uid: 0.45
+            for ce in all_steps
+            if ce.smiles
+            == "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1>>O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"
+        }
+    )
+    external_data.update(
+        {
+            ce.uid: 0.25
+            for ce in all_steps
+            if ce.smiles
+            == "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1>>O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1"
+        }
+    )
+
+    output_mg = yield_sc.compute_metric(external_data)
     assert math.isclose(
         output_mg.metric_value,
         0.71,
@@ -181,12 +295,37 @@ def test_yield_score(route):
     )
     # medium-bad case: reactions close to the root have lower yield than those close to the leaves
     external_data = {
-        "CC(=O)O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 0.25,
-        "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 0.45,
-        "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1>>O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": 0.65,
-        "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1>>O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1": 0.95,
+        ce.uid: 0.25
+        for ce in all_steps
+        if ce.smiles
+        == "CC(=O)O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"
     }
-    output_mb = metric.compute_metric(syngraph, external_data)
+    external_data.update(
+        {
+            ce.uid: 0.45
+            for ce in all_steps
+            if ce.smiles
+            == "O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"
+        }
+    )
+    external_data.update(
+        {
+            ce.uid: 0.65
+            for ce in all_steps
+            if ce.smiles
+            == "O=C(n1ccnc1)n1ccnc1.O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1>>O=C1c2ccccc2C(=O)N1CC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"
+        }
+    )
+    external_data.update(
+        {
+            ce.uid: 0.95
+            for ce in all_steps
+            if ce.smiles
+            == "Nc1ccc(N2CCOCC2)cc1.O=C1c2ccccc2C(=O)N1CC1CO1>>O=C1c2ccccc2C(=O)N1CC(O)CNc1ccc(N2CCOCC2)cc1"
+        }
+    )
+
+    output_mb = yield_sc.compute_metric(external_data)
     assert math.isclose(
         output_mb.metric_value,
         0.44,
@@ -197,12 +336,15 @@ def test_yield_score(route):
 
 def test_starting_materials_amount(route):
     syngraph = MonopartiteReacSynGraph(route)
+    sm_amount = StartingMaterialsAmount(syngraph)
+
+    route_steps = syngraph.get_unique_nodes()
+    steps_uid = [ce.uid for ce in route_steps]
     external_info = {
         "target_amount": 319.15320615199994,  # 1 mol
-        "yield": {item["output_string"]: 0.5 for item in route},
+        "yield": {uid: 0.5 for uid in steps_uid},
     }
-    sm_amount = StartingMaterialsAmount()
-    out = sm_amount.compute_metric(syngraph, external_info)
+    out = sm_amount.compute_metric(external_info)
     assert out.raw_data
     assert out.raw_data["quantities"]["intermediates"] == {
         "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": {"grams": 554.285, "moles": 2.0},
@@ -226,17 +368,15 @@ def test_starting_materials_amount(route):
 
 def test_renewable_carbon(route):
     syngraph = MonopartiteReacSynGraph(route)
-    starting_materials = [
-        "CC(=O)O",
-        "Nc1ccc(N2CCOCC2)cc1",
-        "O=C(n1ccnc1)n1ccnc1",
-    ]
-    external_data = {"building_blocks": starting_materials}
-    metric = RenewableCarbonMetric()
+
+    leaves_uid = sorted([m.uid for m in syngraph.get_molecule_leaves()])
+    external_data = {uid: True for uid in leaves_uid[:-1]}
+    external_data.update({leaves_uid[-1]: False})
+    rc = RenewableCarbonMetric(syngraph)
 
     # a fully mapped route is needed
     with pytest.raises(NotFullyMappedRouteError):
-        metric.compute_metric(syngraph, external_data=external_data)
+        rc.compute_metric(external_data=external_data)
     mapped_route = [
         {
             "output_string": "O[C:2]([CH3:1])=[O:3].[NH2:4][CH2:5][CH:6]1[CH2:7][N:8]([c:9]2[cH:10][cH:11][c:12]([N:13]3[CH2:14][CH2:15][O:16][CH2:17][CH2:18]3)[cH:19][cH:20]2)[C:21](=[O:22])[O:23]1>>[CH3:1][C:2](=[O:3])[NH:4][CH2:5][CH:6]1[CH2:7][N:8]([c:9]2[cH:10][cH:11][c:12]([N:13]3[CH2:14][CH2:15][O:16][CH2:17][CH2:18]3)[cH:19][cH:20]2)[C:21](=[O:22])[O:23]1",
@@ -256,11 +396,12 @@ def test_renewable_carbon(route):
         },
     ]
     syngraph = MonopartiteReacSynGraph(mapped_route)
-    out = metric.compute_metric(syngraph, external_data=external_data)
-    assert out.metric_value == round(13.0 / 16.0, 2)
+    rc = RenewableCarbonMetric(syngraph)
+    out = rc.compute_metric(external_data=external_data)
+    assert out.metric_value == round(14.0 / 16.0, 2)
     assert out.additional_info
 
     # none of the provided building blocks appears in the route
-    external_data = {"building_blocks": ["CCC(O)=O"]}
-    out = metric.compute_metric(syngraph, external_data=external_data)
+    external_data = {uid: False for uid in leaves_uid}
+    out = rc.compute_metric(external_data=external_data)
     assert math.isclose(out.metric_value, 0.0, rel_tol=1e-9)
