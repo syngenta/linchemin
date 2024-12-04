@@ -416,6 +416,56 @@ class StartingMaterialsAmount(RouteMetric):
 
 
 @MetricsFactory.register_metrics
+class StartingMaterialsAvailability(RouteMetric):
+    """
+    Subclass to compute the starting materials availability metric.
+    The external data is expected to have the following format:
+    {'starting_material_uid': bool}
+    """
+
+    name = "starting_materials_availability"
+
+    def get_route_components_for_metric(
+        self, structural_format: str
+    ) -> RouteComponents:
+        components = RouteComponents(component_type=RouteComponentType.MOLECULES)
+        components.structural_format = structural_format
+        leaves = self.route.get_leaves()
+        components.uid_structure_map = self._get_molecules_map(
+            molecule_list=leaves, structural_format=structural_format
+        )
+        return components
+
+    def compute_metric(
+        self,
+        data: dict,
+        categories=None,
+    ) -> MetricOutput:
+        """To compute the basic reactant availability metric"""
+
+        starting_materials = self.route.get_leaves()
+        output = MetricOutput()
+        n_starting_materials = len(starting_materials)
+        available = 0.0
+        for uid, b in data.items():
+            if b is True:
+                available += 1
+        output.metric_value = available / n_starting_materials
+        return output
+
+    @staticmethod
+    def _check_route_format(
+        route: Union[
+            BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
+        ],
+    ) -> BipartiteSynGraph:
+        """To ensure that the route is in the expected format"""
+        if isinstance(route, BipartiteSynGraph):
+            return route
+        return converter(route, "bipartite")
+
+
+@MetricsFactory.register_metrics
 class ReactantAvailability(RouteMetric):
     """
     Subclass to compute the reactant availability metric.

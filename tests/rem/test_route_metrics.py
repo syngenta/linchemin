@@ -21,6 +21,7 @@ from linchemin.rem.route_metrics import (
     UnavailableMetricError,
     UnavailableMoleculeFormat,
     ReactionPrecedent,
+    StartingMaterialsAvailability,
 )
 
 from unittest.mock import patch, Mock
@@ -445,4 +446,30 @@ def test_reaction_precedent(route):
         {ce_uid: False for ce_uid in list(ce_uid_dict.keys())[2:]}
     )
     out = rp.compute_metric(data=external_data)
+    assert math.isclose(out.metric_value, 0.5, rel_tol=1e-9)
+
+
+def test_startin_materials_availability(route):
+    syngraph = BipartiteSynGraph(route)
+    sma = StartingMaterialsAvailability(syngraph)
+    sm_uid_dict = {m.uid: m.smiles for m in syngraph.get_leaves()}
+    route_component = sma.get_route_components_for_metric("smiles")
+    assert route_component.component_type.name == "MOLECULES"
+    assert route_component.uid_structure_map == sm_uid_dict
+
+    # all starting materials is available
+    external_data = {m_uid: True for m_uid in sm_uid_dict.keys()}
+    out = sma.compute_metric(data=external_data)
+    assert math.isclose(out.metric_value, 1.0, rel_tol=1e-9)
+
+    # none of the starting materials is available
+    external_data = {m_uid: False for m_uid in sm_uid_dict.keys()}
+    out = sma.compute_metric(data=external_data)
+    assert math.isclose(out.metric_value, 0.0, rel_tol=1e-9)
+
+    # half of the starting materials is available
+    external_data = {m_uid: True for m_uid in list(sm_uid_dict.keys())[:2]}
+
+    external_data.update({m_uid: False for m_uid in list(sm_uid_dict.keys())[2:]})
+    out = sma.compute_metric(data=external_data)
     assert math.isclose(out.metric_value, 0.5, rel_tol=1e-9)
