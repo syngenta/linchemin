@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Type, Union, Optional, List, Dict
 
 import linchemin.cheminfo.functions as cif
@@ -9,14 +10,13 @@ from linchemin.cgu.syngraph import (
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
 )
-from enum import Enum
 from linchemin.cgu.syngraph_operations import find_all_paths
 from linchemin.cheminfo.constructors import MoleculeConstructor
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
-from linchemin.rem.step_descriptors import step_descriptor_calculator
-from linchemin.rem.rem_utils.distance_strategy import distance_function_calculator
-from linchemin.utilities import console_logger
 from linchemin.rem.rem_utils.classification_schema import ClassificationSchema
+from linchemin.rem.rem_utils.distance_strategy import distance_function_calculator
+from linchemin.rem.step_descriptors import step_descriptor_calculator
+from linchemin.utilities import console_logger
 
 """Module containing functions and classes for computing
 route metrics that depend on external information"""
@@ -240,6 +240,56 @@ class MetricsFactory:
             logger.error(f"Metric '{name}' not found")
             raise UnavailableMetricError
         return metric
+
+
+@MetricsFactory.register_metrics
+class ReactionPrecedent(RouteMetric):
+    name = "reaction_precedent"
+    """
+    Subclass to compute a metric based on the precedents of the route steps
+    The external data is expected to have the following format:
+    {'precedents': {ChemicalEquation.uid: bool}}
+    """  # noqa: E501
+
+    def get_route_components_for_metric(
+        self, structural_format: str
+    ) -> RouteComponents:
+        components = RouteComponents(
+            component_type=RouteComponentType.CHEMICAL_EQUATIONS
+        )
+        components.structural_format = structural_format
+        chemical_equations = self.route.get_unique_nodes()
+        components.uid_structure_map = {
+            ce.uid: cif.rdrxn_to_string(ce.rdrxn, out_fmt=structural_format)
+            for ce in chemical_equations
+        }
+        return components
+
+    def compute_metric(
+        self,
+        data: dict,
+        categories=None,
+    ) -> MetricOutput:
+        output = MetricOutput()
+        precedents = data["precedents"]
+        n_chemical_equations = len(self.route.graph)
+        w_precedents = 0
+        for uid, b in precedents.items():
+            if b is True:
+                w_precedents += 1
+        output.metric_value = w_precedents / n_chemical_equations
+        return output
+
+    @staticmethod
+    def _check_route_format(
+        route: Union[
+            BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
+        ],
+    ) -> MonopartiteReacSynGraph:
+        """To ensure that the route is in the expected format"""
+        if isinstance(route, MonopartiteReacSynGraph):
+            return route
+        return converter(route, "monopartite_reactions")
 
 
 @MetricsFactory.register_metrics

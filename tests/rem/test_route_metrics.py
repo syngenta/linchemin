@@ -4,7 +4,6 @@ import pytest
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
-    MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
 )
 from linchemin.rem.route_metrics import (
@@ -21,6 +20,7 @@ from linchemin.rem.route_metrics import (
     InvalidComponentTypeError,
     UnavailableMetricError,
     UnavailableMoleculeFormat,
+    ReactionPrecedent,
 )
 
 from unittest.mock import patch, Mock
@@ -115,6 +115,11 @@ def mock_route():
 @pytest.fixture
 def reactant_availability(mock_route):
     return ReactantAvailability(mock_route)
+
+
+@pytest.fixture
+def mock_route_mpr():
+    return Mock(spec=MonopartiteReacSynGraph)
 
 
 def test_init(mock_route):
@@ -405,3 +410,39 @@ def test_renewable_carbon(route):
     external_data = {uid: False for uid in leaves_uid}
     out = rc.compute_metric(external_data=external_data)
     assert math.isclose(out.metric_value, 0.0, rel_tol=1e-9)
+
+
+@pytest.fixture
+def mock_chemical_equation(uid: str, structure: str):
+    mocked_ce = Mock(spec=ChemicalEquation)
+    mocked_ce.uid = uid
+    mocked_ce.smiles = structure
+
+
+def test_reaction_precedent(route):
+    syngraph = MonopartiteReacSynGraph(route)
+    rp = ReactionPrecedent(syngraph)
+    ce_uid_dict = {ce.uid: ce.smiles for ce in syngraph.get_unique_nodes()}
+    route_component = rp.get_route_components_for_metric("smiles")
+    assert route_component.component_type.name == "CHEMICAL_EQUATIONS"
+    assert route_component.uid_structure_map == ce_uid_dict
+
+    # all chemical equations have hits
+    external_data = {"precedents": {ce_uid: True for ce_uid in ce_uid_dict.keys()}}
+    out = rp.compute_metric(data=external_data)
+    assert math.isclose(out.metric_value, 1.0, rel_tol=1e-9)
+
+    # none of the chemical equations has hits
+    external_data = {"precedents": {ce_uid: False for ce_uid in ce_uid_dict.keys()}}
+    out = rp.compute_metric(data=external_data)
+    assert math.isclose(out.metric_value, 0.0, rel_tol=1e-9)
+
+    # half of the chemical equations has hits
+    external_data = {
+        "precedents": {ce_uid: True for ce_uid in list(ce_uid_dict.keys())[:2]}
+    }
+    external_data["precedents"].update(
+        {ce_uid: False for ce_uid in list(ce_uid_dict.keys())[2:]}
+    )
+    out = rp.compute_metric(data=external_data)
+    assert math.isclose(out.metric_value, 0.5, rel_tol=1e-9)
