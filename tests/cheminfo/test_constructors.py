@@ -448,13 +448,16 @@ def test_chemical_equation_equality():
 
     assert ces1.get(0) == ces1.get(
         1
-    )  # same reaction, one reactant has a different smiles: test mol canonicalization
+    )  # same reaction, one reactant has a different smiles:
+    # test mol canonicalization
     assert ces1.get(0) == ces1.get(
         2
-    )  # same reaction, two reactant have a different smiles: test mol canonicalization
+    )  # same reaction, two reactant have a different smiles:
+    # test mol canonicalization
     assert ces1.get(0) == ces1.get(
         3
-    )  # same reaction, two reactant have a different smiles: test mol canonicalization
+    )  # same reaction, two reactant have a different smiles:
+    # test mol canonicalization
     assert ces1.get(0) == ces1.get(
         4
     )  # same reaction, different reactant ordering: test reaction canonicalization
@@ -639,11 +642,6 @@ def test_chemical_equation_from_db():
     assert ce.role_map["reagents"] != []
     na_uid = next(uid for uid, mol in ce.catalog.items() if mol.smiles == "[Na+]")
     assert ce.stoichiometry_coefficients["reagents"][na_uid] == 3
-    # print(cif.rdrxn_to_string(ce.rdrxn, "smiles"))
-    # ce_from_string = chemical_equation_constructor.build_from_reaction_string(
-    #     "O=C(O)CCl.Oc1cc(Cl)c(Cl)cc1Cl>([Na+].[OH-]).([Na+].[OH-]).Cl>([Cl-].[Na+]).([Cl-].[Na+]).O.O.O=C(O)COc1cc(Cl)c(Cl)cc1Cl",
-    #     "smiles",
-    # )
 
 
 # Ratam tests
@@ -699,7 +697,8 @@ def test_ratam_and_role_reassignment():
                 "products": ["CNC(C)=O", "O"],
             },
         },
-        # A reactant is missing and all atoms in the desired product have a map number ("complete" option in namerxn)
+        # A reactant is missing and all atoms in the desired product
+        # have a map number ("complete" option in namerxn)
         {
             "name": "rnx_6",
             "smiles": "[CH3:1][C:2]([OH:3])=[O:4]>>[CH3:6][NH:5][C:2]([CH3:1])=[O:4]",
@@ -709,7 +708,8 @@ def test_ratam_and_role_reassignment():
                 "products": ["CNC(C)=O"],
             },
         },
-        # A reactant is missing and not all atoms in the desired product have a map number ("matched" option in namerxn)
+        # A reactant is missing and not all atoms in the desired
+        # product have a map number ("matched" option in namerxn)
         {
             "name": "rnx_7",
             "smiles": "[CH3:1][C:2]([OH:3])=[O:4]>>[CH3][NH][C:2]([CH3:1])=[O:4]",
@@ -871,35 +871,44 @@ def test_template_hashing():
     assert results.get(0).get("u_r_p")
     assert results.get(0).get("u_r_r_p")
 
-    # the reactant hash is insensitive to the input order of reactants (reaction canonicalization OK)
+    # the reactant hash is insensitive to the input order of reactants
+    # (reaction canonicalization OK)
     assert results.get(0).get("reactants") == results.get(1).get("reactants")
-    # the product hash is insensitive to the input order of products (reaction canonicalization OK)
+    # the product hash is insensitive to the input order of products
+    # (reaction canonicalization OK)
     assert results.get(7).get("products") == results.get(8).get("products")
-    # the machinery does break when the reactants are missing: Template is None
+    # the machinery does break when the reactants are missing:
+    # Template is None
     assert results.get(2) is None
     # the machinery does not break when the agents are missing
     assert results.get(3).get("reagents")
-    # the machinery does break when the products are missing: Template is None
+    # the machinery does break when the products are missing:
+    # Template is None
     assert results.get(4) is None
     # reagents are happily ignored
-    # there is a special hash for missing roles (it is the hash of an empty string)
+    # there is a special hash for missing roles
+    # (it is the hash of an empty string)
     assert results.get(3).get("reagents") == create_hash("")
-    # the reactant and products hashes are conserved even when the reagents are missing
+    # the reactant and products hashes are conserved
+    # even when the reagents are missing
     assert results.get(0).get("reactants") == results.get(5).get("reactants")
     assert results.get(0).get("products") == results.get(5).get("products")
     # the base r>p hash is conserved if the agents are missing in one reaction
     assert results.get(0).get("r_p") == results.get(5).get("r_p")
-    # the full r>a>p hash is conserved  if the reagents are missing in one reaction (reagents are ignored!!)
+    # the full r>a>p hash is conserved  if the reagents are
+    # missing in one reaction (reagents are ignored!!)
     assert results.get(0).get("r_r_p") == results.get(5).get("r_r_p")
     # the base r>>p hash is not conserved if the reaction is reversed
     assert results.get(0).get("r_p") != results.get(6).get("r_p")
     # the full r>a>p hash is not conserved if the reaction is reversed
     assert results.get(0).get("r_r_p") != results.get(6).get("r_r_p")
-    # the reversible base r<>p hash is not conserved if the reaction is reversed (this comes from rdchiral teplate extraction)
+    # the reversible base r<>p hash is not conserved
+    # if the reaction is reversed (this comes from rdchiral template extraction)
     # in some special cases it might be true, but it not necessarily is
     assert results.get(0).get("u_r_p") != results.get(9).get("u_r_p")
     assert results.get(3).get("u_r_p") != results.get(6).get("u_r_p")
-    # the reversible full r<a>p hash is not conserved if the reaction is reversed (this comes from rdchiral teplate extraction)
+    # the reversible full r<a>p hash is not conserved if the
+    # reaction is reversed (this comes from rdchiral teplate extraction)
     # in some special cases it might be true, but it not necessarily is
     assert results.get(0).get("u_r_r_p") != results.get(9).get("u_r_r_p")
     assert results.get(3).get("u_r_r_p") != results.get(6).get("u_r_r_p")
@@ -1060,16 +1069,16 @@ def test_disconnection():
         )
 
         assert disconnection_a.uid != disconnection_b.uid, (
-            f"The disconnection identifier is the same for some "
-            f"reactions that have the same products but different reactants: \n"
+            "The disconnection identifier is the same for some "
+            "reactions that have the same products but different reactants: \n"
             + f"{a}: {disconnection_a.uid} \n"
             f"{b}: {disconnection_b.uid} \n"
         )
         assert disconnection_a.hash_map.get(
             "disconnection_summary"
         ) != disconnection_b.hash_map.get("disconnection_summary"), (
-            f"The disconnection summary is the same for some reactions that have the same "
-            f"products but different reactants: \n"
+            "The disconnection summary is the same for some reactions that have the same "
+            "products but different reactants: \n"
             + f'{a}: {disconnection_a.hash_map.get("disconnection_summary")} \n'
             f'{b}: {disconnection_b.hash_map.get("disconnection_summary")} \n'
         )
@@ -1091,16 +1100,16 @@ def test_disconnection():
         )
 
         assert disconnection_a.uid != disconnection_b.uid, (
-            f"The disconnection identifier is the same for some "
-            f"reactions that have different products but same reactants: \n"
+            "The disconnection identifier is the same for some "
+            "reactions that have different products but same reactants: \n"
             + f"{a}: {disconnection_a.uid} \n"
             f"{b}: {disconnection_b.uid} \n"
         )
         assert disconnection_a.hash_map.get(
             "disconnection_summary"
         ) != disconnection_b.hash_map.get("disconnection_summary"), (
-            f"The disconnection summary is the same for some reactions that have the same "
-            f"products but different reactants: \n"
+            "The disconnection summary is the same for some reactions that have the same "
+            "products but different reactants: \n"
             + f'{a}: {disconnection_a.hash_map.get("disconnection_summary")} \n'
             f'{b}: {disconnection_b.hash_map.get("disconnection_summary")} \n'
         )
@@ -1136,16 +1145,16 @@ def test_disconnection():
             a != b
         ), f"You are comparing the same thing, please review the reactions selected from test set:  {a} {b}"
         assert disconnection_a.uid != disconnection_b.uid, (
-            f"The disconnection identifier is the same for some "
-            f"reactions that have different products but same reactants: \n"
+            "The disconnection identifier is the same for some "
+            "reactions that have different products but same reactants: \n"
             + f"{a}: {disconnection_a.uid} \n"
             f"{b}: {disconnection_b.uid} \n"
         )
         assert disconnection_a.hash_map.get(
             "disconnection_summary"
         ) != disconnection_b.hash_map.get("disconnection_summary"), (
-            f"The disconnection summary is the same for some reactions that have the same "
-            f"products but different reactants: \n"
+            "The disconnection summary is the same for some reactions that have the same "
+            "products but different reactants: \n"
             + f'{a}: {disconnection_a.hash_map.get("disconnection_summary")} \n'
             f'{b}: {disconnection_b.hash_map.get("disconnection_summary")} \n'
         )

@@ -1,7 +1,7 @@
 import copy
 import itertools
 from abc import ABC, abstractmethod
-from typing import List, Type, Union, Optional
+from typing import List, Optional, Type, Union
 
 import networkx as nx
 

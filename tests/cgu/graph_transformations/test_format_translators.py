@@ -3,9 +3,10 @@ import pydot
 import pytest
 
 from linchemin.cgu.graph_transformations.format_translators import (
+    AskcosV1,
+    AskcosV2,
     AzRetro,
     IbmRetro,
-    MitRetro,
     Networkx,
     PyDot,
     ReaxysRT,
@@ -135,6 +136,7 @@ def test_pydot_translation(iron_test_instance):
         node.properties["node_smiles"] for node in iron_test_instance.nodes.values()
     ]
     assert sorted(new_node_smiles) == sorted(original_node_smiles)
+    assert new_iron.name is not None
 
 
 def test_nx_translation(iron_test_instance):
@@ -155,10 +157,11 @@ def test_nx_translation(iron_test_instance):
         node.properties["node_smiles"] for node in iron_test_instance.nodes.values()
     ]
     assert sorted(new_node_smiles) == sorted(original_node_smiles)
+    assert new_iron.name is not None
 
 
 def test_nx_translation_single_node():
-    """To test that a single node graph is correctly translated to a netwoekx object"""
+    """To test that a single node graph is correctly translated to a networkx object"""
     iron = Iron()
     node = Node(iid="1", properties={"id": "1", "node_smiles": "smile_1"}, labels=["C"])
     iron.add_node("1", node)
@@ -183,7 +186,7 @@ def test_az_output(az_as_dict):
 
 
 def test_mit_output(mit_as_dict):
-    translator = MitRetro()
+    translator = AskcosV1()
     route_mit = mit_as_dict[0]
     iron = translator.to_iron(route_mit)
     assert iron.i_edge_number() == 7
@@ -195,7 +198,7 @@ def test_sparrow_translation():
     graph = {
         "CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1": {
             "Compound Nodes": ["CC(=O)Cl", "NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1"],
-            "Reaction Nodes": [
+            "Reactions": [
                 {
                     "smiles": "CC(=O)Cl.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
                     "conditions": ["CCN(CC)CC", "[Na+].[OH-]"],
@@ -215,11 +218,10 @@ def test_sparrow_translation():
     iron = translator.to_iron(graph)
     assert iron.i_node_number() == 2
     assert iron.i_edge_number() == 0
+    assert iron.name is not None
 
     new_sparrow = translator.from_iron(iron)
-    import pprint
 
-    pprint.pprint(new_sparrow)
     assert "Reaction Nodes" in new_sparrow
     assert "Compound Nodes" in new_sparrow
     assert len(new_sparrow["Reaction Nodes"]) == 2
@@ -244,10 +246,18 @@ def test_reaxys_translation(reaxys_as_dict):
     assert iron.i_edge_number() == 2
 
 
+def test_askcosv2_translation(askcosv2_as_dict):
+    translator = AskcosV2()
+    route = askcosv2_as_dict[0]
+    iron = translator.to_iron(route)
+    assert iron.i_node_number() == len(route["nodes"])
+    assert iron.i_edge_number() == len(route["edges"])
+
+
 def test_get_input():
     d = get_input_translators()
     assert isinstance(d, dict)
-    assert "mit_retro" in d
+    assert "askcosv1" in d
     assert "pydot_visualization" not in d
 
 

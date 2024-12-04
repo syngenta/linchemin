@@ -129,6 +129,46 @@ def ibm_dict_to_iron(
     return iron
 
 
+def askcosv2_dict_to_iron(route: dict) -> Iron:
+    iron = Iron()
+    all_nodes = route["nodes"]
+    all_edges = route["edges"]
+    for node in all_nodes:
+        id_n = node["id"]
+        smiles = node["smiles"]
+        prop = {"node_smiles": smiles}
+        iron_node = Node(properties=prop, iid=id_n, labels=[])
+        iron.add_node(iron_node.iid, iron_node)
+    for edge in all_edges:
+        id_e = str(iron.i_edge_number())
+        iron_edge = handle_edge(edge, id_e)
+        iron.add_edge(iron_edge.iid, iron_edge)
+    return iron
+
+
+def handle_edge(edge: dict, id_e: str) -> Edge:
+    """To build an Iron Edge from the Askcos V2 dictionary"""
+    source_node_id = edge["from"]
+    target_node_id = edge["to"]
+    return build_iron_edge(source_node_id, target_node_id, id_e)
+
+
+def handle_reaction_node(node: dict) -> Node:
+    """To build a reaction Iron Node from the Askcos V2 dictionary.
+    Not used for now: the reagents are reported as SMARTS rather than SMILES
+    """
+    id_n = node["id"]
+    smiles = node["smiles"]
+    reagent = node["necessary_reagent"]
+    if reagent != "":
+        reagent = reagent.strip("[]")
+        reactants, products = smiles.split(">>")
+        smiles = ">".join([reactants, reagent, products])
+    prop = {"node_smiles": smiles}
+    node = Node(properties=prop, iid=id_n, labels=[])
+    return node
+
+
 def populate_iron(parent: str, mol: str, iron: Iron) -> Tuple[Iron, str]:
     """
     To add new entities to an Iron instance
@@ -157,7 +197,7 @@ def populate_iron(parent: str, mol: str, iron: Iron) -> Tuple[Iron, str]:
 
     # Create node and add it to the Iron structure
     node = Node(properties=prop, iid=id_n, labels=[])
-    iron.add_node(str(id_n), node)
+    iron.add_node(id_n, node)
     # If the node is a "child" node, create edge from it to the parent node
     # The edge direction follows the chemical reaction direction: from reagent to product
     if parent is not None:
@@ -182,13 +222,13 @@ def build_iron_edge(source_node_id: str, target_node_id: str, id_e: str) -> Edge
 
     Returns:
     ---------
-    an iron.Edge object
+    an iron's Edge object
     """
     d = Direction(f"{source_node_id}>{target_node_id}")
     return Edge(
-        iid=str(id_e),
-        a_iid=str(source_node_id),
-        b_iid=str(target_node_id),
+        iid=id_e,
+        a_iid=source_node_id,
+        b_iid=target_node_id,
         direction=d,
         properties={},
         labels=[],

@@ -17,9 +17,9 @@ from linchemin.cheminfo.chemical_hashes import (
     calculate_molecular_hash_map,
     calculate_pattern_hash_map,
     calculate_reaction_like_hash_map,
-    validate_reaction_identifier,
     get_all_molecular_identifiers,
     validate_molecular_identifier,
+    validate_reaction_identifier,
 )
 from linchemin.cheminfo.models import (
     ChemicalEquation,
@@ -420,7 +420,7 @@ class DisconnectionConstructor:
 
     def get_fragments(
         self, rdmol: cif.Mol, new_bonds: List[tuple], fragmentation_method: int = 1
-    ):
+    ) -> Union[cif.Mol, None]:
         """To get the fragments of the desired product Mol. Inspired by
         https://github.com/rdkit/rdkit/issues/2081
         """
@@ -461,13 +461,19 @@ class DisconnectionConstructor:
             1: get_fragments_method_1,
             2: get_fragments_method_2,
         }
+        try:
+            frag_func = fragmentation_method_factory[fragmentation_method]
+            from rdkit.Chem import AllChem
 
-        frag_func = fragmentation_method_factory[fragmentation_method]
-        from rdkit.Chem import AllChem
-
-        AllChem.Compute2DCoords(rdmol)
-        rdmol_fragmented = frag_func(rdmol=rdmol, bonds=new_bonds)
-        return rdmol_fragmented
+            AllChem.Compute2DCoords(rdmol)
+            rdmol_fragmented = frag_func(rdmol=rdmol, bonds=new_bonds)
+            return rdmol_fragmented
+        except Exception as e:
+            logger.warning(
+                f"Something went wrong while creating the fragments: {e}."
+                f"None is returned"
+            )
+            return None
 
 
 BondInfo = namedtuple("BondInfo", ("product_atoms", "product_bond", "status"))

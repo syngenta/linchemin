@@ -59,7 +59,7 @@ class BipartiteToMonopartiteReactions(Converter):
             for d in out_reaction_list
         ]
         mp_graph = MonopartiteReacSynGraph(in_reaction_list)
-        mp_graph.source = graph.source
+        mp_graph.name = graph.name
         return mp_graph
 
 
@@ -77,7 +77,7 @@ class BipartiteToMonopartiteMolecules(Converter):
             for d in out_reaction_list
         ]
         mp_graph = MonopartiteMolSynGraph(in_reaction_list)
-        mp_graph.source = graph.source
+        mp_graph.name = graph.name
         return mp_graph
 
 
@@ -94,7 +94,7 @@ class MonopartiteMoleculesToMonopartiteReactions(Converter):
             for d in out_reaction_list
         ]
         mp_graph = MonopartiteReacSynGraph(in_reaction_list)
-        mp_graph.source = graph.source
+        mp_graph.name = graph.name
         return mp_graph
 
 
@@ -111,7 +111,7 @@ class MonopartiteMoleculesToBiparite(Converter):
             for d in out_reaction_list
         ]
         bp_graph = BipartiteSynGraph(in_reaction_list)
-        bp_graph.source = graph.source
+        bp_graph.name = graph.name
         return bp_graph
 
 
@@ -128,7 +128,7 @@ class MonopartiteReactionsToMonopartiteMolecules(Converter):
             for d in out_reaction_list
         ]
         bp_graph = MonopartiteMolSynGraph(in_reaction_list)
-        bp_graph.source = graph.source
+        bp_graph.name = graph.name
         return bp_graph
 
 
@@ -145,7 +145,7 @@ class MonopartiteReactionsToBipartite(Converter):
             for d in out_reaction_list
         ]
         bp_graph = BipartiteSynGraph(in_reaction_list)
-        bp_graph.source = graph.source
+        bp_graph.name = graph.name
         return bp_graph
 
 

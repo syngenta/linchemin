@@ -22,7 +22,7 @@ def test_bipartite_syngraph_instance(az_path):
     graph = json.loads(open(az_path).read())
     syngraph = translator("az_retro", graph[0], "syngraph", out_data_model="bipartite")
     assert len(syngraph.graph.keys()) != 0 and len(syngraph.graph.values()) != 0
-    assert syngraph.source is not None
+    assert syngraph.name is not None
     assert len(syngraph.get_roots()) == 1
     assert len(syngraph.get_leaves()) != 0
 
@@ -105,14 +105,14 @@ def test_add_existing_node_with_new_connections(ibm1_path):
     assert "C1CCOC1.CCOC(=O)CC.CCN>>CCC(=O)NCC" in syngraph[reactant]
 
 
-def test_syngraph_source(az_path):
-    """To test that the source attribute of a SynGraph instance is correctly assigned."""
+def test_syngraph_name(az_path):
+    """To test that the name attribute of a SynGraph instance is correctly assigned."""
     graph_az = json.loads(open(az_path).read())
     syngraph = translator(
         "az_retro", graph_az[1], "syngraph", out_data_model="bipartite"
     )
 
-    assert "az" in syngraph.source
+    assert "az" in syngraph.name
 
 
 def test_monopartite_syngraph(ibm1_path):
@@ -249,15 +249,15 @@ def test_hashing(ibm2_path):
     syngraph_mpr.add_node((ce, []))
     assert syngraph_mpr.uid != uid1
     # prefixes of the uid indicate the type of SynGraph
-    assert syngraph_mpr.uid[:3] == "MPR"
+    assert syngraph_mpr.uid.startswith("MPR")
 
     syngraph_mpm = translator(
         "ibm_retro", graph[0], "syngraph", "monopartite_molecules"
     )
-    assert syngraph_mpm.uid[:3] == "MPM"
+    assert syngraph_mpm.uid.startswith("MPM")
 
     syngraph_mpm = translator("ibm_retro", graph[0], "syngraph", "bipartite")
-    assert syngraph_mpm.uid[:2] == "BP"
+    assert syngraph_mpm.uid.startswith("BP")
 
 
 def test_bipartite_iron(az_path):

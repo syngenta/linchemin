@@ -1,3 +1,5 @@
+import math
+
 import pytest
 
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph
@@ -54,7 +56,7 @@ def test_atom_effectiveness():
     out = step_descriptor_calculator(
         "step_effectiveness", syngraph, route_smiles[0]["output_string"]
     )
-    assert round(out.descriptor_value, 2) == 0.92
+    assert math.isclose(round(out.descriptor_value, 2), 0.92, rel_tol=1e-9)
     contributing_atoms = 0
     for atoms in out.additional_info["contributing_atoms"].values():
         contributing_atoms += len(atoms)
@@ -63,7 +65,7 @@ def test_atom_effectiveness():
     out = step_descriptor_calculator(
         "step_effectiveness", syngraph, route_smiles[1]["output_string"]
     )
-    assert round(out.descriptor_value, 2) == 0.96
+    assert math.isclose(round(out.descriptor_value, 2), 0.96, rel_tol=1e-9)
     contributing_atoms = 0
     for atoms in out.additional_info["contributing_atoms"].values():
         contributing_atoms += len(atoms)
@@ -72,7 +74,7 @@ def test_atom_effectiveness():
     out = step_descriptor_calculator(
         "step_effectiveness", syngraph, route_smiles[2]["output_string"]
     )
-    assert round(out.descriptor_value, 2) == 0.97
+    assert math.isclose(round(out.descriptor_value, 2), 0.97, rel_tol=1e-9)
     contributing_atoms = 0
     for atoms in out.additional_info["contributing_atoms"].values():
         contributing_atoms += len(atoms)

@@ -137,6 +137,21 @@ def mit_as_dict():
 
 
 @pytest.fixture
+def askcosv2_path():
+    conftest_path = Path(__file__)
+    data_path = conftest_path.parent / "test_file"
+    return data_path.joinpath("askcosv2_output.json")
+
+
+@pytest.fixture
+def askcosv2_as_dict():
+    conftest_path = Path(__file__)
+    data_path = conftest_path.parent / "test_file"
+    data = data_path.joinpath("askcosv2_output.json")
+    return json.loads(open(data).read())
+
+
+@pytest.fixture
 def trees_path():
     conftest_path = Path(__file__)
     data_path = conftest_path.parent / "test_file"

@@ -22,7 +22,8 @@ from linchemin.configuration.defaults import DEFAULT_GED
 from linchemin.utilities import console_logger
 
 """
-Module containing classes and functions to compute the similarity between pairs of routes.
+Module containing classes and functions
+to compute the similarity between pairs of routes.
 """
 
 logger = console_logger(__name__)
@@ -35,7 +36,8 @@ class GraphDistanceError(Exception):
 
 
 class UnavailableGED(GraphDistanceError):
-    """Raised if the selected method to compute the graph distance is not among the available ones."""
+    """Raised if the selected method to compute
+    the graph distance is not among the available ones."""
 
     pass
 
@@ -94,7 +96,8 @@ class Ged(metaclass=abc.ABCMeta):
 
 
 class GedOptNx(Ged):
-    """Subclass for the calculation of the optimized GED algorithm as implemented in NetworkX."""
+    """Subclass for the calculation of the
+    optimized GED algorithm as implemented in NetworkX."""
 
     def compute_ged(
         self,
@@ -104,7 +107,7 @@ class GedOptNx(Ged):
     ) -> float:
         """Takes two SynGraph instances, fingerprints and similarity methods for both molecules
         and reactions and returns the GED between the two graphs as computed by the optimized GED algorithm in
-        NetworkX."""
+        NetworkX."""  # noqa: E501
         if isinstance(syngraph1, MonopartiteReacSynGraph) and isinstance(
             syngraph2, MonopartiteReacSynGraph
         ):
@@ -117,7 +120,8 @@ class GedOptNx(Ged):
 
         else:
             logger.error(
-                f"Graph1 has type = {type(syngraph1)} \nGraph2 has type = {type(syngraph2)}. "
+                f"Graph1 has type = {type(syngraph1)}"
+                f"Graph2 has type = {type(syngraph2)}. "
                 f"The GED cannot be computed between graph of different types."
             )
             raise MismatchingGraph
@@ -125,7 +129,8 @@ class GedOptNx(Ged):
             translator("syngraph", s, "networkx", out_data_model=out_data_model)
             for s in [syngraph1, syngraph2]
         ]
-        # The cost function uses the selected reaction and molecular fingerprints and the selected similarity type.
+        # The cost function uses the selected reaction
+        # and molecular fingerprints and the selected similarity type.
         node_subst_cost_partial = partial(
             node_subst_cost,
             reaction_fingerprints=ged_params.reaction_fingerprint,
@@ -148,7 +153,7 @@ class GedOptNx(Ged):
 
 class GedNxPrecomputedMatrix(Ged):
     """Subclass for the calculation of the GED algorithm as implemented in NetworkX; the chemical similarity between
-    nodes is precomputed."""
+    nodes is precomputed."""  # noqa: E501
 
     def compute_ged(
         self,
@@ -159,7 +164,7 @@ class GedNxPrecomputedMatrix(Ged):
         """Takes two SynGraph instances, fingerprints and similarity methods for both molecules
         and reactions and returns the GED between the two graphs as computed by the GED algorithm in NetworkX.
         The similarity matrix between nodes in the involved graphs is precomputed.
-        """
+        """  # noqa: E501
         if isinstance(syngraph1, MonopartiteReacSynGraph) and isinstance(
             syngraph2, MonopartiteReacSynGraph
         ):
@@ -188,7 +193,8 @@ class GedNxPrecomputedMatrix(Ged):
             )
             out_data_model = "bipartite"
 
-            # The cost function uses the selected reaction and molecular fingerprints and the selected similarity type.
+            # The cost function uses the selected reaction
+            # and molecular fingerprints and the selected similarity type.
             node_subst_cost_partial = partial(
                 node_subst_cost_matrix,
                 reaction_similarity_matrix=reaction_similarity_matrix,
@@ -196,7 +202,8 @@ class GedNxPrecomputedMatrix(Ged):
             )
         else:
             logger.error(
-                f"Graph1 has type = {type(syngraph1)} \nGraph2 has type = {type(syngraph2)}. "
+                f"Graph1 has type = {type(syngraph1)}"
+                f"Graph2 has type = {type(syngraph2)}. "
                 f"The GED cannot be computed between graph of different types."
             )
             raise MismatchingGraph
@@ -268,7 +275,7 @@ class GedNx(Ged):
     ) -> float:
         """Takes two SynGraph instances, fingerprints and similarity methods for both molecules
         and reactions and returns the GED between the two graphs as computed by the GED algorithm in NetworkX.
-        """
+        """  # noqa: E501
         if isinstance(syngraph1, MonopartiteReacSynGraph) and isinstance(
             syngraph2, MonopartiteReacSynGraph
         ):
@@ -281,7 +288,8 @@ class GedNx(Ged):
 
         else:
             logger.error(
-                f"Graph1 has type = {type(syngraph1)} \nGraph2 has type = {type(syngraph2)}. "
+                f"Graph1 has type = {type(syngraph1)} "
+                f"Graph2 has type = {type(syngraph2)}. "
                 f"The GED cannot be computed between graph of different types."
             )
             raise MismatchingGraph
@@ -289,7 +297,8 @@ class GedNx(Ged):
             translator("syngraph", s, "networkx", out_data_model=out_data_model)
             for s in [syngraph1, syngraph2]
         ]
-        # The cost function uses the selected reaction and molecular fingerprints and the selected similarity type.
+        # The cost function uses the selected reaction
+        # and molecular fingerprints and the selected similarity type.
         node_subst_cost_partial = partial(
             node_subst_cost,
             reaction_fingerprints=ged_params.reaction_fingerprint,
@@ -319,7 +328,7 @@ class GedFactory:
     -----------
     available_ged: a dictionary
         It maps the strings representing the 'name' of a GED algorithm to the correct Ged subclass
-    """
+    """  # noqa: E501
 
     available_ged = {
         "nx_ged": {
@@ -328,7 +337,8 @@ class GedFactory:
         },
         "nx_ged_matrix": {
             "value": GedNxPrecomputedMatrix,
-            "info": "Standard NetworkX GED algorithm. The distance matrix is computed in advance"
+            "info": "Standard NetworkX GED algorithm. "
+            "The distance matrix is computed in advance"
             'and the "root" algorithm is used',
         },
         "nx_optimized_ged": {
@@ -353,7 +363,8 @@ class GedFactory:
     ):
         if ged_method not in self.available_ged:
             logger.error(
-                f"'{ged_method}' is invalid. Available algorithms are: {self.available_ged.keys()}"
+                f"'{ged_method}' is invalid. "
+                f"Available algorithms are: {self.available_ged.keys()}"
             )
             raise UnavailableGED
 
@@ -399,7 +410,7 @@ def graph_distance_factory(
     >>> graphs = json.loads(open('ibm_file.json').read())
     >>> syngraphs = [translator('ibm_retro', g, 'syngraph', out_data_model='bipartite') for g in graphs]
     >>> ged = graph_distance_factory(syngraphs[0], syngraphs[3], ged_method='nx_ged')
-    """
+    """  # noqa: E501
     params = set_chemical_similarity_parameters(ged_params)
     ged_calculator = GedFactory()
     return ged_calculator.select_ged(syngraph1, syngraph2, ged_method, params)
@@ -408,7 +419,8 @@ def graph_distance_factory(
 def set_chemical_similarity_parameters(
     ged_params: dict,
 ) -> ChemicalSimilarityParameters:
-    """To set the instance of ChemicalSimilarityParameters with the desired parameters"""
+    """To set the instance of ChemicalSimilarityParameters
+    with the desired parameters"""
     params = ChemicalSimilarityParameters()
     if ged_params is None:
         return params
@@ -445,7 +457,7 @@ def node_subst_cost_matrix(
 ):
     """To compute the cost of substituting ona node with another, based on the pre-computed similarity matrices.
     The more different the nodes, the higher the cost.
-    """
+    """  # noqa: E501
     # The correct similarity matrix is used based on the node types
     if isinstance(node1["properties"]["node_type"], ChemicalEquation) and isinstance(
         node2["properties"]["node_type"], ChemicalEquation
@@ -485,7 +497,7 @@ def node_subst_cost(
     ---------
     cost: float
         The cost of the substitution (between 0 and 1)
-    """
+    """  # noqa: E501
     # If both nodes are ChemicalEquation, their similarity is computed
     if isinstance(node1["properties"]["node_type"], ChemicalEquation) and isinstance(
         node2["properties"]["node_type"], ChemicalEquation
@@ -532,8 +544,8 @@ def get_reaction_similarity(
         fp_name=reaction_fingerprint,
         params=reaction_fp_params,
     )
-    tanimoto = compute_similarity(fp1, fp2, similarity_name=reaction_similarity)
-    return 1.0 - tanimoto
+    similarity = compute_similarity(fp1, fp2, similarity_name=reaction_similarity)
+    return 1.0 - similarity
 
 
 def get_molecular_similarity(
@@ -557,8 +569,8 @@ def get_molecular_similarity(
         parameters=molecular_fp_params,
         count_fp_vector=molecular_fp_count_vect,
     )
-    tanimoto = compute_similarity(fp1, fp2, similarity_name=molecular_similarity_name)
-    return 1.0 - tanimoto
+    similarity = compute_similarity(fp1, fp2, similarity_name=molecular_similarity_name)
+    return 1.0 - similarity
 
 
 def get_mol_fp_dict(
@@ -585,7 +597,7 @@ def get_mol_fp_dict(
     ----------
     molecule_node_fingerprints: dict
         The fingerprints of the Molecule nodes
-    """
+    """  # noqa: E501
 
     molecules = get_molecule_nodes(syngraph)
 
@@ -622,7 +634,7 @@ def get_reactions_fp_dict(
     ----------
     reaction_node_fingerprints: dict
         The fingerprints of the ChemicalEquation nodes
-    """
+    """  # noqa: E501
     reactions = get_chemical_equation_nodes(syngraph)
     return {
         ce.uid: compute_reaction_fingerprint(
@@ -679,7 +691,7 @@ def build_similarity_matrix(
     ---------
     matrix: pd.DataFrame
         a pandas dataframe (n nodes in graph1) x (n nodes in graph2) containing the similarity values
-    """
+    """  # noqa: E501
     columns = list(d_fingerprints1.keys())
     rows = list(d_fingerprints2.keys())
     matrix = pd.DataFrame(
@@ -728,10 +740,12 @@ def compute_distance_matrix(
     >>> graph = json.loads(open('az_file.json').read())
     >>> mp_syngraphs = [translator('az_retro', g, 'syngraph', out_data_model='monopartite_reactions') for g in graph]
     >>> m = compute_distance_matrix(mp_syngraphs, ged_method='nx_ged')
-    """
+    """  # noqa: E501
+
     if len(syngraphs) < 2:
         logger.error(
-            "Less than 2 routes were found: it is not possible to compute the distance matrix"
+            "Less than 2 routes were found: "
+            "it is not possible to compute the distance matrix"
         )
         raise TooFewRoutes
 
@@ -795,7 +809,7 @@ def parallel_matrix_calculations(
     --------
     i, j, sim: tuple
             Two indices of the matrix and the relative distance value
-    """
+    """  # noqa: E501
     (i, j, r1, r2) = data
     sim = graph_distance_factory(r1, r2, ged_method=ged_method, ged_params=ged_params)
     return i, j, sim

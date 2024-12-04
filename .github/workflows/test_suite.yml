@@ -22,12 +22,12 @@ jobs:
         run: SKIP=no-commit-to-branch pre-commit run --all-files --show-diff-on-failure
 
   testing:
-    needs: [pre-commit]
+    needs: [ pre-commit ]
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-20.04", "ubuntu-22.04", "macos-12", "windows-2022"]
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        os: [ "ubuntu-20.04", "ubuntu-22.04", "macos-13", "windows-2022" ]
+        python-version: [ "3.8", "3.9", "3.10", "3.11" ]
     name: "Python ${{ matrix.python-version }} on ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
     steps:

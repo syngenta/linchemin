@@ -548,8 +548,8 @@ def find_duplicates(syngraphs1: list, syngraphs2: list) -> Union[List[tuple], No
     duplicates = []
     for g1 in syngraphs1:
         if g1 in syngraphs2:
-            g2 = [g.source for g in syngraphs2 if g == g1]
-            duplicates.append((g1.source, *g2))
+            g2 = [g.name for g in syngraphs2 if g == g1]
+            duplicates.append((g1.name, *g2))
     if duplicates:
         return duplicates
     else:
@@ -574,9 +574,9 @@ def get_nodes_consensus(syngraphs: list) -> dict:
     node_consensus = defaultdict(set)
     for graph in syngraphs:
         for reac, connections in graph:
-            node_consensus[reac].add(graph.source)
+            node_consensus[reac].add(graph.name)
             for c in connections:
-                node_consensus[c].add(graph.source)
+                node_consensus[c].add(graph.name)
     node_consensus = dict(
         sorted(node_consensus.items(), reverse=True, key=lambda item: len(item[1]))
     )

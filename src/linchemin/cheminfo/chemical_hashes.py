@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Type, Union, List
+from typing import List, Type, Union
 
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Optional
 
 """
 Module containing the definitions of the Iron class.
@@ -95,7 +96,7 @@ class Iron:
 
     edges: a dictionary storing the edges of the graph
 
-    source: a list containing the sources/format transformations of the graph
+    name: a string representing the name of the graph
     """
 
     def __init__(self):
@@ -107,7 +108,7 @@ class Iron:
         """
         self.nodes = {}
         self.edges = {}
-        self.source = str
+        self.name: Optional[str] = None
 
     def __str__(self):
         return f"Nodes: {self.nodes} \nEdges: {self.edges}"

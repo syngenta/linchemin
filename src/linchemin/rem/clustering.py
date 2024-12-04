@@ -14,7 +14,8 @@ from linchemin.rem.route_descriptors import descriptor_calculator
 from linchemin.utilities import console_logger
 
 """
-Module containing classes and functions to compute the clustering of routes based on the distance matrix.
+Module containing classes and functions to compute
+the clustering of routes based on the distance matrix.
 """
 
 logger = console_logger(__name__)
@@ -73,7 +74,8 @@ class HdbscanClusterCalculator(ClusterCalculator):
     """Subclass of ClusterCalculator to apply the Hdbscan algorithm"""
 
     def get_clustering(self, dist_matrix, save_dist_matrix, **kwargs):
-        """Applies the Hdbscan algorithm. Possible optional arguments: min_cluster_size"""
+        """Applies the Hdbscan algorithm.
+        Possible optional arguments: min_cluster_size"""
         min_cluster_size = kwargs.get(
             "min_cluster_size", settings.CLUSTERING.min_cluster_size
         )
@@ -89,7 +91,8 @@ class HdbscanClusterCalculator(ClusterCalculator):
         if 0 not in clustering.labels_:
             # hdbscan: with less than 15 datapoints, only noise is found
             logger.error(
-                "Hdbscan found only noise. This can occur if less than 15 routes were given"
+                "Hdbscan found only noise. "
+                "This can occur if less than 15 routes were given"
             )
             raise OnlyNoiseClustering
         s_score = compute_silhouette_score(dist_matrix, clustering.labels_)
@@ -105,7 +108,8 @@ class AgglomerativeClusterCalculator(ClusterCalculator):
     """Subclass of ClusterCalculator to apply the Agglomerative Clustering algorithm"""
 
     def get_clustering(self, dist_matrix, save_dist_matrix, **kwargs):
-        """Applies the Agglomerative Clustering algorithm. Possible optional arguments: linkage"""
+        """Applies the Agglomerative Clustering algorithm.
+        Possible optional arguments: linkage"""
         linkage = kwargs.get("linkage", settings.CLUSTERING.linkage)
         clustering, s_score, best_n_cluster = optimize_agglomerative_cluster(
             dist_matrix, linkage
@@ -138,7 +142,7 @@ class ClusterFactory:
     available_clustering_algorithms: : a dictionary
         It maps the strings representing the 'name' of a clustering algorithm to the correct
         ClusterCalculator subclass
-    """
+    """  # noqa: E501
 
     available_clustering_algorithms = {
         "hdbscan": {
@@ -147,7 +151,8 @@ class ClusterFactory:
         },
         "agglomerative_cluster": {
             "value": AgglomerativeClusterCalculator,
-            "info": "Agglomerative Clustering algorithm. The number of clusters is optimized "
+            "info": "Agglomerative Clustering algorithm. "
+            "The number of clusters is optimized "
             "computing the silhouette score",
         },
     }
@@ -244,7 +249,7 @@ def clusterer(
     >>> cluster1, score1 = clusterer(syngraphs,
     >>>                              ged_method='nx_optimized_ged',
     >>>                              clustering_method='agglomerative_cluster')
-    """
+    """  # noqa: E501
     if len(syngraphs) < 2:
         logger.error("Less than 2 routes were found: clustering not possible")
         raise SingleRouteClustering
@@ -296,7 +301,7 @@ def optimize_agglomerative_cluster(dist_matrix: np.array, linkage: str) -> tuple
         best_clustering: the output of the clustering algorithm with the best silhouette score
         max_score: a float indicating the silhouette score relative to the best_clustering
         best_n_cluster: an integer indicating the number of clusters used to get the best silhouette score
-    """
+    """  # noqa: E501
 
     best_clustering = None
     max_score = -1.0
@@ -357,7 +362,7 @@ def populate_metric_df(
     d = pd.DataFrame(columns=columns)
     for n, graph in enumerate(graphs):
         n_step = descriptor_calculator(graph, "nr_steps")
-        route_id = graph.source
+        route_id = graph.name
         d.loc[n, "routes_id"] = route_id
         d.loc[n, "n_steps"] = n_step
         b = descriptor_calculator(graph, "nr_branches")

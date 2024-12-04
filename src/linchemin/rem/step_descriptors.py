@@ -70,7 +70,8 @@ class StepDescriptor(metaclass=abc.ABCMeta):
         desired_product: Molecule, all_transformations: List[AtomTransformation]
     ) -> List[List[AtomTransformation]]:
         """To identify the atomic paths starting from the desired product."""
-        # identify all the atom transformations that involve atoms of the desired product
+        # identify all the atom transformations that involve atoms
+        # of the desired product
         target_transformations = {
             at for at in all_transformations if at.product_uid == desired_product.uid
         }
@@ -216,7 +217,8 @@ class StepBondEfficiency(StepDescriptor):
     def final_step_bonds(
         self, step: ChemicalEquation, target: Molecule, disconnection_bonds: list
     ):
-        """To compute the bond efficiency if the considered step is the last 'root' step"""
+        """To compute the bond efficiency if the considered step
+        is the last 'root' step"""
         out = DescriptorCalculationOutput()
         out.descriptor_value = 0
         for bond in disconnection_bonds:
@@ -322,8 +324,10 @@ class StepBondEfficiency(StepDescriptor):
 
 @StepDescriptorsFactory.register_step_descriptor("step_effectiveness")
 class StepEffectiveness(StepDescriptor):
-    """Subclass to compute the atom effectiveness of the step. Currently computed as the ratio between the number
-    of atoms in the step reactants that contribute to the final target and the total number of atoms in the step reactants
+    """Subclass to compute the atom effectiveness of the step.
+    Currently computed as the ratio between the number
+    of atoms in the step reactants that contribute to the
+    final target and the total number of atoms in the step reactants
     """
 
     def compute_step_descriptor(

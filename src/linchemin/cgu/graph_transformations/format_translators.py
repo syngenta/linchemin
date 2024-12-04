@@ -10,6 +10,7 @@ import linchemin.cgu.graph_transformations.exceptions as exceptions
 import linchemin.cheminfo.depiction as cid
 from linchemin import settings
 from linchemin.cgu.graph_transformations.supporting_functions import (
+    askcosv2_dict_to_iron,
     az_dict_to_iron,
     build_iron_edge,
     ibm_dict_to_iron,
@@ -183,7 +184,7 @@ class ReaxysRT(GraphFormatTranslator):
             reactants_ids = self.handle_molecules(starting_materials, iron)
             for i in products_ids:
                 self.add_iron_edge(iron, i, reactants_ids)
-
+        iron.name = "reaxys_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
         return iron
 
     def handle_molecules(self, molecules: list, iron: Iron) -> list:
@@ -217,7 +218,7 @@ class ReaxysRT(GraphFormatTranslator):
         edges = []
         id_e = len(iron.edges)
         for sm in reactants_ids:
-            edges.append(build_iron_edge(sm, i, id_e))
+            edges.append(build_iron_edge(str(sm), str(i), id_e))
             id_e += 1
         [iron.add_edge(iron_edge.iid, iron_edge) for iron_edge in edges]
 
@@ -252,7 +253,7 @@ class Networkx(GraphFormatTranslator):
     def build_multi_nodes_nx(self, route_iron: Iron) -> nx.DiGraph:
         """To build a networkx GiGraph with multiple nodes connected by edges"""
         nx_graph = nx.DiGraph()
-        nx_graph.graph["source"] = route_iron.source
+        nx_graph.graph["name"] = route_iron.name
         self.add_nx_nodes_edges(nx_graph, route_iron)
         self.add_nx_nodes_attributes(nx_graph, route_iron)
 
@@ -283,7 +284,7 @@ class Networkx(GraphFormatTranslator):
                     attrs_n = {
                         node.properties["node_smiles"]: {
                             "properties": node.properties,
-                            "source": route_iron.source,
+                            "name": route_iron.name,
                             "label": settings.ROUTE_MINING.molecule_node_label,
                             "uid": node_instance.uid,
                         }
@@ -292,7 +293,7 @@ class Networkx(GraphFormatTranslator):
                     attrs_n = {
                         node.properties["node_smiles"]: {
                             "properties": node.properties,
-                            "source": route_iron.source,
+                            "name": route_iron.name,
                             "label": settings.ROUTE_MINING.chemicalequation_node_label,
                             "uid": node_instance.uid,
                         }
@@ -302,7 +303,7 @@ class Networkx(GraphFormatTranslator):
                 attrs_n = {
                     node.properties["node_smiles"]: {
                         "properties": node.properties,
-                        "source": route_iron.source,
+                        "name": route_iron.name,
                         "label": node.labels,
                     }
                 }
@@ -345,7 +346,7 @@ class Networkx(GraphFormatTranslator):
     def build_single_node_nx(self, route_iron: Iron) -> nx.classes.digraph.DiGraph:
         """To create a networky network with only isolated nodes"""
         nx_graph = nx.DiGraph()
-        nx_graph.graph["source"] = route_iron.source
+        nx_graph.graph["name"] = route_iron.name
         for node in route_iron.nodes.values():
             nx_graph.add_node(node.properties["node_smiles"])
         self.add_nx_nodes_attributes(nx_graph, route_iron)
@@ -359,9 +360,9 @@ class Networkx(GraphFormatTranslator):
             iron_node = Node(iid=str(id_n), properties={"node_smiles": node}, labels=[])
             iron.add_node(str(id_n), iron_node)
         for id_e, (edge, data) in enumerate(route.edges.items()):
-            iron_edge = self.nx_edge_to_iron_edge(edge, id_e, iron)
+            iron_edge = self.nx_edge_to_iron_edge(edge, str(id_e), iron)
             iron.add_edge(str(id_e), iron_edge)
-
+        iron.name = "networkx_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
         return iron
 
     @staticmethod
@@ -389,7 +390,7 @@ class PyDot(GraphFormatTranslator):
         try:
             if route_iron is None:
                 raise exceptions.EmptyRoute
-            dot_graph = pydot.Dot(route_iron.source, graph_type="digraph")
+            dot_graph = pydot.Dot(route_iron.name, graph_type="digraph")
             # Translating iron nodes into dot nodes
             for id_n, node in route_iron.nodes.items():
                 # NB Sometimes Pydot adds unwanted double quotes to the string name of the node
@@ -431,8 +432,9 @@ class PyDot(GraphFormatTranslator):
             )
             iron.add_node(str(id_n), iron_node)
         for id_e, edge in enumerate(route.get_edges()):
-            iron_edge = self.pydot_edges_to_iron_edge(edge, id_e, iron)
+            iron_edge = self.pydot_edges_to_iron_edge(edge, str(id_e), iron)
             iron.add_edge(str(id_e), iron_edge)
+        iron.name = "pydot_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
         return iron
 
     @staticmethod
@@ -471,7 +473,7 @@ class IbmRetro(GraphFormatTranslator):
             if iron_graph.i_edge_number() == 0:
                 raise exceptions.InvalidRoute
 
-            iron_graph.source = "ibm_" + datetime.datetime.now().strftime(
+            iron_graph.name = "ibm_" + datetime.datetime.now().strftime(
                 "%Y%m%d%H%M%S%f"
             )
             return iron_graph
@@ -506,9 +508,7 @@ class AzRetro(GraphFormatTranslator):
             if not route:
                 raise exceptions.EmptyRoute
             iron_graph = az_dict_to_iron(route, iron=None, parent=None)
-            iron_graph.source = "az_" + datetime.datetime.now().strftime(
-                "%Y%m%d%H%M%S%f"
-            )
+            iron_graph.name = "az_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
             return iron_graph
         except exceptions.EmptyRoute:
             logger.warning(
@@ -517,8 +517,8 @@ class AzRetro(GraphFormatTranslator):
             return None
 
 
-@GraphFormatCatalog.register_format("mit_retro", "Askcos output (dictionary)")
-class MitRetro(GraphFormatTranslator):
+@GraphFormatCatalog.register_format("askcosv1", "Askcos V1 output (dictionary)")
+class AskcosV1(GraphFormatTranslator):
     """Translator subclass to handle translations of outputs generated by Askcos CASP tool"""
 
     as_input = "implemented"
@@ -534,13 +534,39 @@ class MitRetro(GraphFormatTranslator):
             if not route:
                 raise exceptions.EmptyRoute
             iron_graph = mit_dict_to_iron(route, iron=None, parent=None)
-            iron_graph.source = "mit_" + datetime.datetime.now().strftime(
+            iron_graph.name = "mit_" + datetime.datetime.now().strftime(
                 "%Y%m%d%H%M%S%f"
             )
             return iron_graph
         except exceptions.EmptyRoute:
             logger.warning(
                 'While translating from Asckos to Iron an empty route was found: "None" returned'
+            )
+            return None
+
+
+@GraphFormatCatalog.register_format("askcosv2", "Askcos V2 output (dictionary)")
+class AskcosV2(GraphFormatTranslator):
+    """Translator subclass to handle translations of outputs generated by Askcos V2 CASP tool"""
+
+    as_input = "implemented"
+    as_output = None
+
+    def from_iron(self, graph: Iron):
+        pass
+
+    def to_iron(self, route: dict) -> Union[Iron, None]:
+        try:
+            if not route:
+                raise exceptions.EmptyRoute
+            iron_graph = askcosv2_dict_to_iron(route)
+            iron_graph.name = "askcosv2_" + datetime.datetime.now().strftime(
+                "%Y%m%d%H%M%S%f"
+            )
+            return iron_graph
+        except exceptions.EmptyRoute:
+            logger.warning(
+                'While translating from Asckos V2 to Iron an empty route was found: "None" returned'
             )
             return None
 
@@ -654,7 +680,7 @@ class PydotVisualization(GraphFormatTranslator):
         try:
             if route_iron is None:
                 raise exceptions.EmptyRoute
-            dot_graph = pydot.Dot(route_iron.source, graph_type="digraph")
+            dot_graph = pydot.Dot(route_iron.name, graph_type="digraph")
             # Translating iron nodes into dot nodes
             for id_n, node in route_iron.nodes.items():
                 self.create_dot_node(node, id_n, dot_graph)
@@ -663,10 +689,8 @@ class PydotVisualization(GraphFormatTranslator):
             for edge in route_iron.edges.values():
                 self.create_dot_edge(edge, route_iron, dot_graph)
 
-            dot_graph.write(f"route_{route_iron.source}.dot")
-            os.system(
-                f"dot -Tpng route_{route_iron.source}.dot > route_{route_iron.source}.png"
-            )
+            dot_graph.write(f"{route_iron.name}.dot")
+            os.system(f"dot -Tpng {route_iron.name}.dot > {route_iron.name}.png")
 
             for id_n in route_iron.nodes.keys():
                 os.remove(f"{id_n}.png")
@@ -734,7 +758,7 @@ class Sparrow(GraphFormatTranslator):
         reactions = [
             reaction
             for target, data in graph.items()
-            for reaction in data["Reaction Nodes"]
+            for reaction in data["Reactions"]
             if not reaction["smiles"].startswith(">>")
         ]
         iron = Iron()
@@ -747,7 +771,7 @@ class Sparrow(GraphFormatTranslator):
                 iid=str(n), properties={"node_smiles": reaction_smiles}, labels=[]
             )
             iron.add_node(str(n), node)
-        iron.source = "sparrow_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+        iron.name = "sparrow_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
         return iron
 
     @staticmethod
@@ -799,7 +823,7 @@ class Sparrow(GraphFormatTranslator):
         chemical_equation = node.properties["node_type"]
         reaction = {
             "smiles": chemical_equation.build_reaction_smiles(use_reagents=False),
-            "conditions": self.get_molecules(chemical_equation, "reagents"),
+            "conditions": [r.smiles for r in chemical_equation.get_reagents()],
         }
         return reaction
 
@@ -808,9 +832,9 @@ class Sparrow(GraphFormatTranslator):
         """To get the list of reagents smiles of a chemical equation"""
         return [reactant.smiles for reactant in chemical_equation.get_reagents()]
 
-    def handle_reaction_smiles(self, reaction_smiles: str) -> dict:
+    @staticmethod
+    def handle_reaction_smiles(reaction_smiles: str) -> dict:
         molecules = reaction_smiles.split(">")
-        print(molecules)
         return {
             "smiles": molecules[0] + ">>" + molecules[-1],
             "conditions": molecules[1],

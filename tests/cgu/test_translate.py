@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from linchemin.cgu.graph_transformations.data_model_converters import Bipartite
+from linchemin.cgu.graph_transformations.data_model_converters import BipartiteGenerator
 from linchemin.cgu.translate import (
     InputToIron,
     IronToOutput,
@@ -23,7 +23,7 @@ def mock_data_model_converter(mocker):
     """To mock an instance of a DataModelConverter"""
     mock = Mock()
     mocker.patch(
-        "linchemin.cgu.graph_transformations.data_model_converters.Bipartite",
+        "linchemin.cgu.graph_transformations.data_model_converters.BipartiteGenerator",
         return_value=mock,
     )
     return mock
@@ -76,7 +76,7 @@ def test_input_to_iron(
 
 
 @patch(
-    "linchemin.cgu.graph_transformations.data_model_converters.Bipartite.iron_to_syngraph"
+    "linchemin.cgu.graph_transformations.data_model_converters.BipartiteGenerator.iron_to_syngraph"
 )
 def test_iron_to_syngraph(mock_method, iron_w_smiles):
     """To test the second step of the chain"""
@@ -84,14 +84,14 @@ def test_iron_to_syngraph(mock_method, iron_w_smiles):
     params = TranslationParameters(
         input_format="az_retro",
         output_format="syngraph",
-        data_model_converter=Bipartite(),
+        data_model_converter=BipartiteGenerator(),
     )
     handler.translate(iron_w_smiles, params)
     mock_method.assert_called()
 
 
 @patch(
-    "linchemin.cgu.graph_transformations.data_model_converters.Bipartite.syngraph_to_iron"
+    "linchemin.cgu.graph_transformations.data_model_converters.BipartiteGenerator.syngraph_to_iron"
 )
 def test_syngraph_to_iron(mock_method, bp_syngraph_instance):
     """To test the third step of the chain"""
@@ -99,7 +99,7 @@ def test_syngraph_to_iron(mock_method, bp_syngraph_instance):
     params = TranslationParameters(
         input_format="az_retro",
         output_format="networkx",
-        data_model_converter=Bipartite(),
+        data_model_converter=BipartiteGenerator(),
     )
     handler.translate(bp_syngraph_instance, params)
     mock_method.assert_called()
@@ -156,23 +156,24 @@ def test_pydot_visualization_translation(
 
 
 @patch("linchemin.cgu.graph_transformations.format_translators.NOC.from_iron")
-def test_NOC_translation(mock_noc, bp_syngraph_instance):
+def test_noc_translation(mock_noc, bp_syngraph_instance):
     translator("syngraph", bp_syngraph_instance, "noc", out_data_model="bipartite")
     mock_noc.assert_called()
 
 
 def test_get_available_options():
     options = get_available_formats()
-    assert type(options) == dict
+    assert isinstance(options, dict)
     assert "syngraph" in options["as_input"] and "syngraph" in options["as_output"]
     options = get_available_data_models()
-    assert type(options) == dict and "bipartite" in options
+    assert isinstance(options, dict)
+    assert "bipartite" in options
 
 
 def test_out_format():
     out = get_output_formats()
     assert isinstance(out, dict) and "pydot_visualization" in out and "iron" in out
-    assert "mit_retro" not in out
+    assert "askcosv1" not in out
 
 
 def test_in_format():
