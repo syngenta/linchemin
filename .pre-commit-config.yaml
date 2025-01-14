@@ -16,9 +16,14 @@ repos:
       - id: fix-byte-order-marker
         exclude: '^docs/source/reference/generated/.*\.rst'
       - id: no-commit-to-branch
-        args: [--branch, main]
+        args: [ --branch, main ]
       - id: trailing-whitespace
         exclude: '^docs/source/reference/generated/.*\.rst'
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: isort (python)
   - repo: https://github.com/ambv/black
     rev: 23.9.1
     hooks:
@@ -28,5 +33,5 @@ repos:
     rev: v3.11.1
     hooks:
       - id: pyupgrade
-        args: [--py38-plus, --keep-runtime-typing]
+        args: [ --py38-plus, --keep-runtime-typing ]
         files: '.*\.pyi?$'

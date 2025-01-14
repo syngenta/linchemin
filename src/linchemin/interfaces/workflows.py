@@ -19,10 +19,6 @@ from linchemin.interfaces.facade import facade
 from linchemin.interfaces.utils_interfaces import get_ged_dict, get_parallelization_dict
 from linchemin.interfaces.writers import SyngraphWriterFactory, write_syngraph
 from linchemin.rem.clustering import get_available_clustering
-from linchemin.rem.graph_distance import (
-    get_available_ged_algorithms,
-    get_ged_parameters,
-)
 from linchemin.rem.route_descriptors import get_available_descriptors
 from linchemin.utilities import console_logger
 

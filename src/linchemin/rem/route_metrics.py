@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Type, Union, Optional, List, Dict
+from typing import Dict, List, Optional, Type, Union
 
 import linchemin.cheminfo.functions as cif
 from linchemin.cgu.convert import converter

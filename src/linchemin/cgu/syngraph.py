@@ -3,7 +3,7 @@ from collections import defaultdict
 from typing import List, Optional, Tuple, Union
 
 import linchemin.utilities as utilities
-from linchemin.cgu.iron import Iron, Node
+from linchemin.cgu.iron import Iron
 from linchemin.cheminfo.constructors import (
     ChemicalEquationConstructor,
     MoleculeConstructor,

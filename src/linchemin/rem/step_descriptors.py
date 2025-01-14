@@ -9,12 +9,9 @@ from linchemin.cgu.syngraph import (
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
 )
-from linchemin.cheminfo.constructors import (
-    AtomTransformation,
-    ChemicalEquationConstructor,
-)
+from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 from linchemin.cheminfo.functions import Descriptors
-from linchemin.cheminfo.models import ChemicalEquation, Molecule
+from linchemin.cheminfo.models import AtomTransformation, ChemicalEquation, Molecule
 from linchemin.utilities import console_logger
 
 """

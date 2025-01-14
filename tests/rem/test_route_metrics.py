@@ -1,30 +1,27 @@
 import math
+from unittest.mock import Mock, patch
 
 import pytest
+
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteReacSynGraph,
-)
 from linchemin.rem.route_metrics import (
+    InvalidComponentTypeError,
+    MissingDataError,
     NotFullyMappedRouteError,
     ReactantAvailability,
-    RouteMetric,
+    ReactionPrecedent,
     RenewableCarbonMetric,
-    StartingMaterialsAmount,
-    YieldMetric,
-    route_metric_calculator,
-    MissingDataError,
-    RouteComponentType,
     RouteComponents,
-    InvalidComponentTypeError,
+    RouteComponentType,
+    RouteMetric,
+    StartingMaterialsAmount,
+    StartingMaterialsAvailability,
     UnavailableMetricError,
     UnavailableMoleculeFormat,
-    ReactionPrecedent,
-    StartingMaterialsAvailability,
+    YieldMetric,
+    route_metric_calculator,
 )
-
-from unittest.mock import patch, Mock
 
 
 @pytest.fixture

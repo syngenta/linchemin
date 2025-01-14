@@ -16,7 +16,6 @@ from rdkit.Chem import (
 from rdkit.Chem.rdchem import Atom, Mol
 from rdkit.Chem.rdMolHash import HashFunction, MolHash
 
-
 import linchemin.utilities as utilities
 
 # RDLogger.DisableLog('rdApp.*')
@@ -590,12 +589,8 @@ def rdrxn_to_molecule_catalog(
     mol_catalog = {}
     for role, rdmols in reaction_rdmols.items():
         mol_catalog[role] = [
-            constructor.build_from_rdmol(rdmol=rdmol)
-            for r, rdmol_list in reaction_rdmols.items()
-            if r == role
-            for rdmol in rdmol_list
+            constructor.build_from_rdmol(rdmol=rdmol) for rdmol in rdmols
         ]
-
     return mol_catalog
 
 
@@ -619,6 +614,14 @@ def select_desired_product(mol_catalog: list):
         the Molecule instance corresponding to the desired product
     """
     d = {p: sum(atom.GetMass() for atom in p.rdmol.GetAtoms()) for p in mol_catalog}
+    return max(d, key=d.get)
+
+
+def get_heaviest_mol(mol_list: List):
+    """
+    To select the molecule with the bigger mass among a list of molecules
+    """
+    d = {p: sum(atom.GetMass() for atom in p.rdmol.GetAtoms()) for p in mol_list}
     return max(d, key=d.get)
 
 

@@ -1,6 +1,7 @@
+from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Union
+from typing import List, NamedTuple, Union
 
 import linchemin.cheminfo.functions as cif
 
@@ -45,6 +46,52 @@ class Molecule:
             "smiles": self.smiles,
             "hash_map": self.hash_map,
         }
+
+
+@dataclass
+class ReactionComponents:
+    reactants: List[Molecule] = field(default_factory=list)
+    reagents: List[Molecule] = field(default_factory=list)
+    products: List[Molecule] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(**data)
+
+    def get_molecule_catalog(self):
+        """To get a catalog of the unique Molecules involved in the reaction
+        in the form {mol_uid: Molecule}"""
+        return {mol.uid: mol for mol in self.reactants + self.reagents + self.products}
+
+    def get_stoichiometry_coefficients(self):
+        """To get the stoichiometry coefficients of each molecule involved
+        the reaction in the form {'role': {uid: n}}"""
+        return {
+            "reactants": self._count_unique_items_by_attribute(self.reactants),
+            "products": self._count_unique_items_by_attribute(self.products),
+            "reagents": self._count_unique_items_by_attribute(self.reagents),
+        }
+
+    def get_role_map(self):
+        """To get a dictionary mapping a list of Molecules onto their role"""
+        return {
+            "reactants": sorted(list({m.uid for m in set(self.reactants)})),
+            "products": sorted(list({m.uid for m in set(self.products)})),
+            "reagents": sorted(list({m.uid for m in set(self.reagents)})),
+        }
+
+    @staticmethod
+    def _count_unique_items_by_attribute(items, attr="uid"):
+        """To count the number of unique items in a list"""
+        return dict(Counter(getattr(item, attr) for item in items))
+
+
+class AtomTransformation(NamedTuple):
+    product_uid: str
+    reactant_uid: str
+    prod_atom_id: int
+    react_atom_id: int
+    map_num: int
 
 
 @dataclass
@@ -191,6 +238,19 @@ class Ratam:
     """ (dict) The dictionary containing the fraction of unmapped atoms in the reactants"""
     desired_product_unmapped_atoms_info: dict = field(default_factory=dict)
     """ (dict) The dictionary containing the fraction of unmapped atoms in the desired product and their indices"""
+
+    def get_role_map(self) -> dict:
+        return {
+            role: sorted(list(map_info.keys()))
+            for role, map_info in self.full_map_info.items()
+        }
+
+    def get_stoichiometry_coefficients(self) -> dict:
+        stoichiometry_coefficients = {"reactants": {}, "reagents": {}, "products": {}}
+        for role, mapping_info in self.full_map_info.items():
+            for uid, map_list in mapping_info.items():
+                stoichiometry_coefficients[role].update({uid: len(map_list)})
+        return stoichiometry_coefficients
 
     def diagnosis(self):
         """To perform a diagnostic process on the atom mapping"""
