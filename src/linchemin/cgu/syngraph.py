@@ -48,13 +48,13 @@ class SynGraph(ABC):
 
         if initiator is not None:
             if isinstance(initiator, Iron):
-                self.initialize_with_iron(initiator)
+                self._initialize_with_iron(initiator)
             elif isinstance(initiator, list):
                 all_smiles = [d["output_string"] for d in initiator]
                 chemical_equations = self.build_chemical_equations(all_smiles)
                 self.builder_from_reaction_list(chemical_equations)
 
-    def initialize_with_iron(self, iron_graph: Iron) -> None:
+    def _initialize_with_iron(self, iron_graph: Iron) -> None:
         """To initialize the SynGraph builder from an Iron instance"""
         all_smiles = [
             node.properties["node_smiles"] for node in iron_graph.nodes.values()
@@ -73,16 +73,16 @@ class SynGraph(ABC):
             self.builder_from_reaction_list(chemical_equations)
 
     @staticmethod
-    def build_chemical_equations(smiles_list: List[str]) -> List[ChemicalEquation]:
+    def build_chemical_equations(
+        string_list: List[str], input_format: str = "smiles"
+    ) -> List[ChemicalEquation]:
         """To build a list of ChemicalEquation objects from a list of smiles"""
-        chemical_eq_constructor = ChemicalEquationConstructor(
-            molecular_identity_property_name="smiles"
-        )
+        chemical_eq_constructor = ChemicalEquationConstructor()
         return [
             chemical_eq_constructor.build_from_reaction_string(
-                reaction_string=smiles, inp_fmt="smiles"
+                reaction_string=smiles, inp_fmt=input_format
             )
-            for smiles in smiles_list
+            for smiles in string_list
         ]
 
     @property
@@ -189,7 +189,7 @@ class SynGraph(ABC):
             logger.warning("The selected node is not present in the SynGraph instance.")
 
     @staticmethod
-    def find_reactants_products(
+    def _find_reactants_products(
         iron_graph: Iron, node1: int, node2: int, connections: list
     ) -> Tuple[List, List]:
         all_reactants = [
@@ -204,7 +204,7 @@ class SynGraph(ABC):
         ]
         return all_reactants, all_products
 
-    def add_molecular_roots(self) -> None:
+    def _add_molecular_roots(self) -> None:
         """To correctly handle the molecule roots in the graph"""
         roots: list = []
         for products in self.graph.values():
@@ -217,7 +217,7 @@ class SynGraph(ABC):
         for root in roots:
             self.add_node((root, []))
 
-    def find_parent_node(
+    def _find_parent_node(
         self, child_node: Union[Molecule, ChemicalEquation]
     ) -> Union[set, None]:
         """To identify the parent node of a given child node"""
@@ -244,7 +244,7 @@ class BipartiteSynGraph(SynGraph):
 
             for reactant in reactants:
                 self.add_node((reactant, [ch_equation]))
-        self.add_molecular_roots()
+        self._add_molecular_roots()
         # this is to avoid disconnected nodes due to reactions producing reagents of other reactions
         self.remove_isolated_ces()
         self.set_name(self.uid)
@@ -253,7 +253,7 @@ class BipartiteSynGraph(SynGraph):
         """To build a BipartiteSynGraph instance from an Iron instance"""
         connections = [edge.direction.tup for id_e, edge in iron_graph.edges.items()]
         for node1, node2 in connections:
-            all_reactants, all_products = self.find_reactants_products(
+            all_reactants, all_products = self._find_reactants_products(
                 iron_graph, node1, node2, connections
             )
 
@@ -265,7 +265,7 @@ class BipartiteSynGraph(SynGraph):
                 product = iron_graph.nodes[node2].properties["node_smiles"]
 
                 self.add_nodes_sequence(reactant, product, chemical_equation)
-        self.add_molecular_roots()
+        self._add_molecular_roots()
 
         self.set_name(iron_graph.name)
 
@@ -341,7 +341,7 @@ class BipartiteSynGraph(SynGraph):
         """To identify the nodes that are part of a disconnected sequence of nodes."""
         if intermediates := set(reactants).difference(leaves):
             for intermediate in intermediates:
-                parent_ces = self.find_parent_node(intermediate)
+                parent_ces = self._find_parent_node(intermediate)
                 nodes_to_remove.extend(parent_ces)
                 for parent in parent_ces:
                     reactants = parent.get_reactants()
@@ -385,7 +385,7 @@ class MonopartiteReacSynGraph(SynGraph):
             ]
 
         def process_connection(parent: int, child: int) -> None:
-            all_reactants, all_products = self.find_reactants_products(
+            all_reactants, all_products = self._find_reactants_products(
                 iron_graph, parent, child, connections
             )
             if not has_intersection(all_reactants, all_products):
@@ -396,7 +396,7 @@ class MonopartiteReacSynGraph(SynGraph):
                     (
                         all_reactants_next,
                         all_products_next,
-                    ) = self.find_reactants_products(
+                    ) = self._find_reactants_products(
                         iron_graph, next_node1, next_node2, connections
                     )
                     if not has_intersection(all_reactants_next, all_products_next):
@@ -451,15 +451,15 @@ class MonopartiteReacSynGraph(SynGraph):
                         r for r in reaction_roots if m.uid in r.role_map["products"]
                     )
                     nodes_to_remove = [ce_to_remove]
-                    nodes_to_remove = self.find_dangling_sequence(
+                    nodes_to_remove = self._find_dangling_sequence(
                         ce_to_remove, reaction_leaves, nodes_to_remove
                     )
                     [self.remove_node(n.uid) for n in nodes_to_remove]
 
-    def find_dangling_sequence(self, ce_to_remove, leaves, nodes_to_remove):
+    def _find_dangling_sequence(self, ce_to_remove, leaves, nodes_to_remove):
         """To identify the nodes that are part of a disconnected sequence of nodes."""
         while ce_to_remove not in leaves:
-            parent_nodes = self.find_parent_node(ce_to_remove)
+            parent_nodes = self._find_parent_node(ce_to_remove)
             if not parent_nodes:
                 break  # No parents found, exit the loop
             nodes_to_remove.extend(parent_nodes)
@@ -479,7 +479,7 @@ class MonopartiteMolSynGraph(SynGraph):
 
             for reactant in reactants:
                 self.add_node((reactant, products))
-        self.add_molecular_roots()
+        self._add_molecular_roots()
         # self.remove_isolate_nodes()
         self.set_name(self.uid)
 
@@ -488,7 +488,7 @@ class MonopartiteMolSynGraph(SynGraph):
         for node1, node2 in connections:
             reactant = iron_graph.nodes[node1].properties["node_smiles"]
             product = iron_graph.nodes[node2].properties["node_smiles"]
-            all_reactants, all_products = self.find_reactants_products(
+            all_reactants, all_products = self._find_reactants_products(
                 iron_graph, node1, node2, connections
             )
 
@@ -506,7 +506,7 @@ class MonopartiteMolSynGraph(SynGraph):
                 )
 
                 self.add_node((reactant_canonical, [product_canonical]))
-        self.add_molecular_roots()
+        self._add_molecular_roots()
 
         self.set_name(iron_graph.name)
 
@@ -545,7 +545,3 @@ def get_reaction_instance(
     return chemical_equation_constructor.build_from_reaction_string(
         reaction_string=reaction_string, inp_fmt="smiles"
     )
-
-
-if __name__ == "__main__":
-    print("main")
