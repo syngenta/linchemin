@@ -1,14 +1,15 @@
-from linchemin.rem.rem_utils.classification_schema import (
-    Criterion,
-    CriterionTypeError,
-    Category,
-    ClassificationSchema,
-    CriterionOperatorError,
-)
 import operator
+from unittest.mock import Mock
+
 import pytest
 
-from unittest.mock import Mock
+from linchemin.rem.rem_utils.classification_schema import (
+    Category,
+    ClassificationSchema,
+    Criterion,
+    CriterionOperatorError,
+    CriterionTypeError,
+)
 
 
 def test_criterion_categorical():

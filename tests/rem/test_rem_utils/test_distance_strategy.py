@@ -1,14 +1,16 @@
-import pytest
-from linchemin.cgu.syngraph import BipartiteSynGraph
-from linchemin.cheminfo.models import Molecule, ChemicalEquation
-from linchemin.rem.rem_utils.distance_strategy import (
-    distance_function_calculator,
-    SimpleDistanceStrategy,
-    LongestLinearSequenceWeightedDistanceStrategy,
-    DistanceContext,
-)
-from unittest.mock import patch, Mock
 import math
+from unittest.mock import Mock, patch
+
+import pytest
+
+from linchemin.cgu.syngraph import BipartiteSynGraph
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
+from linchemin.rem.rem_utils.distance_strategy import (
+    DistanceContext,
+    LongestLinearSequenceWeightedDistanceStrategy,
+    SimpleDistanceStrategy,
+    distance_function_calculator,
+)
 
 
 def test_distance_strategy():

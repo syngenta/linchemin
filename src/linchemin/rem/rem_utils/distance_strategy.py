@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Union
-from linchemin.cheminfo.models import Molecule, ChemicalEquation
-from linchemin.cgu.syngraph import MonopartiteReacSynGraph, BipartiteSynGraph
+
+from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
 from linchemin.cgu.syngraph_operations import find_path
+from linchemin.cheminfo.models import ChemicalEquation, Molecule
 from linchemin.rem.route_descriptors import descriptor_calculator
 from linchemin.utilities import console_logger
 

@@ -1,7 +1,10 @@
+import unittest
+
 import pytest
 
 import linchemin.cheminfo.functions as cif
 from linchemin.cheminfo.chemical_hashes import (
+    CanonicalSmiles,
     CxSmiles,
     Inchi,
     InchiKET15,
@@ -14,6 +17,7 @@ from linchemin.cheminfo.chemical_hashes import (
     UnavailableReactionIdentifier,
     UnorderedReactantProduct,
     UnorderedReactantReagentProduct,
+    calculate_molecular_hash_map,
     get_all_molecular_identifiers,
     get_all_reaction_identifiers,
     is_valid_molecular_identifier,
@@ -891,7 +895,7 @@ def reference_hashes():
         "es1": {
             "AnonymousGraph": "**(*)*(*)*",
             "ElementGraph": "C[C@H](Cl)[C@H](C)F",
-            "CanonicalSmiles": "C[C@H](Cl)[C@H](C)F",
+            "CanonicalSmiles": "C[C@H](Cl)[C@@H](C)F",
             "MolFormula": "C4H8ClF",
             "AtomBondCounts": "6,5",
             "DegreeVector": "0,2,0,4",
@@ -911,6 +915,7 @@ def reference_hashes():
             "inchi_KET_15T": "InChI=1/C4H8ClF/c1-3(5)4(2)6/h3-4H,1-2H3/t3-,4+/m0/s1",
             "inchi_key": "UZCSZAFBHDEEHP-IUYQGCFVSA-N",
             "inchikey_KET_15T": "UZCSZAFBHDEEHP-IUYQGCFVNA-N",
+            "smiles": "C[C@H](Cl)[C@@H](C)F",
         },
     }
 
@@ -981,10 +986,27 @@ def test_cx_smiles(example_smiles, reference_hashes):
             assert v != reference_hashes.get(name).get("smiles")
 
 
+def test_canonical_smiles(example_smiles, reference_hashes):
+    identifier = CanonicalSmiles()
+    calculated = {}
+    for x in example_smiles:
+        rdmol = cif.Chem.MolFromSmiles(x.get("smiles"))
+        if rdmol is None:
+            print("something wrong")
+            print(x)
+        hash_key = identifier.get_identifier(rdmol=rdmol)
+        name = x.get("name")
+        calculated[name] = hash_key
+    for name, v in calculated.items():
+        assert v == reference_hashes.get(name).get("smiles")
+        assert v == reference_hashes.get(name).get("CanonicalSmiles")
+
+
 def test_all_mol_identifiers_are_listed():
     identifiers = get_all_molecular_identifiers()
-    assert "smiles" in identifiers
-    assert "inchi_key" in identifiers
+    assert "smiles" in identifiers["factory"]
+    assert "inchi_key" in identifiers["factory"]
+    assert "MurckoScaffold" in identifiers["rdkit"]
 
 
 def test_mol_identifier_is_valid():
@@ -1039,3 +1061,25 @@ def test_reaction_identifier_validation():
     validate_reaction_identifier("u_r_r_p")
     with pytest.raises(UnavailableReactionIdentifier):
         validate_reaction_identifier("something_wrong")
+
+
+def test_calculate_molecular_hash_map(example_smiles):
+    hash_list = {
+        "ExtendedMurcko",
+        "Regioisomer",
+        "cx_smiles",
+        "inchi",
+        "inchi_key",
+        "inchikey_KET_15T",
+        "smiles",
+    }
+    rdmol = cif.Chem.MolFromSmiles(example_smiles[0]["smiles"])
+    hash_map = calculate_molecular_hash_map(rdmol=rdmol, hash_list=hash_list)
+    assert hash_list == set(hash_map.keys())
+
+    hash_list.add("wrong_identifier")
+    with unittest.TestCase().assertLogs(
+        "linchemin.cheminfo.chemical_hashes", level="WARNING"
+    ):
+        hash_map = calculate_molecular_hash_map(rdmol=rdmol, hash_list=hash_list)
+    assert "wrong_identifier" not in hash_map

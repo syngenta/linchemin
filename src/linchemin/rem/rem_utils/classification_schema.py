@@ -1,5 +1,6 @@
-from typing import Union, List, Dict
 import operator
+from typing import Dict, List, Union
+
 from linchemin.utilities import console_logger
 
 logger = console_logger(__name__)

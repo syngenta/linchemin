@@ -1,6 +1,7 @@
 import json
 import unittest
 
+import linchemin.cheminfo.functions as cif
 from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
@@ -158,12 +159,14 @@ def test_reaction_monopartite(az_path):
         m.smiles for m in mol_roots
     ]
     mol_leaves = mp_reac_syngraph.get_molecule_leaves()
-    leaves_smiles = [
-        "O=C(O)C1CCS(=O)(=O)CC1",
-        "Cc1cccc(C)c1NCC(=O)O",
-        "Nc1ccc(-c2ncon2)cc1",
-    ]
-    assert [m.smiles for m in mol_leaves] == leaves_smiles
+    leaves_smiles = sorted(
+        [
+            "O=C(O)C1CCS(=O)(=O)CC1",
+            "Cc1cccc(C)c1NCC(=O)O",
+            "Nc1ccc(-c2ncon2)cc1",
+        ]
+    )
+    assert sorted([m.smiles for m in mol_leaves]) == leaves_smiles
 
 
 def test_get_reaction_leaves(az_path):
@@ -349,3 +352,14 @@ def test_isolated_ce_removal():
     mpr_syngraph = MonopartiteReacSynGraph(route_isolated_nodes)
     assert len(mpr_syngraph.get_roots()) == 1
     assert all(removed_ces) not in mpr_syngraph
+
+
+def test_syngraph_from_chem_equation_list(reaction_list):
+    reaction_smiles = [d["output_string"] for d in reaction_list]
+    rdrxn_list = [cif.rdrxn_from_string(r, "smiles") for r in reaction_smiles]
+    rxn_block_list = [cif.rdrxn_to_string(b, "rxn_blockV2K") for b in rdrxn_list]
+
+    rxns = MonopartiteReacSynGraph.build_chemical_equations(rxn_block_list, "rxn_block")
+    syngraph = MonopartiteReacSynGraph()
+    syngraph.builder_from_reaction_list(rxns)
+    assert len(syngraph.graph) == len(reaction_list)

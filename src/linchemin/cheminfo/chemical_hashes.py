@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import List, Type, Union
+from itertools import chain
+from typing import Type, Union
 
 import linchemin.cheminfo.functions as cif
 import linchemin.utilities as utilities
@@ -23,7 +24,7 @@ logger = console_logger(__name__)
 
 
 # Molecular Identifiers to be used as hash keys
-class MolecularIdenfier(ABC):
+class MolecularIdentifier(ABC):
     """Abstract class Molecular Identifiers"""
 
     @abstractmethod
@@ -52,7 +53,7 @@ class MolIdentifierFactory:
         function: The decorator function.
         """
 
-        def decorator(mol_identifier: Type[MolecularIdenfier]):
+        def decorator(mol_identifier: Type[MolecularIdentifier]):
             cls._identifiers[name.lower()] = mol_identifier
 
             return mol_identifier
@@ -60,9 +61,9 @@ class MolIdentifierFactory:
         return decorator
 
     @classmethod
-    def select_identifier(cls, name: str) -> MolecularIdenfier:
+    def select_identifier(cls, name: str) -> MolecularIdentifier:
         """
-        To get an instance of the specified MolecularIdenfier.
+        To get an instance of the specified MolecularIdentifier.
 
         Parameters:
         ------------
@@ -71,7 +72,7 @@ class MolIdentifierFactory:
 
         Returns:
         ---------
-        MolecularIdenfier: An instance of the specified molecular identifier.
+        MolecularIdentifier: An instance of the specified molecular identifier.
 
         Raises:
         -------
@@ -90,22 +91,22 @@ class MolIdentifierFactory:
 
         Returns:
         ---------
-        idetifiers: list
+        identifiers: list
             The names of the available molecular identifiers.
         """
         return list(cls._identifiers.keys())
 
 
 @MolIdentifierFactory.register_mol_identifier("inchi_key")
-class InchiKey(MolecularIdenfier):
+class InchiKey(MolecularIdentifier):
     """To compute inchKey"""
 
     def get_identifier(self, rdmol: cif.Mol) -> str:
         return cif.Chem.inchi.MolToInchiKey(rdmol)
 
 
-@MolIdentifierFactory.register_mol_identifier("inchikey_ket_15T")
-class InchiKeyKET15(MolecularIdenfier):
+@MolIdentifierFactory.register_mol_identifier("inchikey_ket_15t")
+class InchiKeyKET15(MolecularIdentifier):
     """To compute InchiKeyKET15T"""
 
     def get_identifier(self, rdmol: cif.Mol) -> str:
@@ -113,15 +114,15 @@ class InchiKeyKET15(MolecularIdenfier):
 
 
 @MolIdentifierFactory.register_mol_identifier("inchi")
-class Inchi(MolecularIdenfier):
+class Inchi(MolecularIdentifier):
     """To compute inch and inchKey"""
 
     def get_identifier(self, rdmol: cif.Mol) -> str:
         return cif.Chem.MolToInchi(rdmol)
 
 
-@MolIdentifierFactory.register_mol_identifier("inchi_ket_15T")
-class InchiKET15(MolecularIdenfier):
+@MolIdentifierFactory.register_mol_identifier("inchi_ket_15t")
+class InchiKET15(MolecularIdentifier):
     """To compute InchiKET15T"""
 
     def get_identifier(self, rdmol: cif.Mol) -> str:
@@ -129,7 +130,7 @@ class InchiKET15(MolecularIdenfier):
 
 
 @MolIdentifierFactory.register_mol_identifier("noiso_smiles")
-class NoisoSmiles(MolecularIdenfier):
+class NoisoSmiles(MolecularIdentifier):
     """To compute Noiso smiles"""
 
     def get_identifier(self, rdmol: cif.Mol) -> str:
@@ -137,43 +138,51 @@ class NoisoSmiles(MolecularIdenfier):
 
 
 @MolIdentifierFactory.register_mol_identifier("cx_smiles")
-class CxSmiles(MolecularIdenfier):
+class CxSmiles(MolecularIdentifier):
     """To compute CxSmiles"""
 
     def get_identifier(self, rdmol: cif.Mol) -> str:
         return cif.Chem.MolToCXSmiles(rdmol)
 
 
+@MolIdentifierFactory.register_mol_identifier("smiles")
+class CanonicalSmiles(MolecularIdentifier):
+    """To compute the canonical Smiles"""
+
+    molhashf = cif.HashFunction.names
+
+    def get_identifier(self, rdmol: cif.Mol) -> str:
+        return next(
+            cif.MolHash(rdmol, v)
+            for k, v in self.molhashf.items()
+            if k == "CanonicalSmiles"
+        )
+
+
 def calculate_molecular_hash_map(
-    all_available_identifiers: list, rdmol: cif.Mol, hash_list: Union[set, None] = None
+    rdmol: cif.Mol, hash_list: Union[set, None] = None
 ) -> dict:
     """To compute the hash_map dictionary containing molecular properties/representations names and the
     corresponding hash values"""
+    available_identifiers = get_all_molecular_identifiers()
     molhashf = cif.HashFunction.names
-    if hash_list is None:
-        hash_list = all_available_identifiers
+    factory = MolIdentifierFactory
     hash_map = {}
 
-    if rdkit_hashes := [h for h in hash_list if h in molhashf]:
-        hash_map.update(
-            {k: cif.MolHash(rdmol, v) for k, v in molhashf.items() if k in rdkit_hashes}
-        )
-    if "smiles" in hash_list:
-        hash_map.update(
-            {
-                "smiles": cif.MolHash(rdmol, v)
-                for k, v in molhashf.items()
-                if k == "CanonicalSmiles"
-            }
-        )
+    if hash_list is None:
+        hash_list = list_molecular_identifiers()
 
-    if other_hashes := [h for h in hash_list if h not in rdkit_hashes]:
-        factory = MolIdentifierFactory
-        for h in other_hashes:
-            if h.lower() not in all_available_identifiers:
-                logger.warning(f"{h} is not supported as molecular identifier")
-            elif h != "smiles":
+    for h in hash_list:
+        if h in available_identifiers["rdkit"]:
+            hash_map.update(
+                {k: cif.MolHash(rdmol, v) for k, v in molhashf.items() if k == h}
+            )
+        else:
+            try:
                 hash_map[h] = factory.select_identifier(h).get_identifier(rdmol)
+            except UnavailableMolIdentifier:
+                logger.warning(f"{h} is not supported as molecular identifier")
+
     """
 
     hash_map['ExtendedMurcko_AG'] = smiles_to_anonymus_graph(hash_map['ExtendedMurcko'])
@@ -184,18 +193,21 @@ def calculate_molecular_hash_map(
     return hash_map
 
 
-def get_all_molecular_identifiers() -> List:
+def get_all_molecular_identifiers() -> dict:
     """To list all the available molecular identifiers"""
-    return (
-        list(cif.HashFunction.names.keys())
-        + MolIdentifierFactory.list_mol_identifiers()
-        + ["smiles"]
-    )
+    return {
+        "rdkit": list(cif.HashFunction.names.keys()),
+        "factory": MolIdentifierFactory.list_mol_identifiers(),
+    }
+
+
+def list_molecular_identifiers():
+    return list(chain(*get_all_molecular_identifiers().values()))
 
 
 def is_valid_molecular_identifier(molecular_identifier: str) -> bool:
     """To check if the input molecule identifier is among the valid ones"""
-    return molecular_identifier in get_all_molecular_identifiers()
+    return molecular_identifier in list_molecular_identifiers()
 
 
 def validate_molecular_identifier(molecular_identifier: str) -> None:
@@ -384,9 +396,9 @@ def validate_reaction_identifier(reaction_identifier: str) -> None:
         raise UnavailableReactionIdentifier
 
 
-def calculate_disconnection_hash_map(disconnection: Disconnection) -> dict:
-    idp = disconnection.molecule.identity_property
-
+def calculate_disconnection_hash_map(
+    disconnection: Disconnection, desired_product_identity_property: str
+) -> dict:
     changes_map = {
         "reacting_atoms": disconnection.reacting_atoms,
         "hydrogenated_atoms": disconnection.hydrogenated_atoms,
@@ -401,7 +413,7 @@ def calculate_disconnection_hash_map(disconnection: Disconnection) -> dict:
         [f'{k}:{",".join(map(str, v))}' for k, v in changes_map.items()]
     )
 
-    disconnection_summary = "|".join([idp, changes_str])
+    disconnection_summary = "|".join([desired_product_identity_property, changes_str])
 
     return {"disconnection_summary": disconnection_summary}
 
