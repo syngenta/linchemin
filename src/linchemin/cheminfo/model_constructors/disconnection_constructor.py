@@ -29,12 +29,20 @@ class ReactiveCenterAnalyzer:
     @staticmethod
     def get_reacting_atoms_map_numbers(
         rdrxn: cif.rdChemReactions.ChemicalReaction,
-    ) -> Dict[int, cif.Atom]:
+    ) -> Dict[int, Tuple[cif.Atom, cif.Mol]]:
         """To get a map of atom mapping number and the corresponding reactant atoms"""
         if not rdrxn.IsInitialized():
             rdrxn.Initialize()
 
         reacting_atoms_map = {}
+        reacting_atoms = rdrxn.GetReactingAtoms()
+        # for ridx, reacting in enumerate(reacting_atoms):
+        #     r = rdrxn.GetReactantTemplate(ridx)
+        #     for raid in reacting:
+        #         atom = r.GetAtomWithIdx(raid)
+        #         map_number = atom.GetAtomMapNum()
+        #         if map_number not in [0, -1]:
+        #             reacting_atoms_map[map_number] = atom
 
         # Iterate over reactants and their corresponding reacting atoms
         for reactant, reactant_reacting_atoms in zip(
@@ -50,8 +58,7 @@ class ReactiveCenterAnalyzer:
 
                 # Only include atoms with valid map numbers (not 0 or -1)
                 if map_num not in [0, -1]:
-                    reacting_atoms_map[map_num] = atom
-
+                    reacting_atoms_map[map_num] = (atom, reactant)
         return reacting_atoms_map
 
     @staticmethod
@@ -92,6 +99,7 @@ class ReactiveCenterAnalyzer:
                 )
             else:
                 r_bond = reactant.GetBondBetweenAtoms(*r_atom_nbrs[tpl])
+
                 if r_bond.GetBondType() != p_bond.GetBondType():
                     changed_bonds.add(
                         BondInfo(product_atoms=p_atom_nbrs[tpl], product_bond=p_bond_id)
@@ -127,7 +135,7 @@ class DisconnectionBuilder:
 
     def __init__(self, chemical_equation: ChemicalEquation, desired_product: Molecule):
         self.chemical_equation = chemical_equation
-        self.desired_product = desired_product
+        self.desired_product = copy.deepcopy(desired_product)
         self.disconnection = Disconnection(
             identity_property=desired_product.identity_property
         )
@@ -146,11 +154,12 @@ class DisconnectionBuilder:
         ats_desired_product = (
             self._get_reactive_atom_transformations_for_desired_product()
         )
+
         self.product_reactive_atoms = sorted(
             [at.prod_atom_id for at in ats_desired_product]
         )
 
-        processed_bonds = set()  # New set to keep track of processed bonds
+        processed_bonds = set()
 
         for atom_transformation in ats_desired_product:
             self._process_atom_transformation(atom_transformation, processed_bonds)
@@ -158,11 +167,8 @@ class DisconnectionBuilder:
     def _process_atom_transformation(
         self, atom_transformation, processed_bonds: Set[Tuple[int, int]]
     ) -> None:
-        reactant = self._get_reactant_for_atom_transformation(atom_transformation)
-        reactant_atom, product_atom = self._get_reactant_and_product_atoms(
-            atom_transformation
-        )
-
+        reactant_atom, reactant = self._get_reactant_data(atom_transformation)
+        product_atom = self._get_product_atom(atom_transformation)
         self._check_and_add_hydrogenation(product_atom, reactant_atom)
         self._check_and_add_bonds(
             reactant_atom, reactant, product_atom, processed_bonds
@@ -178,13 +184,13 @@ class DisconnectionBuilder:
     def _check_and_add_bonds(
         self,
         reactant_atom: cif.Atom,
-        reactant: Molecule,
+        reactant: cif.Mol,
         product_atom: cif.Atom,
         processed_bonds: Set[Tuple[int, int]],
     ) -> None:
         new_bonds, changed_bonds = self.analyzer.get_bond_info(
             reactant_atom,
-            reactant.rdmol_mapped,
+            reactant,
             product_atom,
             self.desired_product.rdmol_mapped,
             processed_bonds,
@@ -200,25 +206,19 @@ class DisconnectionBuilder:
             and at.map_num in self.reactive_center.reactive_atoms
         ]
 
-    def _get_reactant_for_atom_transformation(self, atom_transformation) -> cif.Mol:
+    def _get_reactant_data(self, atom_transformation) -> Tuple[cif.Atom, cif.Mol]:
         return next(
-            mol
-            for h, mol in self.chemical_equation.catalog.items()
-            if h == atom_transformation.reactant_uid
+            (atom, reactant)
+            for map_num, (atom, reactant) in self.reactive_center.reactive_atoms.items()
+            if map_num == atom_transformation.map_num
         )
 
-    def _get_reactant_and_product_atoms(self, atom_transformation):
-        reactant_atom = next(
-            atom
-            for map_nr, atom in self.reactive_center.reactive_atoms.items()
-            if map_nr == atom_transformation.map_num
-        )
-        product_atom = next(
+    def _get_product_atom(self, atom_transformation):
+        return next(
             atom
             for atom in self.desired_product.rdmol_mapped.GetAtoms()
             if atom.GetIdx() == atom_transformation.prod_atom_id
         )
-        return reactant_atom, product_atom
 
     def _populate_disconnection(self):
         self.disconnection.molecule = copy.deepcopy(self.desired_product)

@@ -4,6 +4,7 @@ import pytest
 
 from linchemin.cgu.syngraph import MonopartiteReacSynGraph
 from linchemin.rem.step_descriptors import (
+    StepBondEfficiency,
     WrongSmilesType,
     get_available_step_descriptors,
     step_descriptor_calculator,
@@ -136,7 +137,7 @@ def test_step_bond_efficiency():
         0: {"value": 6, "n_bonds": 1},
         1: {"value": 0, "n_bonds": 1},
         2: {"value": 0, "n_bonds": 2},
-        3: {"value": -1, "n_bonds": 1},
+        3: {"value": 1, "n_bonds": 1},
     }
     syngraph = MonopartiteReacSynGraph(route_smiles)
     for n, expected in expected_results.items():
@@ -147,6 +148,6 @@ def test_step_bond_efficiency():
         assert len(out.additional_info) == expected["n_bonds"]
         if n == 0:
             assert all(
-                "not present in the target" in d.values()
+                "atoms are not present in the target." in d.values()
                 for d in out.additional_info.values()
             )

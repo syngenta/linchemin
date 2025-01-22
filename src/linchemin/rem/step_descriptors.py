@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass, field
-from typing import List, Set, Type, Union
+from typing import List, Optional, Set, Tuple, Type, Union
 
 import linchemin.cheminfo.functions as cif
 from linchemin.cgu.convert import converter
@@ -45,8 +45,15 @@ class DescriptorCalculationOutput:
     additional_info: a dictionary possibly containing additional information about the descriptor
     """
 
-    descriptor_value: Union[float, None] = None
+    descriptor_value: float = 0.0
     additional_info: dict = field(default_factory=dict)
+
+
+@dataclass
+class BondInfo:
+    step_bond_order: float
+    target_bond_order: float
+    target_atoms_id: Tuple[int, int]
 
 
 class StepDescriptor(metaclass=abc.ABCMeta):
@@ -147,6 +154,15 @@ class StepDescriptorsFactory:
 
 @StepDescriptorsFactory.register_step_descriptor("step_bond_efficiency")
 class StepBondEfficiency(StepDescriptor):
+    """
+    Class to compute the bond efficiency for a given step in the context of a route.
+
+    The descriptor assumes value 0 in the best case scenario (all bonds formed in the step are
+    present in the target molecule unchanged.)
+
+    The higher the descriptor value, the worst.
+    """
+
     bond_orders = {
         cif.Chem.BondType.SINGLE: 1.0,
         cif.Chem.BondType.DOUBLE: 2.0,
@@ -155,6 +171,13 @@ class StepBondEfficiency(StepDescriptor):
         cif.Chem.BondType.UNSPECIFIED: 0.0,
     }
 
+    def __init__(self):
+        self.target: Optional[Molecule] = None
+        self.step: Optional[ChemicalEquation] = None
+        self.all_transformations: Optional[List[AtomTransformation]] = None
+        self.all_atomic_paths: Optional[List[List[AtomTransformation]]] = None
+        self.out = DescriptorCalculationOutput()
+
     def compute_step_descriptor(
         self,
         unique_reactions: Set[ChemicalEquation],
@@ -162,104 +185,123 @@ class StepBondEfficiency(StepDescriptor):
         target: Molecule,
         step: ChemicalEquation,
     ) -> DescriptorCalculationOutput:
-        if (
-            disconnection_bonds := step.disconnection.new_bonds
-            + step.disconnection.modified_bonds
-        ):
-            if target.uid in step.role_map["products"]:
-                return self.final_step_bonds(step, target, disconnection_bonds)
+        self.target = target
+        self.step = step
+        self.all_transformations = all_transformations
+        self.all_atomic_paths = self.extract_all_atomic_paths(
+            target, all_transformations
+        )
 
-            all_atomic_paths = self.extract_all_atomic_paths(
-                target, all_transformations
-            )
-            out = DescriptorCalculationOutput()
-            out.descriptor_value = 0
-            step_desired_product = next(
-                mol for h, mol in step.catalog.items() if h in step.role_map["products"]
-            )
-            for bond in disconnection_bonds:
-                (ap1, ap2) = self.find_bond_atomic_paths(
-                    all_atomic_paths, bond, step_desired_product
-                )
-                if ap1 is not None and ap2 is not None:
-                    a1_target = ap1[0].prod_atom_id
-                    a2_target = ap2[0].prod_atom_id
-                    if target_bond_order := self.get_bond_order(
-                        target, a1_target, a2_target
-                    ):
-                        step_bond_order = self.get_bond_order(
-                            step_desired_product, *bond
-                        )
-                        additional_info = {
-                            "step_bond_order": step_bond_order,
-                            "target_bond_order": target_bond_order,
-                            "target_atoms_id": (a1_target, a2_target),
-                        }
-                        out = self.populate_output(
-                            target_bond_order,
-                            step_bond_order,
-                            bond,
-                            additional_info,
-                            out,
-                        )
-                else:
-                    out.additional_info[bond] = {
-                        "target_bond": "not present in the target"
-                    }
-                    out.descriptor_value += 6
-        else:
-            out = self.handle_absence_of_disconnection_bonds()
-        return out
+        disconnection_bonds = (
+            self.step.disconnection.new_bonds + self.step.disconnection.modified_bonds
+        )
+        if not disconnection_bonds:
+            # the step does not involve any bond formation/modification
+            return self._handle_absence_of_disconnection_bonds()
 
-    def final_step_bonds(
-        self, step: ChemicalEquation, target: Molecule, disconnection_bonds: list
-    ):
-        """To compute the bond efficiency if the considered step
-        is the last 'root' step"""
-        out = DescriptorCalculationOutput()
-        out.descriptor_value = 0
+        if self.target.uid in self.step.role_map["products"]:
+            # the step corresponds to the final step of the route
+            return self._process_final_step()
+
+        return self._process_intermediate_step(disconnection_bonds)
+
+    def _process_intermediate_step(
+        self, disconnection_bonds: List[Tuple[int, int]]
+    ) -> DescriptorCalculationOutput:
+        step_desired_product = next(
+            mol
+            for h, mol in self.step.catalog.items()
+            if h in self.step.role_map["products"]
+        )
+
         for bond in disconnection_bonds:
-            (a1_prod, a2_prod) = bond
-            a1_at = next(
-                at
-                for at in step.mapping.atom_transformations
-                if at.prod_atom_id == a1_prod
+            ap1, ap2 = self.find_bond_atomic_paths(bond, step_desired_product)
+            if ap1 and ap2:
+                self._process_bond(
+                    bond,
+                    ap1[0].prod_atom_id,
+                    ap2[0].prod_atom_id,
+                    step_desired_product,
+                )
+            else:
+                self.out.additional_info[bond] = {
+                    "target_bond": "atoms are not present in the target."
+                }
+                self.out.descriptor_value += 6
+
+        return self.out
+
+    def _process_bond(
+        self,
+        bond: Tuple[int, int],
+        a1_target: int,
+        a2_target: int,
+        step_desired_product: Molecule,
+    ) -> None:
+        target_bond_order = self.get_bond_order(self.target, a1_target, a2_target)
+        if target_bond_order:
+            step_bond_order = self.get_bond_order(step_desired_product, *bond)
+            bond_info = BondInfo(
+                step_bond_order, target_bond_order, (a1_target, a2_target)
             )
-            a1_reac = a1_at.react_atom_id
-            reactant = next(
-                mol for h, mol in step.catalog.items() if mol.uid == a1_at.reactant_uid
-            )
-            a2_reac = next(
-                at.react_atom_id
-                for at in step.mapping.atom_transformations
-                if at.prod_atom_id == a2_prod
-            )
-            target_bond_order = self.get_bond_order(target, a1_prod, a2_prod)
-            reactant_bond_order = self.get_bond_order(reactant, a1_reac, a2_reac)
-            additional_info = {
-                "step_bond_order": reactant_bond_order,
-                "target_bond_order": target_bond_order,
-                "target_atoms_id": (a1_prod, a2_prod),
+            self._update_output(bond, bond_info)
+        else:
+            self.out.additional_info[bond] = {
+                "target_bond": "not present in the target"
             }
+            self.out.descriptor_value += 6
 
-            out = self.populate_output(
-                target_bond_order, reactant_bond_order, bond, additional_info, out
-            )
+    def _process_final_step(self) -> DescriptorCalculationOutput:
+        for bond in self.step.disconnection.modified_bonds:
+            self._process_final_step_bond(bond)
+        for bond in self.step.disconnection.new_bonds:
+            self.out.additional_info[bond] = "new bond in the final step"
+        return self.out
 
-        return out
+    def _process_final_step_bond(self, bond: Tuple[int, int]) -> None:
+        a1_prod, a2_prod = bond
+        a1_at = next(
+            at
+            for at in self.step.mapping.atom_transformations
+            if at.prod_atom_id == a1_prod
+        )
+        reactant = next(
+            mol for h, mol in self.step.catalog.items() if mol.uid == a1_at.reactant_uid
+        )
+        a2_reac = next(
+            at.react_atom_id
+            for at in self.step.mapping.atom_transformations
+            if at.prod_atom_id == a2_prod
+        )
+
+        target_bond_order = self.get_bond_order(self.target, a1_prod, a2_prod)
+        reactant_bond_order = self.get_bond_order(
+            reactant, a1_at.react_atom_id, a2_reac
+        )
+
+        bond_info = BondInfo(reactant_bond_order, target_bond_order, (a1_prod, a2_prod))
+        self._update_output(bond, bond_info)
+
+    def _update_output(
+        self,
+        bond: Tuple[int, int],
+        bond_info: BondInfo,
+    ) -> None:
+        self.out.additional_info[bond] = bond_info.__dict__
+        self.out.descriptor_value += abs(
+            bond_info.target_bond_order - bond_info.step_bond_order
+        )
 
     def find_bond_atomic_paths(
         self,
-        all_atomic_paths: List[List[AtomTransformation]],
-        new_bond: tuple,
+        new_bond: Tuple[int, int],
         step_desired_product: Molecule,
-    ) -> tuple:
-        """To identify the atomic paths related to the atoms involved in the new bond"""
-        (a1, a2) = new_bond
+    ) -> Tuple[Optional[List[AtomTransformation]], Optional[List[AtomTransformation]]]:
+        a1, a2 = new_bond
         ap1 = next(
             (
                 ap
-                for ap in all_atomic_paths
+                for ap in self.all_atomic_paths
                 if self.atomic_path_contains_atom(ap, a1, step_desired_product.uid)
             ),
             None,
@@ -267,7 +309,7 @@ class StepBondEfficiency(StepDescriptor):
         ap2 = next(
             (
                 ap
-                for ap in all_atomic_paths
+                for ap in self.all_atomic_paths
                 if self.atomic_path_contains_atom(ap, a2, step_desired_product.uid)
             ),
             None,
@@ -276,47 +318,21 @@ class StepBondEfficiency(StepDescriptor):
 
     @staticmethod
     def atomic_path_contains_atom(
-        atomic_path: List[AtomTransformation], atom_id, step_id
+        atomic_path: List[AtomTransformation], atom_id: int, step_id: int
     ) -> bool:
-        """To check whether an atomic path passes through the specified atom"""
-        if next(
-            (
-                at
-                for at in atomic_path
-                if at.prod_atom_id == atom_id and at.product_uid == step_id
-            ),
-            None,
-        ):
-            return True
-        return False
+        return any(
+            at.prod_atom_id == atom_id and at.product_uid == step_id
+            for at in atomic_path
+        )
 
-    def get_bond_order(self, molecule, a1, a2) -> Union[float, None]:
-        """To get the order of the bond in the input molecule between the input atoms"""
-        if bond := molecule.rdmol_mapped.GetBondBetweenAtoms(a1, a2).GetBondType():
-            return self.bond_orders[bond]
-        return None
+    def get_bond_order(self, molecule: Molecule, a1: int, a2: int) -> Optional[float]:
+        bond = molecule.rdmol_mapped.GetBondBetweenAtoms(a1, a2)
+        return self.bond_orders[bond.GetBondType()] if bond else None
 
-    @staticmethod
-    def handle_absence_of_disconnection_bonds() -> DescriptorCalculationOutput:
-        """To populate the output when there are no new or modified bonds in the considered step"""
-        out = DescriptorCalculationOutput()
-        out.descriptor_value = 0
-        out.additional_info["info"] = "no new/changed bonds in the selected step"
-        return out
-
-    @staticmethod
-    def populate_output(
-        target_bond_order: float,
-        step_bond_order: float,
-        bond: tuple,
-        additional_info: dict,
-        out: DescriptorCalculationOutput,
-    ) -> DescriptorCalculationOutput:
-        """To add information related to a specific bond to the output object"""
-        out.additional_info[bond] = additional_info
-        out.descriptor_value += target_bond_order - step_bond_order
-
-        return out
+    def _handle_absence_of_disconnection_bonds(self) -> DescriptorCalculationOutput:
+        self.out.descriptor_value = 6
+        self.out.additional_info["info"] = "no new/changed bonds in the selected step"
+        return self.out
 
 
 @StepDescriptorsFactory.register_step_descriptor("step_effectiveness")
