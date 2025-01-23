@@ -416,6 +416,162 @@ class StartingMaterialsAmount(RouteMetric):
 
 
 @MetricsFactory.register_metrics
+class StartingMaterialsActualAmount(RouteMetric):
+    name = "starting_materials_actual_amount"
+
+    def compute_metric(
+        self,
+        external_info: dict,
+        categories=None,
+    ) -> MetricOutput:
+        """
+           Compute the amount of starting materials needed to produce a certain amount of target.
+
+           Parameters:
+           -----------
+           route : Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph]
+               The synthetic route for which the metric should be computed.
+           external_info : dict
+               External information required for the computation, including the target amount.
+
+           external_info={139455823815768041226700751368457792353:
+             {'reaction_yield': 0.9990000000000001,
+             'molecule_list':
+                 {
+                 88519473972846305698367620651461498472: {'equivalents': 17.5465632607203},
+                 70711413067818961897022144901103799252: {'equivalents': 1.0},...},
+                  'yield_margin': 0.2},
+        321411091819663737124382213057767029376:
+             {'reaction_yield': 0.997,
+           'molecule_list':
+           {
+             256507106387428564178835234467797178237: {'equivalents': 1.0},
+             ...},
+             ...},
+             ...},
+
+           'target_amount': 0.44257682201889564}
+
+           Returns:
+           --------
+           MetricOutput
+               An object containing the metric value and raw data of the route metric calculation.
+        """
+
+        output = MetricOutput()
+        root = self.route.get_molecule_roots()[0]
+
+        leaves = self.route.get_molecule_leaves()
+
+        target_amount_mol = external_info["target_amount"]
+
+        all_paths = find_all_paths(self.route)
+
+        quantities = {"starting_materials": {}, "intermediates": {}}
+
+        for path in all_paths:
+            quantities = self.get_path_quantities(
+                path, external_info, root, leaves, target_amount_mol, quantities
+            )
+
+        output.raw_data["quantities"] = quantities
+        output.raw_data["target_amount"] = {"moles": target_amount_mol}
+        return output
+
+    def get_path_quantities(
+        self,
+        path: list,
+        external_info: dict,
+        root: Molecule,
+        leaves: list,
+        target_amount_mol: float,
+        quantities: dict,
+    ) -> dict:
+        """To get the quantities of the reactants in the input path"""
+
+        while path:
+            step = path.pop(-1)
+
+            step_yield = external_info[step.uid].get("reaction_yield", 1.0)
+            yield_margin = external_info[step.uid].get("yield_margin", 0)
+
+            reactants = step.get_reactants()
+            product = step.get_products()[0]
+
+            quantities["starting_materials"][step.uid] = {}
+
+            if product == root:
+                prod_amount = target_amount_mol
+            else:
+                prod_amount = quantities["intermediates"][product.uid]["moles"]
+
+            for reactant in reactants:
+                amount_in_moles = self.get_reactant_quantity(
+                    step_yield=step_yield,
+                    prod_amount=prod_amount,
+                    yield_margin=yield_margin,
+                )
+                # # for unmapped reactions, all reaction components are used in the chemical reaction
+                # if reactant.uid not in quantities["starting_materials"][step.uid].keys():
+                # if the equiv for the reactant is None, it is defaulted to 0
+
+                stoich = step.stoichiometry_coefficients["reactants"].get(
+                    reactant.uid, 1
+                )
+                equiv = (
+                    external_info[step.uid]["molecule_list"][reactant.uid].get(
+                        "equivalents"
+                    )
+                    or stoich
+                    or 0
+                )
+
+                if reactant in leaves:
+                    quantities["starting_materials"][step.uid][reactant.uid] = {
+                        "moles": amount_in_moles * equiv
+                    }
+
+                else:
+                    quantities["intermediates"].update(
+                        {
+                            reactant.uid: {
+                                "moles": amount_in_moles * equiv,
+                            }
+                        }
+                    )
+        return quantities
+
+    @staticmethod
+    def get_reactant_quantity(
+        step_yield: float,
+        yield_margin: float,
+        prod_amount: float,
+    ) -> float:
+        """To compute the needed amount of the input reactant"""
+
+        amount_in_moles = (
+            prod_amount / (step_yield) + (prod_amount / (step_yield)) * yield_margin
+        )
+        return amount_in_moles
+
+    @staticmethod
+    def _check_route_format(
+        route: Union[
+            BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph
+        ],
+    ) -> MonopartiteReacSynGraph:
+        """To ensure that the route is in the expected format"""
+        if isinstance(route, MonopartiteReacSynGraph):
+            return route
+        return converter(route, "monopartite_reactions")
+
+    def get_route_components_for_metric(
+        self, structural_format: str
+    ) -> RouteComponents:
+        pass
+
+
+@MetricsFactory.register_metrics
 class StartingMaterialsAvailability(RouteMetric):
     """
     Subclass to compute the starting materials availability metric.
