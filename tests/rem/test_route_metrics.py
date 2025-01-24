@@ -15,6 +15,7 @@ from linchemin.rem.route_metrics import (
     RouteComponents,
     RouteComponentType,
     RouteMetric,
+    StartingMaterialsActualAmount,
     StartingMaterialsAmount,
     StartingMaterialsAvailability,
     UnavailableMetricError,
@@ -155,6 +156,185 @@ def test_get_route_components_for_metric(mock_get_molecules_map, reactant_availa
     assert result.uid_structure_map == uid_map
     mock_get_molecules_map.assert_called_once_with(
         molecule_list=mock_leaves, structural_format="smiles"
+    )
+
+
+def test_starting_materials_actual_amount():
+    route_metrics_dict = {
+        17007624811282229770255847544003398431: {
+            "reaction_yield": 0.9082981597950149,
+            "molecule_list": {
+                286870640775872116681241188688571919250: {
+                    "equivalents": 0.9082981597950149
+                },
+                36721421193957353206150059641635787191: {"equivalents": 1.0},
+            },
+            "yield_margin": 0,
+        },
+        168054677342183204301406186157309972861: {
+            "reaction_yield": 0.6594870256696428,
+            "molecule_list": {
+                306803860767033224281934331482769079244: {
+                    "equivalents": 1.2009081657499268
+                },
+                8310846926206411896444368952975363107: {"equivalents": None},
+            },
+            "yield_margin": 0.2,
+        },
+        "target_amount": 0.44257682201889564,
+    }
+
+    chemical_equations = [
+        ChemicalEquation(
+            catalog={
+                36721421193957353206150059641635787191: Molecule(
+                    smiles="CCOC(=O)C(Cc1ncc(Cl)cn1)C(=O)OCC",
+                    uid=36721421193957353206150059641635787191,
+                ),
+                286870640775872116681241188688571919250: Molecule(
+                    smiles="CCOC(=O)CCc1ncc(Cl)cn1",
+                    uid=286870640775872116681241188688571919250,
+                ),
+            },
+            role_map={
+                "reactants": [36721421193957353206150059641635787191],
+                "reagents": [],
+                "products": [286870640775872116681241188688571919250],
+            },
+            stoichiometry_coefficients={
+                "reactants": {36721421193957353206150059641635787191: 1},
+                "reagents": {},
+                "products": {286870640775872116681241188688571919250: 1},
+            },
+            hash_map={},
+            uid=17007624811282229770255847544003398431,
+            smiles="CCOC(=O)[CH:1]([CH2:2][c:3]1[n:4][cH:5][c:6]([Cl:7])[cH:8][n:9]1)[C:10](=[O:11])[O:12][CH2:13][CH3:14]>>[CH2:1]([CH2:2][c:3]1[n:4][cH:5][c:6]([Cl:7])[cH:8][n:9]1)[C:10](=[O:11])[O:12][CH2:13][CH3:14]",
+        ),
+        ChemicalEquation(
+            catalog={
+                306803860767033224281934331482769079244: Molecule(
+                    smiles="CCOC(=O)CC(=O)OCC",
+                    uid=306803860767033224281934331482769079244,
+                ),
+                8310846926206411896444368952975363107: Molecule(
+                    smiles="ClCc1ncc(Cl)cn1",
+                    uid=8310846926206411896444368952975363107,
+                ),
+                36721421193957353206150059641635787191: Molecule(
+                    smiles="CCOC(=O)C(Cc1ncc(Cl)cn1)C(=O)OCC",
+                    uid=36721421193957353206150059641635787191,
+                ),
+            },
+            role_map={
+                "reactants": [
+                    8310846926206411896444368952975363107,
+                    306803860767033224281934331482769079244,
+                ],
+                "reagents": [],
+                "products": [36721421193957353206150059641635787191],
+            },
+            stoichiometry_coefficients={
+                "reactants": {
+                    306803860767033224281934331482769079244: 1,
+                    8310846926206411896444368952975363107: 2,
+                },
+                "reagents": {},
+                "products": {36721421193957353206150059641635787191: 1},
+            },
+            hash_map={},
+            uid=168054677342183204301406186157309972861,
+            smiles="Cl[CH2:12][c:13]1[n:14][cH:15][c:16]([Cl:17])[cH:18][n:19]1.[CH3:1][CH2:2][O:3][C:4](=[O:5])[CH2:6][C:7](=[O:8])[O:9][CH2:10][CH3:11]>>[CH3:1][CH2:2][O:3][C:4](=[O:5])[CH:6]([C:7](=[O:8])[O:9][CH2:10][CH3:11])[CH2:12][c:13]1[n:14][cH:15][c:16]([Cl:17])[cH:18][n:19]1",
+        ),
+    ]
+    mpr_syngraph = MonopartiteReacSynGraph()
+
+    mpr_syngraph.builder_from_reaction_list(chemical_equations=chemical_equations)
+
+    metric_out = route_metric_calculator(
+        metric_name="starting_materials_actual_amount",
+        route=mpr_syngraph,
+        external_data=route_metrics_dict,
+    )
+
+    assert metric_out.raw_data
+    quantities = metric_out.raw_data["quantities"]
+
+    assert isinstance(quantities.get("intermediates"), dict)
+    assert (
+        quantities.get("intermediates").get(36721421193957353206150059641635787191)
+        is not None
+    )
+    assert (
+        quantities.get("intermediates")
+        .get(36721421193957353206150059641635787191)
+        .get("moles")
+        is not None
+    )
+    assert math.isclose(
+        quantities.get("intermediates")
+        .get(36721421193957353206150059641635787191)
+        .get("moles"),
+        0.48726,
+        rel_tol=0.0001,
+    )
+
+    assert isinstance(quantities.get("starting_materials"), dict)
+    assert (
+        quantities.get("starting_materials").get(17007624811282229770255847544003398431)
+        is not None
+    )
+    assert (
+        quantities.get("starting_materials").get(17007624811282229770255847544003398431)
+        == {}
+    )
+    assert (
+        quantities.get("starting_materials").get(
+            168054677342183204301406186157309972861
+        )
+        is not None
+    )
+    assert (
+        quantities.get("starting_materials")
+        .get(168054677342183204301406186157309972861)
+        .get(8310846926206411896444368952975363107)
+        is not None
+    )
+    assert (
+        quantities.get("starting_materials")
+        .get(168054677342183204301406186157309972861)
+        .get(8310846926206411896444368952975363107)
+        .get("moles")
+        is not None
+    )
+    assert math.isclose(
+        quantities.get("starting_materials")
+        .get(168054677342183204301406186157309972861)
+        .get(8310846926206411896444368952975363107)
+        .get("moles"),
+        1.77323,
+        rel_tol=0.0001,
+    )
+
+    assert (
+        quantities.get("starting_materials")
+        .get(168054677342183204301406186157309972861)
+        .get(306803860767033224281934331482769079244)
+        is not None
+    )
+    assert (
+        quantities.get("starting_materials")
+        .get(168054677342183204301406186157309972861)
+        .get(306803860767033224281934331482769079244)
+        .get("moles")
+        is not None
+    )
+    assert math.isclose(
+        quantities.get("starting_materials")
+        .get(168054677342183204301406186157309972861)
+        .get(306803860767033224281934331482769079244)
+        .get("moles"),
+        1.06474,
+        rel_tol=0.0001,
     )
 
 

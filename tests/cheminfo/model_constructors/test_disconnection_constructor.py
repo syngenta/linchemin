@@ -39,7 +39,9 @@ def test_get_reacting_atoms_map_numbers(sample_reaction):
         sample_reaction
     )
     assert len(reacting_atoms_map) == 4
-    assert all(isinstance(atom, cif.Chem.Atom) for atom in reacting_atoms_map.values())
+    for atom, reactant in reacting_atoms_map.values():
+        assert isinstance(reactant, cif.Mol)
+        assert isinstance(atom, cif.Atom)
     assert set(reacting_atoms_map.keys()) == {1, 2, 3, 4}
 
 
@@ -138,10 +140,10 @@ def test_identify_reactive_center(sample_chemical_equation, sample_desired_produ
 
 
 @patch(
-    "linchemin.cheminfo.model_constructors.disconnection_constructor.DisconnectionBuilder._get_reactant_for_atom_transformation"
+    "linchemin.cheminfo.model_constructors.disconnection_constructor.DisconnectionBuilder._get_reactant_data"
 )
 @patch(
-    "linchemin.cheminfo.model_constructors.disconnection_constructor.DisconnectionBuilder._get_reactant_and_product_atoms"
+    "linchemin.cheminfo.model_constructors.disconnection_constructor.DisconnectionBuilder._get_product_atom"
 )
 @patch(
     "linchemin.cheminfo.model_constructors.disconnection_constructor.DisconnectionBuilder._check_and_add_hydrogenation"
@@ -152,18 +154,19 @@ def test_identify_reactive_center(sample_chemical_equation, sample_desired_produ
 def test_process_atom_transformation(
     mock_bonds,
     mock_hydro_check,
-    mock_get_atoms,
-    mock_r_t,
+    mock_get_prod_atom,
+    mock_reactant_data,
     sample_chemical_equation,
     sample_desired_product,
 ):
     builder = DisconnectionBuilder(sample_chemical_equation, sample_desired_product)
 
-    mock_r_t.return_value = MagicMock(spec=cif.Mol)
-
+    reactant = MagicMock(spec=Molecule)
+    reactant.rdmol_mapped = Mock()
     mock_reactant_atom = Mock()
+    mock_reactant_data.return_value = (mock_reactant_atom, reactant)
     mock_product_atom = Mock()
-    mock_get_atoms.return_value = (mock_reactant_atom, mock_product_atom)
+    mock_get_prod_atom.return_value = mock_product_atom
 
     builder._identify_reactive_center()
     atom_transformation = next(
@@ -171,8 +174,8 @@ def test_process_atom_transformation(
     )
     builder._process_atom_transformation(atom_transformation, set())
 
-    mock_r_t.assert_called()
-    mock_get_atoms.assert_called()
+    mock_get_prod_atom.assert_called()
+    mock_reactant_data.assert_called()
     mock_hydro_check.assert_called()
     mock_bonds.assert_called()
 
@@ -208,7 +211,7 @@ def test_check_and_add_bonds(
     reactant_atom = builder.chemical_equation.get_reactants()[
         0
     ].rdmol_mapped.GetAtomWithIdx(0)
-    reactant = builder.chemical_equation.get_reactants()[0]
+    reactant = builder.chemical_equation.get_reactants()[0].rdmol_mapped
     product_atom = builder.desired_product.rdmol_mapped.GetAtomWithIdx(0)
     builder._check_and_add_bonds(reactant_atom, reactant, product_atom, set())
 
@@ -228,31 +231,25 @@ def test_get_reactive_atom_transformations_for_desired_product(
     assert len({t.product_uid for t in transformations}) == 1
 
 
-def test_get_reactant_for_atom_transformation(
-    sample_chemical_equation, sample_desired_product
-):
+def test_get_reactant_data(sample_chemical_equation, sample_desired_product):
     builder = DisconnectionBuilder(sample_chemical_equation, sample_desired_product)
     builder._identify_reactive_center()
     atom_transformation = next(
         iter(builder.chemical_equation.mapping.atom_transformations)
     )
-    reactant = builder._get_reactant_for_atom_transformation(atom_transformation)
-    assert isinstance(reactant, Molecule)
-
-
-def test_get_reactant_and_product_atoms(
-    sample_chemical_equation, sample_desired_product
-):
-    builder = DisconnectionBuilder(sample_chemical_equation, sample_desired_product)
-    builder._identify_reactive_center()
-    atom_transformation = next(
-        iter(builder.chemical_equation.mapping.atom_transformations)
-    )
-    reactant_atom, product_atom = builder._get_reactant_and_product_atoms(
-        atom_transformation
-    )
+    reactant_atom, reactant = builder._get_reactant_data(atom_transformation)
+    assert isinstance(reactant, cif.Mol)
     assert isinstance(reactant_atom, cif.Atom)
-    assert reactant_atom.GetAtomMapNum() == atom_transformation.map_num
+
+
+def test_get_product_atom(sample_chemical_equation, sample_desired_product):
+    builder = DisconnectionBuilder(sample_chemical_equation, sample_desired_product)
+    builder._identify_reactive_center()
+    atom_transformation = next(
+        iter(builder.chemical_equation.mapping.atom_transformations)
+    )
+    product_atom = builder._get_product_atom(atom_transformation)
+
     assert isinstance(product_atom, cif.Atom)
     assert product_atom.GetAtomMapNum() == atom_transformation.map_num
     assert product_atom.GetIdx() == atom_transformation.prod_atom_id
@@ -347,6 +344,25 @@ def test_disconnection_for_deprotections():
         assert (
             len(disconnection.hydrogenated_atoms) > 0
         ), f"No hydrogenated atoms for {name}"
+
+
+def test_disconnection_double_addition():
+    double_addition = "Cl[Cl:10].Cl[Cl:13].[cH:6]1[cH:7][cH:8][cH:9][cH:11][cH:12]1>>[Cl:10][c:9]1[cH:8][cH:7][cH:6][c:12]([Cl:13])[cH:11]1"
+    ce_constructor = ChemicalEquationConstructor(
+        molecular_identity_property_name="smiles",
+        chemical_equation_identity_name="r_r_p",
+    )
+    ce = ce_constructor.build_from_reaction_string(double_addition, "smiles")
+    disconnection = DisconnectionBuilder(
+        chemical_equation=ce, desired_product=ce.get_products()[0]
+    ).build()
+    assert disconnection.reacting_atoms == [0, 1, 6, 7]
+    assert len(disconnection.hydrogenated_atoms) == 2
+    # from linchemin.cheminfo.depiction import draw_disconnection
+    # import linchemin.IO.io as lio
+    # depiction_data = draw_disconnection(disconnection=ce.disconnection)
+    # lio.write_rdkit_depict(data=depiction_data, file_path=f"disconnection.png")
+    # assert depiction_data
 
 
 def test_disconnection_for_hydrogenation():
