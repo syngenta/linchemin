@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, mock_open, patch
 
 import pytest
 
@@ -140,19 +140,35 @@ def test_iron_to_output(
 @patch("os.system")
 @patch("pydot.Dot.write")
 @patch("linchemin.IO.io.write_rdkit_depict")
+@patch("base64.b64encode")
+@patch("builtins.open", new_callable=mock_open, read_data=b"fake png data")
 def test_pydot_visualization_translation(
-    mock_lio, mock_dot, mock_system, mock_remove, bp_syngraph_instance
+    mock_file,
+    mock_base64,
+    mock_lio,
+    mock_dot,
+    mock_system,
+    mock_remove,
+    bp_syngraph_instance,
 ):
-    translator(
+    mock_system.return_value = Mock()
+    mock_base64.return_value = b"fake base64 data"
+
+    result = translator(
         "syngraph",
         bp_syngraph_instance,
         "pydot_visualization",
         out_data_model="bipartite",
     )
+
+    mock_base64.assert_called()
     mock_lio.assert_called()
     mock_dot.assert_called()
     mock_system.assert_called()
     mock_remove.assert_called()
+    mock_file.assert_called()
+
+    assert result == "fake base64 data"
 
 
 @patch("linchemin.cgu.graph_transformations.format_translators.NOC.from_iron")

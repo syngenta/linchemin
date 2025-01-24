@@ -1,7 +1,8 @@
+import base64
 import datetime
 import os
 from abc import ABC, abstractmethod
-from typing import List, Type, Union
+from typing import List, Optional, Type, Union
 
 import networkx as nx
 import pydot
@@ -45,7 +46,7 @@ class GraphFormatTranslator(ABC):
     @abstractmethod
     def from_iron(
         self, graph: Iron
-    ) -> Union[nx.classes.digraph.DiGraph, pydot.Dot, list, dict, None]:
+    ) -> Union[nx.classes.digraph.DiGraph, pydot.Dot, list, dict, None, str]:
         """
         To translate an Iron instance into a graph object of another type.
 
@@ -162,6 +163,7 @@ class ReaxysRT(GraphFormatTranslator):
     as_output = None
 
     def from_iron(self, graph: Iron) -> Union[dict, None]:
+        """Not implemented yet"""
         pass
 
     def to_iron(
@@ -674,7 +676,7 @@ class PydotVisualization(GraphFormatTranslator):
     as_input = None
     as_output = "implemented"
 
-    def from_iron(self, route_iron: Iron) -> None:
+    def from_iron(self, route_iron: Iron) -> Optional[str]:
         """Translates an Iron instance into a PNG picture"""
 
         try:
@@ -690,10 +692,23 @@ class PydotVisualization(GraphFormatTranslator):
                 self.create_dot_edge(edge, route_iron, dot_graph)
 
             dot_graph.write(f"{route_iron.name}.dot")
-            os.system(f"dot -Tpng {route_iron.name}.dot > {route_iron.name}.png")
+            png_filename = route_iron.name + ".png"
+
+            # Could be great to have a way parameters in the fucntion  to change
+            # a) option to save or not
+            # b) provide user option where to save the path of the dot executable
+            os.system(f"dot -Tpng {route_iron.name}.dot > {png_filename}")
+
+            with open(png_filename, "rb") as f:
+                png_data = f.read()
+
+            # encode the image to base64 to export as svg
+            base64_png = base64.b64encode(png_data).decode("utf-8")
 
             for id_n in route_iron.nodes.keys():
                 os.remove(f"{id_n}.png")
+
+            return base64_png
 
         except exceptions.EmptyRoute:
             logger.warning(
