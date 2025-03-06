@@ -2,9 +2,18 @@ import copy
 from collections import namedtuple
 from typing import List, Tuple
 
+import rdkit
+from packaging import version
+
+rdkit_version = version.parse(rdkit.__version__)
 from rdkit import Chem
 from rdkit.Chem import Draw
-from rdkit.Chem.Draw import DrawingOptions, rdMolDraw2D
+from rdkit.Chem.Draw import rdMolDraw2D
+
+if rdkit_version < version.parse("2024.9.1"):
+    from rdkit.Chem.Draw import DrawingOptions
+else:
+    from rdkit.Chem.Draw.MolDrawing import DrawingOptions
 
 # Local imports
 import linchemin.cheminfo.functions as cif
