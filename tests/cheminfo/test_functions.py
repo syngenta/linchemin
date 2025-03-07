@@ -781,15 +781,45 @@ def test_mapped_rdmol_atom_ids_canonicalization():
     assert d1 != d2
     # to get the identical atom ids, we need to canonicalize
     # the atoms order after the map numbers have been removed
-    mol1_canonical_atoms = cif.canonicalize_mapped_rdmol(
+    mol1_canonical_atoms = cif.new_molecule_canonicalization(
         cif.rdmol_from_string(s1, inp_fmt="smiles")
     )
-    mol2_canonical_atoms = cif.canonicalize_mapped_rdmol(
+    mol2_canonical_atoms = cif.new_molecule_canonicalization(
         cif.rdmol_from_string(s2, inp_fmt="smiles")
     )
     d1 = {a.GetIdx(): [a.GetSymbol()] for a in mol1_canonical_atoms.GetAtoms()}
     d2 = {a.GetIdx(): [a.GetSymbol()] for a in mol2_canonical_atoms.GetAtoms()}
     assert d1 == d2
+
+
+def test_indices_order():
+    """
+    Rdmol obtained from equivalent smiles with different mapping information
+    should have the same atom indices after the canonicalization
+    """
+    mol = Chem.MolFromSmiles("OC(COC1=C2C=CC=CC2=CC=C1)CNC(C)C")
+    mol2 = Chem.MolFromSmiles(
+        "[CH3:3][CH:2]([CH3:1])[NH:4]C[CH:6](O)C[O:5]C1=C2C=CC=CC2=CC=C1"
+    )
+    mol3 = Chem.MolFromSmiles(
+        "[CH3:2][CH:5](C)[NH:3]CC([OH:1])COC1=C2[CH:1]=CC=CC2=C[CH:6]=C1"
+    )
+    canonical_mol = Chem.MolFromSmiles(Chem.MolToSmiles(mol))
+    canonical_mol2 = Chem.MolFromSmiles(Chem.MolToSmiles(mol2))
+    canonical_mol3 = Chem.MolFromSmiles(Chem.MolToSmiles(mol3))
+    d = {a.GetIdx(): a.GetSymbol() for a in canonical_mol.GetAtoms()}
+    d2 = {a.GetIdx(): a.GetSymbol() for a in canonical_mol2.GetAtoms()}
+    d3 = {a.GetIdx(): a.GetSymbol() for a in canonical_mol3.GetAtoms()}
+    assert d != d2
+    assert d2 != d3
+    new_canonical_mol = cif.new_molecule_canonicalization(canonical_mol)
+    new_canonical_mol2 = cif.new_molecule_canonicalization(canonical_mol2)
+    new_canonical_mol3 = cif.new_molecule_canonicalization(canonical_mol3)
+    d = {a.GetIdx(): a.GetSymbol() for a in new_canonical_mol.GetAtoms()}
+    d2 = {a.GetIdx(): a.GetSymbol() for a in new_canonical_mol2.GetAtoms()}
+    d3 = {a.GetIdx(): a.GetSymbol() for a in new_canonical_mol3.GetAtoms()}
+    assert d == d2
+    assert d2 == d3
 
 
 def test_new_canonicalization():

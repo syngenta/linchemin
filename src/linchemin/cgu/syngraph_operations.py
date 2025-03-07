@@ -7,6 +7,7 @@ from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
+    SynGraph,
 )
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
@@ -29,16 +30,14 @@ class GraphTypeError(TypeError):
 
 
 def merge_syngraph(
-    list_syngraph: List[
-        Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-    ],
+    list_syngraph: List[SynGraph],
 ) -> Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]:
     """
     To merge a list od SynGraph objects in a single graph instance.
 
     Parameters:
     -----------
-    list_syngraph: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]
+    list_syngraph: SynGraph
         The list of the input SynGraph objects to be merged
 
     Returns:
@@ -57,7 +56,6 @@ def merge_syngraph(
     >>> all_routes_ibm = [translator('ibm_retro', g, 'syngraph', out_data_model='bipartite') for g in graph_ibm]
     >>> merged_graph = merge_syngraph(all_routes_ibm)
     """
-    merged: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
     if all(isinstance(x, MonopartiteReacSynGraph) for x in list_syngraph):
         merged = MonopartiteReacSynGraph()
     elif all(isinstance(x, BipartiteSynGraph) for x in list_syngraph):
@@ -76,7 +74,7 @@ def merge_syngraph(
 
 
 def add_reaction_to_syngraph(
-    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph],
+    syngraph: SynGraph,
     reaction_to_add: str,
 ) -> Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph]:
     """
@@ -407,7 +405,3 @@ def is_syngraph(graph) -> bool:
         )
         raise GraphTypeError
     return True
-
-
-if __name__ == "__main__":
-    print("main")
