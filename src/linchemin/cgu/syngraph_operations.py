@@ -7,6 +7,7 @@ from linchemin.cgu.syngraph import (
     BipartiteSynGraph,
     MonopartiteMolSynGraph,
     MonopartiteReacSynGraph,
+    SynGraph,
 )
 from linchemin.cheminfo.constructors import ChemicalEquationConstructor
 from linchemin.cheminfo.models import ChemicalEquation, Molecule
@@ -22,17 +23,21 @@ class SmilesTypeError(TypeError):
     pass
 
 
+class GraphTypeError(TypeError):
+    """Error raised if the provided graph is not a SynGraph"""
+
+    pass
+
+
 def merge_syngraph(
-    list_syngraph: List[
-        Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
-    ],
+    list_syngraph: List[SynGraph],
 ) -> Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]:
     """
     To merge a list od SynGraph objects in a single graph instance.
 
     Parameters:
     -----------
-    list_syngraph: List[Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]]
+    list_syngraph: SynGraph
         The list of the input SynGraph objects to be merged
 
     Returns:
@@ -51,7 +56,6 @@ def merge_syngraph(
     >>> all_routes_ibm = [translator('ibm_retro', g, 'syngraph', out_data_model='bipartite') for g in graph_ibm]
     >>> merged_graph = merge_syngraph(all_routes_ibm)
     """
-    merged: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
     if all(isinstance(x, MonopartiteReacSynGraph) for x in list_syngraph):
         merged = MonopartiteReacSynGraph()
     elif all(isinstance(x, BipartiteSynGraph) for x in list_syngraph):
@@ -70,7 +74,7 @@ def merge_syngraph(
 
 
 def add_reaction_to_syngraph(
-    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph],
+    syngraph: SynGraph,
     reaction_to_add: str,
 ) -> Union[BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph]:
     """
@@ -99,7 +103,7 @@ def add_reaction_to_syngraph(
         syngraph, (BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph)
     ):
         logger.error("Only Syngraph objects are supported")
-        raise TypeError
+        raise GraphTypeError
 
     if reaction_to_add.count(">") != 2:
         logger.error("Please insert a valid reaction smiles")
@@ -146,29 +150,25 @@ def remove_reaction_from_syngraph(
     -------
     >>> new_graph = remove_reaction_from_syngraph(syngraph, 'CCN.O>>CCO')
     """
-    if not isinstance(
-        syngraph, (BipartiteSynGraph, MonopartiteMolSynGraph, MonopartiteReacSynGraph)
-    ):
-        logger.error("Only Syngraph objects are supported")
-        raise TypeError
-    if reaction_to_remove.count(">") == 2:
-        node = ChemicalEquationConstructor().build_from_reaction_string(
-            reaction_to_remove, "smiles"
-        )
-    else:
-        logger.error("Please insert a valid reaction smiles")
-        raise SmilesTypeError
-    if syngraph.graph.get(node, None) is None:
-        logger.warning(
-            "The selected node is not present in the input graph. The input graph is returned unchanged"
-        )
-        return syngraph
-    new_graph = copy.deepcopy(syngraph)
-    if remove_dandling_nodes:
-        return handle_dangling_nodes(new_graph, node)
-    else:
-        new_graph.remove_node(node.uid)
-        return new_graph
+    if is_syngraph(syngraph):
+        if reaction_to_remove.count(">") == 2:
+            node = ChemicalEquationConstructor().build_from_reaction_string(
+                reaction_to_remove, "smiles"
+            )
+        else:
+            logger.error("Please insert a valid reaction smiles")
+            raise SmilesTypeError
+        if syngraph.graph.get(node, None) is None:
+            logger.warning(
+                "The selected node is not present in the input graph. The input graph is returned unchanged"
+            )
+            return syngraph
+        new_graph = copy.deepcopy(syngraph)
+        if remove_dandling_nodes:
+            return handle_dangling_nodes(new_graph, node)
+        else:
+            new_graph.remove_node(node.uid)
+            return new_graph
 
 
 def handle_dangling_nodes(
@@ -269,7 +269,7 @@ class ExtractorFactory:
 
     def extract_reactions(self, syngraph):
         if type(syngraph) not in self.syngraph_types:
-            raise TypeError(
+            raise GraphTypeError(
                 "Invalid graph type. Available graph objects are:",
                 list(self.syngraph_types.keys()),
             )
@@ -351,6 +351,41 @@ def find_path(
                 return newpath
 
 
+def find_all_paths(
+    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph],
+) -> List[list]:
+    """
+    To identify all linear paths in a syngraph
+
+    Parameters:
+    -----------
+    syngraph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
+        The syngraph object for which all the linear paths should be searched
+
+    Returns:
+    --------
+    all_paths: List[list]
+        The list of linear paths identified
+
+    Raises:
+    --------
+    TypeError: if the input graph is not a syngraph object
+    """
+    if is_syngraph(syngraph):
+        root = syngraph.get_roots()
+        leaves = syngraph.get_leaves()
+        all_paths = []
+        for leaf in leaves:
+            path = find_path(syngraph, leaf, root[0])
+            reaction_path = [
+                step for step in path if isinstance(step, ChemicalEquation)
+            ]
+            if reaction_path not in all_paths:
+                all_paths.append(reaction_path)
+
+        return all_paths
+
+
 def build_list_of_reactions(syngraph):
     """To extract a list of reaction smiles from a syngraph and return it suitable to be used as input for syngraph
     building"""
@@ -361,5 +396,12 @@ def build_list_of_reactions(syngraph):
     ]
 
 
-if __name__ == "__main__":
-    print("main")
+def is_syngraph(graph) -> bool:
+    if not isinstance(
+        graph, (MonopartiteMolSynGraph, BipartiteSynGraph, MonopartiteReacSynGraph)
+    ):
+        logger.error(
+            f"{type(graph)} is not supported. Only Syngraph objects are accepted."
+        )
+        raise GraphTypeError
+    return True

@@ -20,8 +20,11 @@
       ~BipartiteSynGraph.build_chemical_equations
       ~BipartiteSynGraph.builder_from_iron
       ~BipartiteSynGraph.builder_from_reaction_list
+      ~BipartiteSynGraph.find_dangling_sequence
+      ~BipartiteSynGraph.find_parent_node
       ~BipartiteSynGraph.find_reactants_products
       ~BipartiteSynGraph.get_leaves
+      ~BipartiteSynGraph.get_reaction_roots
       ~BipartiteSynGraph.get_roots
       ~BipartiteSynGraph.get_unique_nodes
       ~BipartiteSynGraph.initialize_with_iron

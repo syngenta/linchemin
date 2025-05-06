@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import ClassVar, List, Optional
+from typing import ClassVar, List, Optional, Union
 
 from pydantic import BaseModel
 
@@ -15,11 +15,11 @@ class Software(BaseModel):
 
 
 class QueryReactionString(BaseModel):
-    query_id: str
+    query_id: Union[str, int]
     input_string: str
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "input_string": "CC(Cl)=O.CN>>CNC(C)=O",
                 "query_id": "1",
@@ -35,7 +35,7 @@ class ResultsReactionString(BaseModel):
     success: bool
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "reaction_smiles_mapped": "Cl[C:3]([CH3:4])=[O:5].[CH3:1][NH2:2]>>[CH3:1][NH:2][C:3]([CH3:4])=[O:5]",
                 "query_id": "1",
@@ -46,13 +46,13 @@ class ResultsReactionString(BaseModel):
         }
 
 
-## endpoints I/O
+# endpoints I/O
 class Metadata(BaseModel):
     ci_toolkit: Software
     a2a_mapper: Software
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "ci_toolkit": {"name": "RDKit", "version": "2022.09.1"},
                 "a2a_mapper": {"name": "rxnmapper", "version": "0.2.4"},
@@ -72,7 +72,7 @@ class RunBatchInp(BaseModel):
     ]
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "classification_code": "namerxn",
                 "inp_fmt": "smiles",
@@ -94,7 +94,7 @@ class RunBatchOut(BaseModel):
     outcome: dict
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "metadata": {
                     "ci_toolkit": {"name": "RDKit", "version": "2022.09.1"},

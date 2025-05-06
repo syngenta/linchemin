@@ -10,7 +10,7 @@ mapped_reactions = {
 }
 
 
-def test_basic_disconnectionGraph():
+def test_basic_disconnection_graph():
     chemical_equation_constructor = ChemicalEquationConstructor(
         molecular_identity_property_name="smiles"
     )

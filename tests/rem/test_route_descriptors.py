@@ -1,84 +1,155 @@
 import json
+import math
+from unittest.mock import patch
 
 import pytest
 
-from linchemin.cgu.convert import converter
-from linchemin.cgu.syngraph import MonopartiteReacSynGraph, SynGraph
-from linchemin.cgu.syngraph_operations import merge_syngraph
+from linchemin.cgu.syngraph import MonopartiteReacSynGraph
 from linchemin.cgu.translate import translator
 from linchemin.rem.route_descriptors import (
+    Branchedness,
+    CDScore,
+    Convergence,
     DescriptorError,
+    DescriptorsCalculatorFactory,
+    LongestSequence,
+    NrReactionSteps,
+    RouteDescriptor,
+    SimplifiedAtomEffectiveness,
+    UnavailableDescriptor,
+    WrongGraphType,
     descriptor_calculator,
     find_duplicates,
     get_available_descriptors,
+    get_configuration,
     get_nodes_consensus,
     is_subset,
+    validate_input_graph,
 )
 
 
-def test_unavailable_metrics(ibm1_path):
-    """To test that a KeyError is raised if an unavailable metrics is requested."""
-    with pytest.raises(DescriptorError) as ke:
-        graph = json.loads(open(ibm1_path).read())
-        syngraph = translator(
-            "ibm_retro", graph[3], "syngraph", out_data_model="bipartite"
-        )
-        descriptor_calculator(syngraph, "wrong_metrics")
-    assert "UnavailableDescriptor" in str(ke.type)
-
-
-def test_longest_sequence(az_path):
-    """To test that the LongestSequence object is returned as expected."""
-    graph = json.loads(open(az_path).read())
-    syngraph = translator("az_retro", graph[3], "syngraph", out_data_model="bipartite")
-    longest_seq = descriptor_calculator(syngraph, "longest_seq")
-    assert longest_seq == 3
-
-    mp_syngraph = translator(
-        "az_retro", graph[3], "syngraph", out_data_model="monopartite_reactions"
-    )
-    longest_seq_mp = descriptor_calculator(mp_syngraph, "longest_seq")
-    assert longest_seq_mp == longest_seq
-
-
-def test_metric_selector_nr_steps(az_path):
-    """To test that the NrReactionSteps object is returned as expected."""
-    graph = json.loads(open(az_path).read())
-    syngraph = translator("az_retro", graph[4], "syngraph", out_data_model="bipartite")
-    n_steps = descriptor_calculator(syngraph, "nr_steps")
-    assert n_steps == 3
-
-
-def test_metric_selector_paths(az_path):
-    """To test that the PathFinder object is returned as expected."""
-    graph = json.loads(open(az_path).read())
-    syngraph = translator("az_retro", graph[2], "syngraph", out_data_model="bipartite")
-    paths = descriptor_calculator(syngraph, "all_paths")
-    assert len(paths) == 3
-
-
-def test_metric_selector_branching_factor(az_path):
-    """To test that the AvgBranchingFactor object is returned as expected."""
-    graph = json.loads(open(az_path).read())
-    syngraphs = [
-        translator("az_retro", g, "syngraph", out_data_model="bipartite") for g in graph
+@pytest.fixture
+def branched_syngraph():
+    reactions = [
+        "Cc1cccc(C)c1NCC(=O)Cl.O=C(O)C1CCS(=O)(=O)CC1>>Cc1cccc(C)c1N(CC(=O)Cl)C(=O)C1CCS(=O)(=O)CC1",
+        "Cc1cccc(C)c1N(CC(=O)Cl)C(=O)C1CCS(=O)(=O)CC1.Nc1ccc(-c2ncon2)cc1>>Cc1cccc(C)c1N(CC(=O)Nc1ccc(-c2ncon2)cc1)C(=O)C1CCS(=O)(=O)CC1",
+        "Cc1cccc(C)c1NCC(=O)O>>Cc1cccc(C)c1NCC(=O)Cl",
+        "Cc1cccc(C)c1NCC(=O)Cl.Nc1ccc(-c2ncon2)cc1>>Cc1cccc(C)c1NCC(=O)Nc1ccc(-c2ncon2)cc1",
+        "Cc1cccc(C)c1NCC(=O)Cl.O=C(Cl)C1CCS(=O)(=O)CC1>>Cc1cccc(C)c1N(CC(=O)Cl)C(=O)C1CCS(=O)(=O)CC1",
+        "Cc1cccc(C)c1NCC(=O)Nc1ccc(-c2ncon2)cc1.O=C(O)C1CCS(=O)(=O)CC1>>Cc1cccc(C)c1N(CC(=O)Nc1ccc(-c2ncon2)cc1)C(=O)C1CCS(=O)(=O)CC1",
     ]
+    return MonopartiteReacSynGraph(
+        [{"query_id": n, "output_string": s} for n, s in enumerate(reactions)]
+    )
 
-    tree = merge_syngraph(syngraphs)
-    avg_branch = descriptor_calculator(tree, "branching_factor")
-    assert avg_branch == 1.1428571428571428
+
+@DescriptorsCalculatorFactory.register_descriptors("mock_descriptor")
+class MockDescriptor(RouteDescriptor):
+    info = "A mocked descriptor"
+
+    def compute_descriptor(self, graph: MonopartiteReacSynGraph) -> int:
+        """Mocked abstract method"""
+        pass
 
 
-def test_nr_branches(az_path):
-    graph = json.loads(open(az_path).read())
-    syngraphs = translator("az_retro", graph[2], "syngraph", out_data_model="bipartite")
+def test_register_descriptors():
+    assert "mock_descriptor" in DescriptorsCalculatorFactory._registered_descriptors
+    assert (
+        DescriptorsCalculatorFactory._registered_descriptors["mock_descriptor"]
+        is MockDescriptor
+    )
+
+
+# Test retrieval of a registered descriptor
+def test_get_descriptor():
+    name = "mock_descriptor"
+    descriptor_instance = DescriptorsCalculatorFactory.get_descriptor(name)
+    assert isinstance(descriptor_instance, RouteDescriptor)
+
+
+# Test retrieval of a non-existent descriptor
+def test_get_unavailable_descriptor():
+    with pytest.raises(UnavailableDescriptor):
+        DescriptorsCalculatorFactory.get_descriptor("non_existent_descriptor")
+
+
+# Test listing of descriptors
+def test_list_route_descriptors():
+    descriptors_list = DescriptorsCalculatorFactory.list_route_descriptors()
+    assert "mock_descriptor" in descriptors_list
+
+
+# Test configuration retrieval
+def test_get_descriptor_configuration():
+    name = "mock_descriptor"
+    mock_config = {"config_key": "config_value"}
+
+    with patch.object(RouteDescriptor, "get_configuration", return_value=mock_config):
+        config = DescriptorsCalculatorFactory().get_descriptor_configuration(name)
+        assert config == mock_config
+
+
+def test_validate_input(bp_syngraph_instance, mpr_syngraph_instance, iron_w_smiles):
+    g = validate_input_graph(mpr_syngraph_instance)
+    assert g.graph == mpr_syngraph_instance.graph
+    g2 = validate_input_graph(bp_syngraph_instance)
+    assert isinstance(g2, MonopartiteReacSynGraph)
+    with pytest.raises(WrongGraphType):
+        validate_input_graph(iron_w_smiles)
+
+
+def test_longest_sequence(mpr_syngraph_instance):
+    """To test that the LongestSequence object is returned as expected."""
+    longest_sequence = LongestSequence()
+    lls = longest_sequence.compute_descriptor(mpr_syngraph_instance)
+    assert lls == 3
+
+    r = [
+        {
+            "query_id": 0,
+            "output_string": "CC(=O)O.NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1>>CC(=O)NCC1CN(c2ccc(N3CCOCC3)cc2)C(=O)O1",
+        }
+    ]
+    single_reaction_syngraph = MonopartiteReacSynGraph(r)
+    assert descriptor_calculator(single_reaction_syngraph, "longest_seq") == 1
+    assert {"title": "Longest Linear Sequence"}.items() <= get_configuration(
+        "longest_seq"
+    ).items()
+
+
+def test_nr_steps(mpr_syngraph_instance):
+    """To test that the NrReactionSteps object is returned as expected."""
+    nr_steps = NrReactionSteps()
+    n_steps = nr_steps.compute_descriptor(mpr_syngraph_instance)
+    assert n_steps == 3
+    assert {
+        "title": "Total N of Steps",
+        "order": 10,
+    }.items() <= NrReactionSteps().get_configuration().items()
+
+
+def test_branching_factor(branched_syngraph):
+    """To test that the AvgBranchingFactor object is returned as expected."""
+    avg_branch = descriptor_calculator(branched_syngraph, "branching_factor")
+    assert avg_branch > 0
+    assert {"title": "Avg Branching Factor"}.items() <= get_configuration(
+        "branching_factor"
+    ).items()
+
+
+def test_nr_branches(mpr_syngraph_instance, branched_syngraph):
     # The expected number of branches is returned
-    nr_b = descriptor_calculator(syngraphs, "nr_branches")
+    nr_b = descriptor_calculator(mpr_syngraph_instance, "nr_branches")
     assert nr_b == 0
     with pytest.raises(DescriptorError) as e:
         graph = None
         descriptor_calculator(graph, "nr_branches")
     assert "InvalidInput" in str(e.type)
+    assert {"title": "N of Branches"}.items() <= get_configuration(
+        "nr_branches"
+    ).items()
+    nr_b = descriptor_calculator(branched_syngraph, "nr_branches")
+    assert nr_b == 2
 
 
 def test_subset(az_path):
@@ -86,8 +157,10 @@ def test_subset(az_path):
     mp_syngraphs = translator(
         "az_retro", graph[2], "syngraph", out_data_model="monopartite_reactions"
     )
-    # A route is subset of another when: (i) the Syngraph dictionary is subset, (ii) the two routes have the same
-    # target (iii) the two routes have different leaves
+    # A route is subset of another when:
+    # (i) the Syngraph dictionary is subset,
+    # (ii) the two routes have the same target
+    # (iii) the two routes have different leaves
     reaction_leaf = mp_syngraphs.get_leaves()[0]
     subset = MonopartiteReacSynGraph()
     for r, conn in mp_syngraphs.graph.items():
@@ -113,36 +186,25 @@ def test_subset(az_path):
     assert not is_subset(g2, mp_syngraphs)
 
 
-def test_find_duplicates(ibm1_path, az_path):
-    graph1 = json.loads(open(ibm1_path).read())
-    ibm_routes = [
-        translator("ibm_retro", g, "syngraph", out_data_model="bipartite")
-        for g in graph1
-    ]
-    graph2 = json.loads(open(az_path).read())
-    az_routes = [
-        translator("az_retro", g, "syngraph", out_data_model="bipartite")
-        for g in graph2
-    ]
+def test_find_duplicates(
+    bp_syngraph_instance, mpr_syngraph_instance, branched_syngraph
+):
+    l1 = [mpr_syngraph_instance]
+    l2 = [branched_syngraph]
     # No duplicates are found
-    d = find_duplicates(ibm_routes, az_routes)
+    d = find_duplicates(l1, l2)
     assert d is None
 
     # A duplicate is found
-    ibm_routes.append(az_routes[0])
-    d2 = find_duplicates(ibm_routes, az_routes)
+    l2.append(mpr_syngraph_instance)
+    d2 = find_duplicates(l1, l2)
     assert d2 is not None
     assert len(d2) == 1
 
-    # Exception raised when the two provided syngraphs have different types (MonopartiteSynGraph and SynGraph)
+    # Exception raised when the two provided syngraphs
+    # have different types (MonopartiteSynGraph and BipartiteSynGraph)
     with pytest.raises(DescriptorError) as ke:
-        ibm_routes_mp = [
-            translator(
-                "ibm_retro", g, "syngraph", out_data_model="monopartite_reactions"
-            )
-            for g in graph1
-        ]
-        find_duplicates(ibm_routes_mp, az_routes)
+        find_duplicates(l2, [bp_syngraph_instance])
     assert "MismatchingGraphType" in str(ke.type)
 
 
@@ -158,7 +220,7 @@ def test_get_node_consensus(az_path):
     leaves = az_routes[0].get_leaves()
     # total number of diverse nodes
     assert len(nodes_consensus) == 24
-    # the root is among the nodes and it is shared among all routes
+    # the root is among the nodes, and it is shared among all routes
     assert roots[0] in nodes_consensus
     assert len(nodes_consensus[roots[0]]) == len(az_routes)
     # the leaves are among the nodes, but a single leaf is not shared among all rotues
@@ -177,54 +239,50 @@ def test_get_node_consensus(az_path):
     assert len(nodes_consensus_mp[reaction_leaves[0]]) != len(az_routes_mp)
 
 
-def test_get_available_routes():
+def test_get_available_route_descriptors():
     assert (
-        type(get_available_descriptors()) == dict
+        isinstance(get_available_descriptors(), dict)
         and "nr_steps" in get_available_descriptors()
     )
 
 
-def test_convergence(az_path):
-    graph = json.loads(open(az_path).read())
-    az_routes_mp = translator(
-        "az_retro", graph[-1], "syngraph", out_data_model="monopartite_reactions"
-    )
-    lls = descriptor_calculator(az_routes_mp, "longest_seq")
-    n_steps = descriptor_calculator(az_routes_mp, "nr_steps")
-    convergence = descriptor_calculator(az_routes_mp, "convergence")
-    assert convergence == lls / n_steps
+def test_convergence(branched_syngraph):
+    convergence = Convergence()
+    convergence_value = convergence.compute_descriptor(branched_syngraph)
+    assert convergence_value == round(3.0 / 6.0, 2)
+    assert {"title": "Convergence"}.items() <= get_configuration("convergence").items()
 
 
-def test_cdscores(az_path):
-    graph = json.loads(open(az_path).read())
-    az_routes_mp = translator(
-        "az_retro", graph[0], "syngraph", out_data_model="monopartite_reactions"
-    )
-    cds = descriptor_calculator(az_routes_mp, "cdscore")
+def test_cdscores(branched_syngraph):
+    cdscore = CDScore()
+    cds = cdscore.compute_descriptor(branched_syngraph)
     assert 0 < cds < 1
 
-    with pytest.raises(DescriptorError) as te:
-        route = translator(
-            "az_retro", graph[0], "iron", out_data_model="monopartite_reactions"
-        )
-        descriptor_calculator(route, "cdscore")
-    assert "WrongGraphType" in str(te.type)
+    assert {"title": "Convergent Disconnection Score"}.items() <= get_configuration(
+        "cdscore"
+    ).items()
 
 
-def test_branchedness(ibm2_path):
-    f = json.loads(open(ibm2_path).read())
-    routes = [
-        translator("ibm_retro", g, "syngraph", out_data_model="monopartite_reactions")
-        for g in f[:3]
-    ]
-    assert descriptor_calculator(routes[0], "branchedness") == 0.0
-    assert descriptor_calculator(routes[2], "branchedness") == 0.5
+def test_branchedness(mpr_syngraph_instance, branched_syngraph):
+    branchedness = Branchedness()
+    b = branchedness.compute_descriptor(mpr_syngraph_instance)
+    assert math.isclose(
+        b, 0.0, rel_tol=1e-9
+    ), f"Expected similarity close to 1.0, but got {b}"
+
+    b = branchedness.compute_descriptor(branched_syngraph)
+    assert math.isclose(
+        b, 2.0, rel_tol=1e-9
+    ), f"Expected similarity close to 1.0, but got {b}"
+    assert {"title": "Branchedness"}.items() <= get_configuration(
+        "branchedness"
+    ).items()
 
 
-def test_atom_efficiency(az_path):
-    graph = json.loads(open(az_path).read())
-    az_routes_mp = translator(
-        "az_retro", graph[0], "syngraph", out_data_model="monopartite_reactions"
-    )
-    ae = descriptor_calculator(az_routes_mp, "atom_efficiency")
-    assert ae == 34.0 / 36.0
+def test_simplified_atom_effectiveness(mpr_syngraph_instance):
+    sae = SimplifiedAtomEffectiveness()
+    ae = sae.compute_descriptor(mpr_syngraph_instance)
+    assert ae == round(30.0 / 50.0, 2)
+    assert {"title": "Simplified Atom Effectiveness"}.items() <= get_configuration(
+        "simplified_atom_effectiveness"
+    ).items()

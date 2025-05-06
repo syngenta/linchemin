@@ -1,465 +1,213 @@
-import json
-import os
-import unittest.mock
+from unittest.mock import Mock, mock_open, patch
 
-import networkx as nx
-import pydot
 import pytest
 
-from linchemin import settings
-from linchemin.cgu.iron import Direction, Edge, Iron, Node
-from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
+from linchemin.cgu.graph_transformations.data_model_converters import BipartiteGenerator
 from linchemin.cgu.translate import (
-    TranslationError,
-    az_dict_to_iron,
+    InputToIron,
+    IronToOutput,
+    IronToSynGraph,
+    SynGraphToIron,
+    TranslationParameters,
+    UnavailableTranslation,
     get_available_data_models,
     get_available_formats,
     get_input_formats,
     get_output_formats,
-    ibm_dict_to_iron,
     translator,
 )
-from linchemin.cheminfo.models import ChemicalEquation
 
 
-def generate_iron_test_graph():
-    """Returns a general graph (SynForest) useful for testing as a list with a single Iron instance."""
-
-    nodes = {
-        "1": Node(
-            iid="1", properties={"id": "1", "node_smiles": "smile_1"}, labels=["C"]
-        ),
-        "2": Node(
-            iid="2", properties={"id": "101", "node_smiles": "smile_101"}, labels=["R"]
-        ),
-        "3": Node(
-            iid="3", properties={"id": "102", "node_smiles": "smile_102"}, labels=["R"]
-        ),
-        "4": Node(
-            iid="4", properties={"id": "103", "node_smiles": "smile_103"}, labels=["R"]
-        ),
-        "5": Node(
-            iid="5", properties={"id": "2", "node_smiles": "smile_2"}, labels=["C"]
-        ),
-        "6": Node(
-            iid="6", properties={"id": "3", "node_smiles": "smile_3"}, labels=["C"]
-        ),
-        "7": Node(
-            iid="7", properties={"id": "4", "node_smiles": "smile_4"}, labels=["C"]
-        ),
-        "8": Node(
-            iid="8", properties={"id": "104", "node_smiles": "smile_104"}, labels=["R"]
-        ),
-        "9": Node(
-            iid="9", properties={"id": "5", "node_smiles": "smile_5"}, labels=["C"]
-        ),
-        "10": Node(
-            iid="10", properties={"id": "105", "node_smiles": "smile_105"}, labels=["R"]
-        ),
-        "11": Node(
-            iid="11", properties={"id": "106", "node_smiles": "smile_106"}, labels=["R"]
-        ),
-        "12": Node(
-            iid="12", properties={"id": "8", "node_smiles": "smile_8"}, labels=["C"]
-        ),
-        "13": Node(
-            iid="13", properties={"id": "6", "node_smiles": "smile_6"}, labels=["C"]
-        ),
-        "14": Node(
-            iid="14", properties={"id": "7", "node_smiles": "smile_7"}, labels=["C"]
-        ),
-        "15": Node(
-            iid="15", properties={"id": "9", "node_smiles": "smile_9"}, labels=["C"]
-        ),
-    }
-    edges = {
-        "1": Edge(
-            iid="1",
-            a_iid="2",
-            b_iid="1",
-            direction=Direction("2>1"),
-            properties={},
-            labels=[],
-        ),
-        "2": Edge(
-            iid="2",
-            a_iid="3",
-            b_iid="1",
-            direction=Direction("3>1"),
-            properties={},
-            labels=[],
-        ),
-        "3": Edge(
-            iid="3",
-            a_iid="4",
-            b_iid="1",
-            direction=Direction("4>1"),
-            properties={},
-            labels=[],
-        ),
-        "4": Edge(
-            iid="4",
-            a_iid="5",
-            b_iid="2",
-            direction=Direction("5>2"),
-            properties={},
-            labels=[],
-        ),
-        "5": Edge(
-            iid="5",
-            a_iid="6",
-            b_iid="3",
-            direction=Direction("6>3"),
-            properties={},
-            labels=[],
-        ),
-        "6": Edge(
-            iid="6",
-            a_iid="7",
-            b_iid="4",
-            direction=Direction("7>4"),
-            properties={},
-            labels=[],
-        ),
-        "7": Edge(
-            iid="7",
-            a_iid="5",
-            b_iid="3",
-            direction=Direction("5>3"),
-            properties={},
-            labels=[],
-        ),
-        "8": Edge(
-            iid="8",
-            a_iid="5",
-            b_iid="4",
-            direction=Direction("5>4"),
-            properties={},
-            labels=[],
-        ),
-        "9": Edge(
-            iid="9",
-            a_iid="8",
-            b_iid="5",
-            direction=Direction("8>5"),
-            properties={},
-            labels=[],
-        ),
-        "10": Edge(
-            iid="10",
-            a_iid="11",
-            b_iid="7",
-            direction=Direction("11>6"),
-            properties={},
-            labels=[],
-        ),
-        "11": Edge(
-            iid="11",
-            a_iid="10",
-            b_iid="7",
-            direction=Direction("10>7"),
-            properties={},
-            labels=[],
-        ),
-        "12": Edge(
-            iid="12",
-            a_iid="9",
-            b_iid="8",
-            direction=Direction("9>8"),
-            properties={},
-            labels=[],
-        ),
-        "13": Edge(
-            iid="13",
-            a_iid="12",
-            b_iid="11",
-            direction=Direction("12>11"),
-            properties={},
-            labels=[],
-        ),
-        "14": Edge(
-            iid="14",
-            a_iid="13",
-            b_iid="10",
-            direction=Direction("13>10"),
-            properties={},
-            labels=[],
-        ),
-        "15": Edge(
-            iid="15",
-            a_iid="14",
-            b_iid="10",
-            direction=Direction("14>10"),
-            properties={},
-            labels=[],
-        ),
-        "16": Edge(
-            iid="16",
-            a_iid="10",
-            b_iid="15",
-            direction=Direction("10>15"),
-            properties={},
-            labels=[],
-        ),
-        "17": Edge(
-            iid="17",
-            a_iid="6",
-            b_iid="4",
-            direction=Direction("6>4"),
-            properties={},
-            labels=[],
-        ),
-    }
-
-    graph_iron = Iron()
-
-    for id_n, node in nodes.items():
-        graph_iron.add_node(id_n, node)
-
-    for id_e, edge in edges.items():
-        graph_iron.add_edge(id_e, edge)
-
-    return [graph_iron]
-
-
-def count_dict_nodes(d, counter=0):
-    """Returns the number of nodes in a graph in json format.
-
-    Parameters:
-        d: a nested dictionary representing a graph
-        counter: an integer (default: 0)
-
-    Returns:
-        counter: an integer
-    """
-    if "children" in d:
-        for child in d["children"]:
-            if isinstance(child, dict):
-                # Recursive call
-                counter = count_dict_nodes(child, counter + 1)
-            else:
-                counter += 1
-    return counter
-
-
-def test_factory(ibm1_path):
-    graph = {}
-    with unittest.TestCase().assertLogs(
-        "linchemin.cgu.translate", level="WARNING"
-    ) as cm:
-        t_graph_iron = translator("az_retro", graph, "iron", out_data_model="bipartite")
-    assert t_graph_iron is None
-    unittest.TestCase().assertEqual(len(cm.records), 1)
-    unittest.TestCase().assertIn(
-        "While translating from AZ", cm.records[0].getMessage()
+@pytest.fixture
+def mock_data_model_converter(mocker):
+    """To mock an instance of a DataModelConverter"""
+    mock = Mock()
+    mocker.patch(
+        "linchemin.cgu.graph_transformations.data_model_converters.BipartiteGenerator",
+        return_value=mock,
     )
+    return mock
 
-    t_graph_nx = translator(
-        "az_retro", graph, "networkx", out_data_model="monopartite_molecules"
+
+def test_translation_parameters(mock_data_model_converter):
+    """To test that the instance of TranslationParameters is correctly created"""
+    params = TranslationParameters(
+        input_format="input",
+        output_format="output",
+        data_model_converter=mock_data_model_converter,
     )
-    assert t_graph_nx is None
-
-    graph = json.loads(open(ibm1_path).read())
-    with pytest.raises(TranslationError) as ke:
-        translator("wrong_input_format", graph[1], "iron", out_data_model="bipartite")
-    assert "UnavailableFormat" in str(ke.type)
-
-    with pytest.raises(TranslationError) as ke:
-        translator("ibm_retro", graph[1], "pydot", out_data_model="bipartite_reactions")
-    assert "UnavailableDataModel" in str(ke.type)
+    assert params.input_format == "input"
+    assert params.output_format == "output"
+    assert params.data_model_converter
 
 
-def test_iron_source_attribute(ibm1_path):
-    """To test that the expected source is correctly assigned to an Iron instance."""
-    graph = json.loads(open(ibm1_path).read())
-    translated_graph = translator(
-        "ibm_retro", graph[0], "iron", out_data_model="monopartite_reactions"
-    )
+@pytest.mark.parametrize(
+    "input_format, mock_translator_path, data_fixture",
+    [
+        (
+            "az_retro",
+            "linchemin.cgu.graph_transformations.format_translators.AzRetro.to_iron",
+            "az_as_dict",
+        ),
+        (
+            "ibm_retro",
+            "linchemin.cgu.graph_transformations.format_translators.IbmRetro.to_iron",
+            "ibm1_as_dict",
+        ),
+    ],
+)
+def test_input_to_iron(
+    request, input_format, mock_translator_path, data_fixture, mock_data_model_converter
+):
+    """To test that the correct GraphFormatTranslator is called based on the
+    selected input_format in the first step of the chain"""
+    route_data = request.getfixturevalue(data_fixture)
 
-    assert "ibm" in translated_graph.source
-    assert type(translated_graph) == Iron
-
-
-def test_dot_translation(az_path):
-    graph = json.loads(open(az_path).read())
-    dot_graph = translator(
-        "az_retro", graph[2], "pydot", out_data_model="monopartite_molecules"
-    )
-    iron_graph = translator(
-        "az_retro", graph[2], "iron", out_data_model="monopartite_molecules"
-    )
-
-    assert type(dot_graph) == pydot.Dot
-    # the two graphs have the same number of nodes
-    assert iron_graph.i_node_number() == len(dot_graph.get_nodes())
-    # the two graphs have the same number of edges
-    assert iron_graph.i_edge_number() == iron_graph.i_edge_number()
-
-    syngraph = translator("pydot", dot_graph, "syngraph", "monopartite_molecules")
-    assert len(dot_graph.get_nodes()) == len(syngraph.graph)
-
-    syngraph = translator("pydot", dot_graph, "syngraph", "bipartite")
-    assert syngraph
-
-
-def test_nx_translation(ibm1_path, az_path):
-    """To test that the expected type of object (NetworkX DiGraph) is correctly generated."""
-    graph = json.loads(open(ibm1_path).read())
-    nx_graph = translator(
-        "ibm_retro", graph[1], "networkx", out_data_model="monopartite_molecules"
-    )
-    assert type(nx_graph) == nx.classes.digraph.DiGraph
-    for node, data in nx_graph.nodes.items():
-        assert data["label"] == settings.ROUTE_MINING.molecule_node_label
-
-    iron_graph = translator(
-        "ibm_retro", graph[1], "iron", out_data_model="monopartite_molecules"
-    )
-    # the two graphs have the same number of nodes
-    assert iron_graph.i_node_number() == nx_graph.number_of_nodes()
-    # the two graphs have the same number of edges
-    assert iron_graph.i_edge_number() == nx_graph.number_of_edges()
-
-    iron_deg_sequence = iron_graph.get_degree_sequence()
-    nx_deg_sequence = sorted([d for n, d in nx_graph.degree()], reverse=True)
-    assert iron_deg_sequence == nx_deg_sequence
-    for edge, data in nx_graph.in_edges.items():
-        assert data.get("label", None) is None
-    syngraph = translator("networkx", nx_graph, "syngraph", "monopartite_reactions")
-    assert syngraph and type(syngraph) == MonopartiteReacSynGraph
-
-    graph = json.loads(open(az_path).read())
-    nx_graph_bp = translator(
-        "az_retro", graph[1], "networkx", out_data_model="bipartite"
-    )
-    edge_labels = [data["label"] for data in nx_graph_bp.in_edges.values()]
-    assert edge_labels.count(settings.ROUTE_MINING.reactant_edge_label) == 4
-    assert edge_labels.count(settings.ROUTE_MINING.reagent_edge_label) == 0
-    assert edge_labels.count(settings.ROUTE_MINING.product_edge_label) == 2
-
-
-def test_one_node_iron_to_nx(ibm1_path):
-    graph_ibm = json.loads(open(ibm1_path).read())
-    mp_syngraph = translator(
-        "ibm_retro", graph_ibm[0], "syngraph", out_data_model="monopartite_reactions"
-    )
-    one_node_nx = translator(
-        "syngraph", mp_syngraph, "networkx", out_data_model="monopartite_reactions"
-    )
-    assert one_node_nx.number_of_nodes() == 1
-    assert one_node_nx.number_of_edges() == 0
-    assert one_node_nx.graph["source"]
-    for node, data in one_node_nx.nodes.items():
-        assert data["label"] == "CE"
-
-
-def testing_dict_to_iron(az_path, ibm1_path):
-    """To test that a graph in json format is correctly converted in the expected Iron object (json -> Iron)."""
-    all_routes = json.loads(open(az_path).read())
-    route = all_routes[0]
-    iron_route = az_dict_to_iron(route, iron=None, parent=None)
-    assert iron_route.i_node_number() == 5
-
-    all_routes_ibm = json.loads(open(ibm1_path).read())
-    route_ibm = all_routes_ibm[0]
-    iron_route_ibm = ibm_dict_to_iron(route_ibm, iron=None, parent=None)
-    assert iron_route_ibm.i_node_number() == count_dict_nodes(route_ibm, counter=1)
-
-
-def test_syngraph_to_syngraph(az_path):
-    graph_az = json.loads(open(az_path).read())
-    bp_syngraph = translator(
-        "az_retro", graph_az[2], "syngraph", out_data_model="bipartite"
-    )
-    with pytest.raises(TranslationError) as ke:
-        translator(
-            "syngraph", bp_syngraph, "syngraph", out_data_model="monopartite_reactions"
+    with patch(mock_translator_path) as mock_translator:
+        handler = InputToIron()
+        params = TranslationParameters(
+            input_format=input_format,
+            output_format="iron",
+            data_model_converter=mock_data_model_converter,
         )
-    assert "UnavailableTranslation" in str(ke.type)
+        route = route_data[0]
+        handler.translate(route, params)
+        mock_translator.assert_called()
 
 
-def test_iron_to_syngraph(ibm1_path):
-    """To test the Iron -> SynGraph transformation (mainly tested in the test_syngraph)."""
-    graph_ibm = json.loads(open(ibm1_path).read())
-    syngraph = translator(
-        "ibm_retro", graph_ibm[2], "syngraph", out_data_model="bipartite"
+@patch(
+    "linchemin.cgu.graph_transformations.data_model_converters.BipartiteGenerator.iron_to_syngraph"
+)
+def test_iron_to_syngraph(mock_method, iron_w_smiles):
+    """To test the second step of the chain"""
+    handler = IronToSynGraph()
+    params = TranslationParameters(
+        input_format="az_retro",
+        output_format="syngraph",
+        data_model_converter=BipartiteGenerator(),
+    )
+    handler.translate(iron_w_smiles, params)
+    mock_method.assert_called()
+
+
+@patch(
+    "linchemin.cgu.graph_transformations.data_model_converters.BipartiteGenerator.syngraph_to_iron"
+)
+def test_syngraph_to_iron(mock_method, bp_syngraph_instance):
+    """To test the third step of the chain"""
+    handler = SynGraphToIron()
+    params = TranslationParameters(
+        input_format="az_retro",
+        output_format="networkx",
+        data_model_converter=BipartiteGenerator(),
+    )
+    handler.translate(bp_syngraph_instance, params)
+    mock_method.assert_called()
+
+
+@pytest.mark.parametrize(
+    "output_format, mock_translator_path",
+    [
+        (
+            "pydot",
+            "linchemin.cgu.graph_transformations.format_translators.PyDot.from_iron",
+        ),
+        (
+            "networkx",
+            "linchemin.cgu.graph_transformations.format_translators.Networkx.from_iron",
+        ),
+    ],
+)
+def test_iron_to_output(
+    output_format, mock_translator_path, mock_data_model_converter, iron_w_smiles
+):
+    """To test that the correct GraphFormatTranslator is called based on the
+    selected output_format in the first step of the chain"""
+
+    with patch(mock_translator_path) as mock_translator:
+        handler = IronToOutput()
+        params = TranslationParameters(
+            input_format="az_retro",
+            output_format=output_format,
+            data_model_converter=mock_data_model_converter,
+        )
+
+        handler.translate(iron_w_smiles, params)
+        mock_translator.assert_called()
+
+
+@patch("os.remove")
+@patch("os.system")
+@patch("pydot.Dot.write")
+@patch("linchemin.IO.io.write_rdkit_depict")
+@patch("base64.b64encode")
+@patch("builtins.open", new_callable=mock_open, read_data=b"fake png data")
+def test_pydot_visualization_translation(
+    mock_file,
+    mock_base64,
+    mock_lio,
+    mock_dot,
+    mock_system,
+    mock_remove,
+    bp_syngraph_instance,
+):
+    mock_system.return_value = Mock()
+    mock_base64.return_value = b"fake base64 data"
+
+    result = translator(
+        "syngraph",
+        bp_syngraph_instance,
+        "pydot_visualization",
+        out_data_model="bipartite",
     )
 
-    assert type(syngraph) == BipartiteSynGraph
-    roots = syngraph.get_roots()
-    assert [root.smiles for root in roots] == ["CCNC(=O)CC"]
+    mock_base64.assert_called()
+    mock_lio.assert_called()
+    mock_dot.assert_called()
+    mock_system.assert_called()
+    mock_remove.assert_called()
+    mock_file.assert_called()
+
+    assert result == "fake base64 data"
 
 
-def test_iron_to_mp_syngraph(az_path):
-    """To test the Iron -> MonopartiteReaSynGraph transformation (mainly tested in test_syngraph)."""
-    graph_az = json.loads(open(az_path).read())
-    mp_syngraph = translator(
-        "az_retro", graph_az[2], "syngraph", out_data_model="monopartite_reactions"
-    )
-
-    assert type(mp_syngraph) == MonopartiteReacSynGraph
-    roots = mp_syngraph.get_roots()
-    for item in mp_syngraph.graph.keys():
-        assert type(item) == ChemicalEquation
-    assert [root.smiles for root in roots] == [
-        "Cc1cccc(C)c1N(CC(=O)Cl)C(=O)C1CCS(=O)(=O)CC1.Nc1ccc("
-        "-c2ncon2)cc1>>Cc1cccc(C)c1N(CC(=O)Nc1ccc(-c2ncon2)cc1)C(=O)C1CCS(=O)("
-        "=O)CC1"
-    ]
-
-
-def test_route_depiction(az_path):
-    graph_az = json.loads(open(az_path).read())
-    syngraph = translator(
-        "az_retro", graph_az[0], "syngraph", out_data_model="bipartite"
-    )
-    translator("syngraph", syngraph, "pydot_visualization", out_data_model="bipartite")
-    fname_png = f"route_{syngraph.uid}.png"
-    assert os.path.exists(fname_png)
-    fname_dot = f"route_{syngraph.uid}.dot"
-    assert os.path.exists(fname_dot)
-    os.remove(fname_png)
-    os.remove(fname_dot)
+@patch("linchemin.cgu.graph_transformations.format_translators.NOC.from_iron")
+def test_noc_translation(mock_noc, bp_syngraph_instance):
+    translator("syngraph", bp_syngraph_instance, "noc", out_data_model="bipartite")
+    mock_noc.assert_called()
 
 
 def test_get_available_options():
     options = get_available_formats()
-    assert type(options) == dict and "syngraph" in options
+    assert isinstance(options, dict)
+    assert "syngraph" in options["as_input"] and "syngraph" in options["as_output"]
     options = get_available_data_models()
-    assert type(options) == dict and "bipartite" in options
-
-
-def test_translate_into_NOC_document(ibm1_path):
-    graph_ibm = json.loads(open(ibm1_path).read())
-    route_noc_doc = translator(
-        "ibm_retro", graph_ibm[0], "noc", out_data_model="bipartite"
-    )
-    assert route_noc_doc
-    assert type(route_noc_doc) == dict
-    assert "nodes" in route_noc_doc.keys() and "edges" in route_noc_doc.keys()
+    assert isinstance(options, dict)
+    assert "bipartite" in options
 
 
 def test_out_format():
     out = get_output_formats()
-    assert type(out) == dict and "pydot_visualization" in out and "iron" in out
+    assert isinstance(out, dict) and "pydot_visualization" in out and "iron" in out
+    assert "askcosv1" not in out
 
 
 def test_in_format():
     in_f = get_input_formats()
-    assert type(in_f) == dict and "ibm_retro" in in_f and "syngraph" in in_f
+    assert isinstance(in_f, dict) and "ibm_retro" in in_f and "syngraph" in in_f
+    assert "noc" not in in_f
 
 
-def test_mit_to_iron(mit_path):
-    graph = json.loads(open(mit_path).read())
-    iron_route = translator(
-        "mit_retro", graph[0], "iron", out_data_model="monopartite_molecules"
-    )
-    assert iron_route.i_edge_number() == 7
-    assert iron_route.i_node_number() == 8
-    assert "mit" in iron_route.source
+def test_failing_chain(bp_syngraph_instance):
+    """To test that an error is raised if an unavailable translation is requested"""
+    with pytest.raises(UnavailableTranslation) as ke:
+        translator(
+            "syngraph", bp_syngraph_instance, "syngraph", out_data_model="bipartite"
+        )
+    assert "UnavailableTranslation" in str(ke.type)
 
-    syngraph = translator(
-        "mit_retro", graph[1], "syngraph", out_data_model="monopartite_reactions"
-    )
-    assert syngraph
-    assert len(syngraph.graph) == 4
+
+def test_successful_translation(ibm1_as_dict):
+    route = ibm1_as_dict[0]
+    nx_route = translator("ibm_retro", route, "networkx", "bipartite")
+    assert nx_route

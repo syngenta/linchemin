@@ -1,51 +1,7 @@
 import json
-import unittest
-
-import pytest
 
 from linchemin.cgu.route_mining import RouteFinder, mine_routes
-from linchemin.cgu.syngraph import (
-    BipartiteSynGraph,
-    MonopartiteMolSynGraph,
-    MonopartiteReacSynGraph,
-)
 from linchemin.cgu.translate import nx, translator
-
-# def test_route_extractor():
-#     nodes = [{"query_id": 0, "output_string": "CCN.CCOC(=O)CC>>CCNC(=O)CC"}]
-#     original_routes = [MonopartiteReacSynGraph(nodes)]
-#
-#     new_routes = old_route_miner(original_routes, ["CCO.CCC(O)=O>>CCOC(=O)CC"])
-#     assert len(new_routes) == 1
-#     assert len(new_routes[0].get_molecule_roots())
-#     assert original_routes[0] not in new_routes
-#     assert len(new_routes[0].graph) > len(original_routes[0].graph)
-#
-#     new_routes2 = old_route_miner(new_routes, ["CCO.CCC(Cl)=O>>CCOC(=O)CC"])
-#     assert len(new_routes2) == 1
-#     assert all(r not in new_routes2 for r in new_routes)
-#
-#     # If a new nodes are not connected to any of the pre-existing routes, a warning is raised and None is returned
-#     with unittest.TestCase().assertLogs("linchemin.cgu.route_mining", level="WARNING"):
-#         new_routes3 = old_route_miner(
-#             new_routes2, ["CCO.OC(=O)C1=NC=CC(Cl)=C1>>CCOC(=O)C1=NC=CC(Cl)=C1"]
-#         )
-#     assert new_routes3 is None
-#
-#     with pytest.raises(TypeError) as te:
-#         original_routes = [MonopartiteMolSynGraph(nodes)]
-#         old_route_miner(original_routes, ["CCO.CCC(O)=O>>CCOC(=O)CC"])
-#     assert "TypeError" in str(te.type)
-
-
-# def test_route_extractor_bipartite():
-#     nodes = [{"query_id": 0, "output_string": "CCN.CCOC(=O)CC>>CCNC(=O)CC"}]
-#     original_routes = [BipartiteSynGraph(nodes)]
-#
-#     new_routes = old_route_miner(original_routes, ["CCO.CCC(O)=O>>CCOC(=O)CC"])
-#     assert len(new_routes) == 1
-#     assert len(new_routes[0].get_molecule_roots())
-#     assert original_routes[0] not in new_routes
 
 
 def build_graph_from_tree_data(tree_data):
@@ -61,7 +17,7 @@ def build_graph_from_tree_data(tree_data):
 def get_route_uids(route_graph):
     node_uids = [route_graph.nodes[n]["uid"] for n in route_graph.nodes()]
     edge_uids = [
-        (route_graph.edges[e]["nodes"][0], route_graph.edges[e]["nodes"][1])
+        [route_graph.edges[e]["nodes"][0], route_graph.edges[e]["nodes"][1]]
         for e in route_graph.edges()
     ]
     return {"nodes": sorted(node_uids), "edges": sorted(edge_uids)}
@@ -69,13 +25,12 @@ def get_route_uids(route_graph):
 
 def compare_routes(expected_route, route_graph):
     extracted_route = get_route_uids(route_graph)
-    # print(extracted_route["nodes"], expected_route["nodes"])
-    return sorted(expected_route["nodes"]) == sorted(
-        extracted_route["nodes"]
-    )  # and expected_route["edges"] == extracted_route["edges"]
+    return sorted(expected_route["nodes"]) == sorted(extracted_route["nodes"]) and all(
+        e for e in extracted_route["edges"] if e in expected_route["edges"]
+    )
 
 
-def test_RouteFinder(trees_path):
+def test_route_finder(trees_path):
     with open(trees_path) as f:
         json_content = json.load(f)
 
@@ -83,10 +38,12 @@ def test_RouteFinder(trees_path):
     for case_idx, data in json_content.items():
         tree_data = data.get("tree")
         routes_data = data.get("routes")
-        G = build_graph_from_tree_data(tree_data)
-        routes = RouteFinder(G, root_node_uid).find_routes()
+        graph = build_graph_from_tree_data(tree_data)
+        routes = RouteFinder(graph, root_node_uid).find_routes()
         assert len(routes) == len(routes_data)
         for idx, route in enumerate(routes, start=1):
+            # print(route.nodes())
+            # print(route.edges())
             matches = [
                 compare_routes(expected_route, route) for expected_route in routes_data
             ]
@@ -102,6 +59,10 @@ def test_mine_routes(az_path):
     mined_routes = mine_routes(syngraphs, root)
     assert len(mined_routes) == 6
     assert sorted([r.uid for r in mined_routes]) == sorted([r.uid for r in syngraphs])
+
+    mined_routes = mine_routes(syngraphs)
+    assert len(mined_routes) == 6
+    assert root in [r.smiles for r in mined_routes[0].get_molecule_roots()]
 
     new_reactions = [
         "COC(=O)C1CCS(=O)(=O)CC1>>OC(=O)C1CCS(=O)(=O)CC1",

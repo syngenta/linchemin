@@ -15,10 +15,31 @@ Translate
 
 
     translator
-    AbsTranslator
-    AbsTranslator.from_iron
-    AbsTranslator.to_iron
-    TranslatorFactory
+
+
+Format Translators
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. automodule:: linchemin.cgu.graph_transformations.format_translators
+.. autosummary::
+    :toctree: generated
+
+    GraphFormatTranslator
+    GraphFormatTranslator.to_iron
+    GraphFormatTranslator.from_iron
+    GraphFormatCatalog
+
+
+Data Model Converters
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. automodule:: linchemin.cgu.graph_transformations.data_model_converters
+.. autosummary::
+    :toctree: generated
+
+    DataModelConverter
+    DataModelConverter.syngraph_to_iron
+    DataModelConverter.iron_to_syngraph
+    DataModelCatalog
+
 
 Iron
 ^^^^^
@@ -46,7 +67,6 @@ Syngraph
 
     SynGraph
     SynGraph.add_node
-    SynGraph.remove_node
     BipartiteSynGraph
     MonopartiteReacSynGraph
     MonopartiteMolSynGraph
@@ -62,6 +82,7 @@ Syngraph Operations
 
     merge_syngraph
     remove_reaction_from_syngraph
+    add_reaction_to_syngraph
     extract_reactions_from_syngraph
 
 Convert
@@ -119,8 +140,8 @@ Route Descriptors
     :toctree: generated
 
     descriptor_calculator
-    DescriptorCalculator
-    DescriptorCalculator.compute_descriptor
+    RouteDescriptor
+    RouteDescriptor.compute_descriptor
     DescriptorsCalculatorFactory
 
 Graph Distance

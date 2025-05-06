@@ -1,136 +1,171 @@
-import json
 import unittest
-import unittest.mock
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
-from rdkit.Chem import rdChemReactions
+import pytest
 
 from linchemin.cgu.syngraph import BipartiteSynGraph, MonopartiteReacSynGraph
-from linchemin.interfaces.facade import facade, facade_helper
-
-
-@unittest.mock.patch("linchemin.cgu.translate.ibm_dict_to_iron")
-def test_translate(mock_os, ibm2_path):
-    graph = json.loads(open(ibm2_path).read())
-    output, metadata = facade("translate", input_format="ibm_retro", input_list=graph)
-    mock_os.assert_called()
-    assert type(output) == list and type(metadata) == dict
-    output, metadata = facade(
-        "translate",
-        "ibm_retro",
-        graph,
-        out_format="syngraph",
-        out_data_model="monopartite_reactions",
-    )
-    mock_os.assert_called()
-    assert type(output[0]) == MonopartiteReacSynGraph
-
-    graph.extend([{}])
-    with unittest.TestCase().assertLogs(
-        "linchemin.cgu.translate", level="WARNING"
-    ) as cm:
-        facade("translate", input_format="ibm_retro", input_list=graph)
-    unittest.TestCase().assertIn(
-        "While translating from IBM", cm.records[0].getMessage()
-    )
-
-
-@unittest.mock.patch("linchemin.rem.route_descriptors.NrBranches.compute_descriptor")
-@unittest.mock.patch(
-    "linchemin.rem.route_descriptors.NrReactionSteps.compute_descriptor"
+from linchemin.interfaces.facade import (
+    AtomMappingFacade,
+    ClusteringFacade,
+    DescriptorError,
+    Facade,
+    FacadeFactory,
+    GedFacade,
+    GraphTypeError,
+    ReactionExtractionFacade,
+    RouteSanityCheckFacade,
+    RoutesDescriptorsFacade,
+    TranslateFacade,
+    UnavailableFunctionality,
+    facade,
+    facade_helper,
 )
-def test_metrics(mock_n_steps, mock_branch, ibm2_path):
-    graph = json.loads(open(ibm2_path).read())
-    routes, meta = facade(
-        "translate",
-        "ibm_retro",
-        graph,
-        out_format="syngraph",
-        out_data_model="monopartite_reactions",
-    )
-    descriptors, meta = facade("routes_descriptors", routes)
-    mock_n_steps.assert_called()
-    mock_branch.assert_called()
-    assert type(descriptors) == pd.DataFrame
-    for n in [5, 6, 7]:
-        assert n in descriptors["nr_steps"]
-
-    n_steps, meta = facade("routes_descriptors", routes, descriptors=["nr_steps"])
-    mock_n_steps.assert_called()
-    assert "nr_branches" not in n_steps.columns.any()
-    routes.append(None)
-    b, m = facade("routes_descriptors", routes, descriptors=["nr_branches", "metric"])
-    mock_branch.assert_called()
-    assert m["invalid_routes"] == 1
-    assert m["errors"] is not []
 
 
-def test_ged(az_path):
-    graph = json.loads(open(az_path).read())
-    routes_bp, m = facade(
-        "translate",
-        "az_retro",
-        graph,
-        out_format="syngraph",
-        out_data_model="bipartite",
+@unittest.mock.patch("linchemin.interfaces.facade.translator")
+def test_translate(mock_translate, ibm2_as_dict):
+    """To test the TranslateFacade correctly call the translator function"""
+    facade_translate = TranslateFacade(
+        input_format="ibm_retro", out_data_model="monopartite_molecules"
     )
-    d, meta = facade("distance_matrix", routes_bp)
-    assert len(d) == 6
-    routes_mp, m2 = facade(
-        "translate",
-        "az_retro",
-        graph,
-        out_format="syngraph",
-        out_data_model="monopartite_reactions",
-    )
-    d1, meta1 = facade("distance_matrix", routes_mp, ged_method="nx_ged")
-    d2, meta2 = facade(
-        "distance_matrix",
-        routes_mp,
-        ged_method="nx_ged",
-        ged_params={
-            "reaction_fp": "structure_fp",
-            "reaction_fp_params": {
-                "fpSize": 1024,
-                "fpType": rdChemReactions.FingerprintType.MorganFP,
-            },
-            "reaction_similarity_name": "dice",
-        },
-    )
-    assert meta2["graph_type"] == "monopartite"
-    assert not d1.equals(d2)
-    d3, meta3 = facade(
-        "distance_matrix", routes_mp, ged_method="nx_ged", parallelization=True, n_cpu=8
-    )
-    assert d3.equals(d1)
+    output, metadata = facade_translate.perform_functionality(routes=ibm2_as_dict)
+    mock_translate.assert_called()
+    assert isinstance(output, list) and isinstance(metadata, dict)
 
-    single_route = [routes_mp[0]]
-    d3, meta3 = facade("distance_matrix", single_route)
-    assert d3.empty
-    assert meta3["errors"] != []
+    # missing mandatory parameter
+    with pytest.raises(TypeError):
+        TranslateFacade()
+
+
+def test_translate_get_options():
+    params = TranslateFacade.get_available_options()
+    assert "routes" in params
+    assert "input_format" in params
+
+
+def test_parallelization_translate(capfd, bp_syngraph_instance):
+    with patch("linchemin.interfaces.facade.translator"), patch(
+        "linchemin.interfaces.facade.mp.Pool"
+    ) as mock_mp:
+        routes = [bp_syngraph_instance] * 5
+        output, _ = TranslateFacade(
+            input_format="syngraph",
+            output_format="networkx",
+            out_data_model="monopartite_reactions",
+            parallelization=True,
+            n_cpu=8,
+        ).perform_functionality(
+            routes,
+        )
+        mock_mp.assert_called()
+    assert isinstance(output, list)
+    assert all(isinstance(x, MonopartiteReacSynGraph) for x in output)
+
+
+@patch("linchemin.interfaces.facade.descriptor_calculator")
+@patch("linchemin.interfaces.facade.get_available_descriptors")
+def test_descriptors_valid_routes(
+    mock_get_available_descriptors, mock_descriptor_calculator
+):
+    # Mock the get_available_descriptors function to return a list of descriptors
+    mock_get_available_descriptors.return_value = ["nr_steps", "nr_branches"]
+
+    # Mock the descriptor_calculator function to
+    # return a value based on the descriptor name
+    def descriptor_calculator_side_effect(route, descriptor):
+        return f"{descriptor}_value"
+
+    mock_descriptor_calculator.side_effect = descriptor_calculator_side_effect
+
+    # Create a list of mock routes with unique identifiers
+    mock_routes = [MagicMock(uid=i) for i in range(3)]
+
+    # Instantiate the facade and call the method under test
+    f = RoutesDescriptorsFacade()
+    output, meta = f.perform_functionality(mock_routes)
+
+    assert isinstance(output, pd.DataFrame)
+    assert isinstance(output.attrs["configuration"], list)
+    assert "nr_steps" in output.columns
+    assert "nr_branches" in output.columns
+    assert all(output["nr_steps"] == "nr_steps_value")
+    assert all(output["nr_branches"] == "nr_branches_value")
+    assert meta["invalid_routes"] == 0
+    assert meta["errors"] == []
+    assert meta["descriptors"] == ["nr_steps", "nr_branches"]
+
+    # Verify that descriptor_calculator was called correctly
+    assert mock_descriptor_calculator.call_count == len(mock_routes) * len(
+        mock_get_available_descriptors.return_value
+    )
+
+
+@patch("linchemin.interfaces.facade.descriptor_calculator")
+def test_descriptors_mixed_routes(mock_descriptor_calculator):
+    # Mock the descriptor_calculator function to return a fixed value
+    mock_descriptor_calculator.return_value = "calculated_value"
+
+    # Create a list of mock routes with one None value
+    mock_routes = [MagicMock(uid=1), None, MagicMock(uid=2)]
+
+    # Instantiate the facade and call the method under test
+    f = RoutesDescriptorsFacade(["nr_steps"])
+    output, meta = f.perform_functionality(mock_routes)
+
+    # Assertions to verify the method behavior
+    assert isinstance(output, pd.DataFrame)
+    assert "nr_steps" in output.columns
+    assert all(output["nr_steps"] == "calculated_value")
+    assert meta["invalid_routes"] == 1  # One route was None
+    assert meta["errors"] == []
+
+
+@patch("linchemin.interfaces.facade.descriptor_calculator")
+def test_descriptors_error(mock_descriptor_calculator):
+    # Mock the descriptor_calculator to raise a
+    # DescriptorError for a specific descriptor
+    def descriptor_calculator_side_effect(route, descriptor):
+        if descriptor == "error_descriptor":
+            raise DescriptorError("Error calculating descriptor")
+        return "calculated_value"
+
+    mock_descriptor_calculator.side_effect = descriptor_calculator_side_effect
+
+    # Create a list of mock routes
+    mock_routes = [MagicMock(uid=i) for i in range(3)]
+
+    # Instantiate the facade and call the method under test
+    f = RoutesDescriptorsFacade(["nr_steps", "error_descriptor"])
+    output, meta = f.perform_functionality(mock_routes)
+
+    # Assertions to verify the method behavior
+    assert isinstance(output, pd.DataFrame)
+    assert "error_descriptor" not in output.columns
+    assert len(meta["errors"]) == 1
+    assert isinstance(meta["errors"][0], DescriptorError)
+
+
+@patch("linchemin.interfaces.facade.compute_distance_matrix")
+def test_ged(mock_ged, bp_syngraph_instance):
+    f = GedFacade()
+    f.perform_functionality(routes=[bp_syngraph_instance])
+    mock_ged.assert_called()
+
+
+def test_ged_options():
+    d = GedFacade().get_available_options()
+    assert "routes" in d
+    assert "ged_method" in d
+    assert "parallelization" in d
 
 
 @unittest.mock.patch("linchemin.interfaces.facade.get_clustered_routes_metrics")
 @unittest.mock.patch(
     "linchemin.rem.clustering.AgglomerativeClusterCalculator.get_clustering"
 )
-def test_clustering(mock_clusterer, mock_metrics, az_path):
-    graph = json.loads(open(az_path).read())
-    routes, m = facade(
-        "translate",
-        "az_retro",
-        graph,
-        out_format="syngraph",
-        out_data_model="monopartite_reactions",
-    )
-    # Test with all default parameters
-    facade("clustering", routes)
-    mock_clusterer.assert_called()
-
-    # Test with some changed parameters
-    facade(
-        "clustering",
-        routes,
+def test_clustering(mock_clusterer, mock_metrics, mpr_syngraph_instance):
+    f = ClusteringFacade(
         ged_method="nx_ged",
         clustering_method="agglomerative_cluster",
         ged_params={
@@ -141,16 +176,23 @@ def test_clustering(mock_clusterer, mock_metrics, az_path):
         save_dist_matrix=True,
         linkage="average",
     )
+    routes = [mpr_syngraph_instance] * 5
+
+    f.perform_functionality(routes)
     mock_clusterer.assert_called()
 
     # Test compute cluster metrics
-    facade("clustering", routes, compute_metrics=True)
+    f = ClusteringFacade(compute_metrics=True)
+    f.perform_functionality(
+        routes,
+    )
     mock_clusterer.assert_called()
     mock_metrics.assert_called()
 
     # If one of the route is None, it is recognized as such
+    f = ClusteringFacade()
     routes.append(None)
-    cluster5, meta5 = facade("clustering", routes)
+    _, meta5 = f.perform_functionality(routes)
     assert meta5["invalid_routes"] == 1
 
     # If only 1 route is passed, an error is raised
@@ -158,227 +200,155 @@ def test_clustering(mock_clusterer, mock_metrics, az_path):
     with unittest.TestCase().assertLogs(
         "linchemin.rem.clustering", level="ERROR"
     ) as cm:
-        facade("clustering", single_route)
+        f.perform_functionality(single_route)
     unittest.TestCase().assertIn("Less than 2 routes", cm.records[0].getMessage())
 
 
-def test_clustering_parallelization(az_path):
-    graph = json.loads(open(az_path).read())
-    routes, m = facade(
-        "translate",
-        "az_retro",
-        graph,
-        out_format="syngraph",
-        out_data_model="monopartite_reactions",
+@patch("linchemin.interfaces.facade.clusterer")
+def test_clustering_parallelization(mock_cluster, bp_syngraph_instance):
+    ClusteringFacade(parallelization=True).perform_functionality([bp_syngraph_instance])
+    mock_cluster.assert_called()
+
+
+def test_reaction_extraction(bp_syngraph_instance, iron_w_smiles):
+    routes = [bp_syngraph_instance] * 2
+    with patch(
+        "linchemin.interfaces.facade.extract_reactions_from_syngraph"
+    ) as mock_extract:
+        reactions = ReactionExtractionFacade().perform_functionality(routes)
+        mock_extract.assert_called()
+        assert len(routes) == len(reactions)
+
+
+def test_reaction_extraction_with_errors(mocker, mpr_syngraph_instance):
+    mock_extract = mocker.patch(
+        "linchemin.interfaces.facade.extract_reactions_from_syngraph"
     )
-    cluster4, meta4 = facade("clustering", routes, parallelization=True)
-    assert all(cluster4[0].labels_) is not None
+    mock_extract.side_effect = [
+        ["reaction_1"],
+        ["reaction_2"],
+        GraphTypeError("Invalid graph format"),
+    ]
 
+    routes = [mpr_syngraph_instance] * 3
 
-def test_subset(az_path):
-    graph = json.loads(open(az_path).read())
-    routes, meta = facade(
-        "translate",
-        "az_retro",
-        graph,
-        out_format="syngraph",
-        out_data_model="monopartite_reactions",
+    # Call the perform_functionality method
+    reactions, meta = ReactionExtractionFacade().perform_functionality(routes)
+
+    assert reactions == [
+        {mpr_syngraph_instance.uid: ["reaction_1"]},
+        {mpr_syngraph_instance.uid: ["reaction_2"]},
+    ]
+    assert meta["nr_routes_in_input_list"] == 3
+    assert meta["invalid_routes"] == 0
+    assert meta["errors"]
+
+    mock_extract.assert_has_calls(
+        [
+            unittest.mock.call(mpr_syngraph_instance),
+            unittest.mock.call(mpr_syngraph_instance),
+            unittest.mock.call(mpr_syngraph_instance),
+        ]
     )
-    subsets = facade("subsets", routes)
-    assert type(subsets) == list
-
-
-def test_find_duplicates(ibm2_path):
-    graph = json.loads(open(ibm2_path).read())
-    routes, meta = facade(
-        "translate",
-        "ibm_retro",
-        graph,
-        out_format="syngraph",
-        out_data_model="monopartite_reactions",
-    )
-    duplicates = facade("duplicates", routes)
-    assert duplicates is None
-    routes.append(routes[0])
-    duplicates = facade("duplicates", routes)
-    assert duplicates
-
-
-def test_facade_helper():
-    functionalities = facade_helper()
-    assert type(functionalities) == dict and "translate" in functionalities
-
-
-def test_facade_helper_verbose(capfd):
-    facade_helper(verbose=True)
-    out, err = capfd.readouterr()
-    assert "clustering" in out
-
-    facade_helper("translate", verbose=True)
-    out, err = capfd.readouterr()
-    assert "out_data_model" in out
-
-
-def test_parallelization_translate(capfd, ibm2_path):
-    graph = json.loads(open(ibm2_path).read())
-    output, metadata = facade(
-        "translate",
-        "ibm_retro",
-        graph,
-        out_data_model="monopartite_reactions",
-        parallelization=True,
-        n_cpu=8,
-    )
-    assert type(output) == list
-    assert all(isinstance(x, MonopartiteReacSynGraph) for x in output)
-    facade_helper("translate", verbose=True)
-    out, err = capfd.readouterr()
-    assert "parallelization" in out
-
-
-def test_merging(ibm2_path):
-    graph = json.loads(open(ibm2_path).read())
-    routes, meta = facade("translate", "ibm_retro", graph, out_data_model="bipartite")
-    tree = facade("merging", routes)
-    assert type(tree) == BipartiteSynGraph
-    roots = tree.get_roots()
-    assert len(roots) == 1 and roots == routes[0].get_roots()
-
-    tree_mp = facade("merging", routes, out_data_model="monopartite_reactions")
-    assert type(tree_mp) == MonopartiteReacSynGraph
-
-
-def test_reaction_extraction(mit_path):
-    graph = json.loads(open(mit_path).read())
-    routes, meta = facade(
-        "translate", "mit_retro", graph, out_data_model="monopartite_reactions"
-    )
-    reactions, m = facade("extract_reactions_strings", routes)
-    assert type(reactions) == list
-    assert len(routes) == len(reactions)
-
-    # If one route in the list is not a SynGraph, an exception is captured in the 'errors' field of metadata
-    r_nx = facade(
-        "translate",
-        "mit_retro",
-        [graph[0]],
-        out_format="networkx",
-        out_data_model="monopartite_reactions",
-    )
-    routes.append(r_nx[0][0])
-    reactions, m = facade("extract_reactions_strings", routes)
-    assert len(reactions) == 4
-    assert type(m["errors"][0]) == TypeError
 
 
 @unittest.mock.patch("linchemin.cheminfo.atom_mapping.RxnMapper.map_chemical_equations")
 @unittest.mock.patch("linchemin.interfaces.facade.pipeline_atom_mapping")
-def test_mapping(mock_pipeline, mock_rxnmapper, ibm1_path):
-    graph = json.loads(open(ibm1_path).read())
-    routes, meta = facade(
-        "translate", "ibm_retro", graph, out_data_model="monopartite_reactions"
-    )
+def test_mapping(mock_pipeline, mock_rxnmapper, mpr_syngraph_instance):
+    routes = [mpr_syngraph_instance] * 2
+
+    f = AtomMappingFacade(mapper=None)
     # with mapping pipeline
-    mapped_routes, meta = facade("atom_mapping", routes, mapper=None)
+    mapped_routes, meta = f.perform_functionality(routes)
     mock_pipeline.assert_called()
     assert meta["mapping_success_rate"]
     for r in mapped_routes:
-        assert type(r) == BipartiteSynGraph
-        assert r.source
+        assert isinstance(r, MonopartiteReacSynGraph)
+        assert r.name
 
-    # with other values
-    mapped_routes, meta = facade(
-        "atom_mapping",
+    # using default mapper=rxnmapper
+    f = AtomMappingFacade()
+    mapped_routes, meta = f.perform_functionality(
         routes,
-        mapper="rxnmapper",
-        out_data_model="monopartite_reactions",
     )
     mock_rxnmapper.assert_called()
     assert meta["mapping_success_rate"]
     for r in mapped_routes:
-        assert type(r) == MonopartiteReacSynGraph
+        assert isinstance(r, MonopartiteReacSynGraph)
 
 
-def test_routes_sanity_checks():
-    route_cycle = [
-        {
-            "query_id": 0,
-            "output_string": "[CH3:3][C:2]#[N:1].[OH2:4]>>[CH3:3][C:2]([OH:4])=[O:4]",
-        },
-        {
-            "query_id": 1,
-            "output_string": "O[C:2]([CH3:1])=[O:3].[CH3:4][NH2:5]>>[CH3:1][C:2](=[O:3])[NH:5][CH3:4]",
-        },
-        {
-            "query_id": 2,
-            "output_string": "[CH3:5][NH:4][C:2]([CH3:1])=[O:3].[OH2:6]>>[CH3:1][C:2]([OH:6])=[O:3]",
-        },
-        {
-            "query_id": 3,
-            "output_string": "ClP(Cl)[Cl:4].O[C:2]([CH3:1])=[O:3]>>[Cl:4][C:2]([CH3:1])=[O:3]",
-        },
+def test_routes_sanity_checks(mocker, mpr_syngraph_instance):
+    mock_checker = mocker.patch("linchemin.interfaces.facade.route_checker")
+    mock_checker.side_effect = [
+        mpr_syngraph_instance,
+        mpr_syngraph_instance,
     ]
-    route_isolated_nodes = [
-        {
-            "output_string": "Cl[C:2]([CH3:1])=[O:3].[CH3:4][OH:5]>>[CH3:1][C:2](=[O:3])[O:5][CH3:4]",
-            "query_id": "0",
-        },
-        {
-            "output_string": "[CH3:5][O:4][C:3]([CH3:2])=[O:1]>>[CH3:2][C:3]([OH:4])=[O:1]",
-            "query_id": "1",
-        },
-        {
-            "output_string": "[CH3:4][C:5](Cl)=[O:6].CC(O)=O.[CH3:1][CH2:2][OH:3]>>[CH3:1][CH2:2][O:3][C:5]([CH3:4])=[O:6]",
-            "query_id": "2",
-        },
-        {
-            "output_string": "O=[C:2](OC[CH3:4])[CH3:1].[Li][CH3:3]>>[CH2:1]=[C:2]([CH3:3])[CH3:4]",
-            "query_id": "3",
-        },
-    ]
-    routes = [
-        BipartiteSynGraph(route_cycle),
-        BipartiteSynGraph(route_isolated_nodes),
-        None,
-    ]
-    checked_routes, meta = facade("routes_sanity_checks", routes, checks=None)
+    routes = [mpr_syngraph_instance, mpr_syngraph_instance, None]
+    f = RouteSanityCheckFacade(checks=None)
+    checked_routes, meta = f.perform_functionality(routes)
+    mock_checker.assert_called()
     assert len(checked_routes) == len(routes) - meta["invalid_routes"]
     assert [isinstance(r, BipartiteSynGraph) for r in checked_routes]
     assert meta["invalid_routes"] == 1
-    assert [len(r.get_roots()) == 1 for r in checked_routes]
-
-    checked_routes, meta = facade(
-        "routes_sanity_checks",
-        routes,
-        checks=["cycle_check"],
-        out_data_model="monopartite_reactions",
-    )
-    assert len(checked_routes) == len(routes) - meta["invalid_routes"]
-    assert [isinstance(r, MonopartiteReacSynGraph) for r in checked_routes]
-    assert [len(r.get_roots()) == 1 for r in checked_routes]
-
-    assert facade_helper(functionality="routes_sanity_checks")
 
 
-def test_node_removal(ibm2_path):
-    graph = json.loads(open(ibm2_path).read())
-    routes, meta = facade(
-        "translate",
-        "ibm_retro",
-        graph,
-        out_data_model="monopartite_reactions",
-    )
+def test_facade_registration():
+    class TestFacade(Facade):
+        name = "test_facade"
+        info = "Some info"
 
-    with unittest.TestCase().assertLogs(
-        "linchemin.cgu.syngraph_operations", level="WARNING"
-    ) as cm:
-        node_to_remove = "COc1cc(OC)c2c(=O)cc(-c3ccccc3Cl)oc2c1C1=CCN(C)CC1O.Cc1cc(C)nc(C)c1.[Li]I>>CN1CC=C(c2c(O)cc(O)c3c(=O)cc(-c4ccccc4Cl)oc23)C(O)C1"
-        routes_without_node, meta = facade("node_removal", routes, node_to_remove)
-    unittest.TestCase().assertEqual(len(cm.records), 17)
-    unittest.TestCase().assertIn(
-        "The selected node is not present in the input graph",
-        cm.records[0].getMessage(),
-    )
-    assert len(routes_without_node) == len(routes)
-    assert meta["unchanged_routes"] == 17
-    assert meta["modified_routes"] == 1
+        def __init__(self, param):
+            self.param = param
+
+        def perform_functionality(self, routes: list) -> tuple:
+            """Mocked abstract method"""
+
+    # Register the TestService
+    FacadeFactory.register_facade(TestFacade)
+    # Assert: Check if the facade is now registered
+    assert "test_facade" in FacadeFactory.list_functionalities()
+
+    facade_class = FacadeFactory.select_functionality("test_facade")
+    # Assert: Verify that the retrieved facade class is TestFacade
+    assert facade_class is TestFacade
+
+
+def test_facade_mechanism(ibm2_as_dict):
+    with patch("linchemin.interfaces.facade.TranslateFacade"):
+        out, meta = facade("translate", routes=ibm2_as_dict, input_format="ibm_retro")
+        assert out
+        assert isinstance(out, list)
+        assert meta
+        assert isinstance(meta, dict)
+
+    # a non-existing facade functionality  is requested
+    with pytest.raises(UnavailableFunctionality):
+        facade("not_existing_facade", routes=ibm2_as_dict)
+
+    # an argument not compatible with the selected facade is passed
+    with pytest.raises(TypeError):
+        facade(
+            "translate",
+            routes=ibm2_as_dict,
+            input_format="ibm_retro",
+            clustering="hdbscan",
+        )
+
+
+def test_facade_helper(capfd):
+    functionalities = facade_helper()
+    assert isinstance(functionalities, dict) and "translate" in functionalities
+
+    facade_helper("translate", verbose=True)
+    out, _ = capfd.readouterr()
+    assert "parallelization" in out
+
+
+def test_facade_helper_verbose(capfd):
+    facade_helper(verbose=True)
+    out, _ = capfd.readouterr()
+    assert "clustering" in out
+
+    facade_helper("translate", verbose=True)
+    out, _ = capfd.readouterr()
+    assert "out_data_model" in out

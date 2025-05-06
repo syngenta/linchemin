@@ -19,6 +19,8 @@
       ~MonopartiteReacSynGraph.build_chemical_equations
       ~MonopartiteReacSynGraph.builder_from_iron
       ~MonopartiteReacSynGraph.builder_from_reaction_list
+      ~MonopartiteReacSynGraph.find_dangling_sequence
+      ~MonopartiteReacSynGraph.find_parent_node
       ~MonopartiteReacSynGraph.find_reactants_products
       ~MonopartiteReacSynGraph.get_leaves
       ~MonopartiteReacSynGraph.get_molecule_leaves

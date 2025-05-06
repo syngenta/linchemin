@@ -19,6 +19,7 @@
       ~SynGraph.build_chemical_equations
       ~SynGraph.builder_from_iron
       ~SynGraph.builder_from_reaction_list
+      ~SynGraph.find_parent_node
       ~SynGraph.find_reactants_products
       ~SynGraph.get_leaves
       ~SynGraph.get_roots

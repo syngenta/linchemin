@@ -43,11 +43,11 @@ class ReactionClassInfo(BaseModel):
 
 
 class QueryReactionString(BaseModel):
-    query_id: str
+    query_id: Union[str, int]
     input_string: str
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "input_string": "CC(Cl)=O.CN>>CNC(C)=O",
                 "query_id": "1",
@@ -56,7 +56,7 @@ class QueryReactionString(BaseModel):
 
 
 class ResultsReactionString(BaseModel):
-    query_id: str
+    query_id: Union[str, int]
     output_string: Optional[str] = None
     confidence: Optional[float] = None
     reaction_class_id: Optional[str] = None
@@ -64,7 +64,7 @@ class ResultsReactionString(BaseModel):
     success: bool
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "reaction_smiles_mapped": "CC#N.Cl[C:2]([CH3:1])=[O:3].[CH3:4][NH2:5]>>O.[CH3:1][C:2](=[O:3])[NH:5][CH3:4]",
                 "query_id": "1",
@@ -75,14 +75,14 @@ class ResultsReactionString(BaseModel):
         }
 
 
-## endpoints I/O
+# endpoints I/O
 class Metadata(BaseModel):
     ci_toolkit: Software
     a2a_mapper: Software
     reaction_classification_library: Software
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "ci_toolkit": {"name": "RDKit", "version": "2022.09.1"},
                 "a2a_mapper": {"name": "namrxn", "version": "3.4.0"},
@@ -99,6 +99,22 @@ class AllReactionClassInfoOut(BaseModel):
     output: List[ReactionClassInfo]
     outcome: Dict
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "metadata": {
+                    "ci_toolkit": {"name": "RDKit", "version": "2022.09.1"},
+                    "a2a_mapper": {"name": "namrxn", "version": "3.4.0"},
+                    "reaction_classification_library": {
+                        "name": "namrxn",
+                        "version": "3.4.0",
+                    },
+                },
+                "output": {},
+                "outcome": {},
+            }
+        }
+
 
 class ReactionClassInfoInp(BaseModel):
     namerxn_class_number: str
@@ -106,7 +122,7 @@ class ReactionClassInfoInp(BaseModel):
     parameter_fields: ClassVar[List[str]] = None
 
     class Config:
-        schema_extra = {"example": {"namerxn_class_number": "2.3.1"}}
+        json_schema_extra = {"example": {"namerxn_class_number": "2.3.1"}}
 
 
 class ReactionClassInfoOut(BaseModel):
@@ -115,7 +131,7 @@ class ReactionClassInfoOut(BaseModel):
     outcome: Dict
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "metadata": {
                     "ci_toolkit": {"name": "RDKit", "version": "2022.09.1"},
@@ -160,7 +176,7 @@ class RunBatchInp(BaseModel):
     ]
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "inp_fmt": "smiles",
                 "out_fmt": "smiles",
@@ -180,7 +196,7 @@ class RunBatchOut(BaseModel):
     outcome: dict
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "metadata": {
                     "ci_toolkit": {"name": "RDKit", "version": "2022.09.1"},
