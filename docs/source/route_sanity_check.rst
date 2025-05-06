@@ -11,10 +11,10 @@ The route predicted by the CASP tools might contain some "chemical" issues
 that can translate into "graph" issues when the routes are re-built based on the chemical logic
 of reactants --> products. In LinChemIn this happens, for example, when the routes are
 passed through the atom-to-atom mapping machinery: you give a list of routes, the involved chemical reactions
-are extracted and mapped (so that you can have ore information about them) and, in the end, the
+are extracted and mapped (so that you can have more information about them) and, in the end, the
 routes are re-built. In this case, you might notice that some descriptors seem incorrect
 and if you look at the routes, you will probably see some funky structures, with cycles
-or isolated nodes. This is due to the aforementioned "chemical" problems that have also become "graph"" problems.
+or isolated nodes. This is due to the aforementioned "chemical" problems that have also become "graph" problems.
 
 Since we do not want you to delete whole routes because of these issues, we implemented a facade
 functionality that can identified some of these problems and handle them, by removing the extra nodes.
@@ -33,8 +33,7 @@ routes that you would like to check as :class:`~syngraph.BipartiteSynGraph`
 or :class:`~syngraph.MonopartiteReacSynGraph` objects. To determine which sanity checks should be performed,
 we can pass a list of names
 to the ``checks`` argument; if the latter is not specified all the implemented
-will be applied. You can also decide in which data model the output routes should be returned
-by specifying the ``out_data_model`` argument (the default is the one specified in the configuration file)
+will be applied. The resulting SynGraph objects will have the same model as the input ones.
 
 .. code-block:: python
 
@@ -45,10 +44,10 @@ by specifying the ``out_data_model`` argument (the default is the one specified 
                                   routes)           # the list of routes to be checked
 
     # only the cycle check is performed and the routes are returned as MonopartiteReacSynGraph objects
-    checked_routes, meta = facade('routes_sanity_checks',
-                                  routes,                   # the list of routes to be checked
-                                  checks=['cycle_check'],   # a specific check is selected
-                                  out_data_model='monopartite_reactions')   # the data model of the output routes is selected
+    checked_routes, meta = facade(functionality='routes_sanity_checks', # the functionality to be applied
+                                  routes=routes,                        # the list of routes to be checked
+                                  checks=['cycle_check'],               # a specific check is selected
+                                  )
 
 
 If you want to know more of the options and default values for this functionality, you can call

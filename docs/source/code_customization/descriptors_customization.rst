@@ -13,13 +13,13 @@ route_descriptors overview
 ---------------------------
 
 The module is composed by a factory structure in which the subclasses of the abstract class
-:class:`~DescriptorCalculator` implement the concrete
+:class:`~RouteDescriptor` implement the concrete
 calculators of the various descriptors, so that, for example, there is a
 ``NrBranches``, a ``NrReactionSteps`` etc...
 For each subclass the concrete implementation the abstract method
-:meth:`~DescriptorCalculator.compute_descriptor` is developed.
+:meth:`~RouteDescriptor.compute_descriptor` is developed.
 The :class:`~DescriptorsCalculatorFactory` class handles the calls to
-the correct ``DescriptorCalculator``
+the correct ``RouteDescriptor``
 subclass based on the user's input.
 
 The factory is wrapped by the facade function :func:`~descriptor_calculator`.
@@ -34,13 +34,13 @@ Implementing a new descriptor
 
 In order to include a new descriptor among those available in LinChemIn, you
 firstly need to create a new subclass of the abstract class
-:class:`~DescriptorCalculator` in the :mod:`~linchemin.rem.route_descriptors` module and
+:class:`~RouteDescriptor` in the :mod:`~linchemin.rem.route_descriptors` module and
 implement its concrete :meth:`~DescriptorCalculator.compute_descriptor` method.
 
 .. code-block:: python
 
-    class CustomMetric(DescriptorCalculator)
-    """ Subclass of DescriptorCalculator representing the CustomMetric. """
+    class CustomMetric(RouteDescriptor)
+    """ Subclass of RouteDescriptor representing the CustomMetric. """
         def compute_descriptor(self, graph)
             # some super cool code
             return new_descriptor

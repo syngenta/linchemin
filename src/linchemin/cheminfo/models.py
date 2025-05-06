@@ -1,5 +1,7 @@
+from collections import Counter
 from dataclasses import dataclass, field
-from typing import List, Union
+from enum import Enum
+from typing import List, NamedTuple, Union
 
 import linchemin.cheminfo.functions as cif
 
@@ -44,6 +46,52 @@ class Molecule:
             "smiles": self.smiles,
             "hash_map": self.hash_map,
         }
+
+
+@dataclass
+class ReactionComponents:
+    reactants: List[Molecule] = field(default_factory=list)
+    reagents: List[Molecule] = field(default_factory=list)
+    products: List[Molecule] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(**data)
+
+    def get_molecule_catalog(self):
+        """To get a catalog of the unique Molecules involved in the reaction
+        in the form {mol_uid: Molecule}"""
+        return {mol.uid: mol for mol in self.reactants + self.reagents + self.products}
+
+    def get_stoichiometry_coefficients(self):
+        """To get the stoichiometry coefficients of each molecule involved
+        the reaction in the form {'role': {uid: n}}"""
+        return {
+            "reactants": self._count_unique_items_by_attribute(self.reactants),
+            "products": self._count_unique_items_by_attribute(self.products),
+            "reagents": self._count_unique_items_by_attribute(self.reagents),
+        }
+
+    def get_role_map(self):
+        """To get a dictionary mapping a list of Molecules onto their role"""
+        return {
+            "reactants": sorted(list({m.uid for m in set(self.reactants)})),
+            "products": sorted(list({m.uid for m in set(self.products)})),
+            "reagents": sorted(list({m.uid for m in set(self.reagents)})),
+        }
+
+    @staticmethod
+    def _count_unique_items_by_attribute(items, attr="uid"):
+        """To count the number of unique items in a list"""
+        return dict(Counter(getattr(item, attr) for item in items))
+
+
+class AtomTransformation(NamedTuple):
+    product_uid: str
+    reactant_uid: str
+    prod_atom_id: int
+    react_atom_id: int
+    map_num: int
 
 
 @dataclass
@@ -182,10 +230,27 @@ class Ratam:
 
     full_map_info: dict = field(default_factory=dict)
     """ (dict) The dictionary mapping Molecule uids to a list of dictionaries mapping atom ids with map number"""
-    atom_transformations: list = field(default_factory=list)
-    """ (list) The list of AtomTransformations namedtuples corresponding to the transformations of mapped atoms.
+    atom_transformations: set = field(default_factory=set)
+    """ (set) The set of AtomTransformations namedtuples corresponding to the transformations of mapped atoms.
         AtomTransformation = namedtuple('AtomTransformation', ['product_uid', 'reactant_uid', 'prod_atom_id',
         'react_atom_id', 'map_num']) """
+    reactants_unmapped_atoms_info: dict = field(default_factory=dict)
+    """ (dict) The dictionary containing the fraction of unmapped atoms in the reactants"""
+    desired_product_unmapped_atoms_info: dict = field(default_factory=dict)
+    """ (dict) The dictionary containing the fraction of unmapped atoms in the desired product and their indices"""
+
+    def get_role_map(self) -> dict:
+        return {
+            role: sorted(list(map_info.keys()))
+            for role, map_info in self.full_map_info.items()
+        }
+
+    def get_stoichiometry_coefficients(self) -> dict:
+        stoichiometry_coefficients = {"reactants": {}, "reagents": {}, "products": {}}
+        for role, mapping_info in self.full_map_info.items():
+            for uid, map_list in mapping_info.items():
+                stoichiometry_coefficients[role].update({uid: len(map_list)})
+        return stoichiometry_coefficients
 
     def diagnosis(self):
         """To perform a diagnostic process on the atom mapping"""
@@ -199,7 +264,7 @@ class ChemicalEquation:
     """
 
     catalog: dict = field(default_factory=dict)
-    """(dict) The catalog of the Molecule instances invlived in the chemical reaction."""
+    """(dict) The catalog of the Molecule instances involved in the chemical reaction."""
     role_map: dict = field(default_factory=dict)
     """ (dict) The dictionary mapping the uid of the involved Molecules to their roles (reactants, reagents and
     products)."""
@@ -271,7 +336,7 @@ class ChemicalEquation:
     def build_rdrxn(
         self, use_reagents: bool, use_atom_mapping=True
     ) -> cif.rdChemReactions.ChemicalReaction:
-        """To build an rdkit ChemicalReaction object from the ChemicalEquation instance"""
+        """To build a rdkit ChemicalReaction object from the ChemicalEquation instance"""
         return cif.build_rdrxn(
             catalog=self.catalog,
             role_map=self.role_map,
@@ -280,3 +345,75 @@ class ChemicalEquation:
             use_smiles=False,
             use_atom_mapping=use_atom_mapping,
         )
+
+    def get_reactants(self) -> List[Molecule]:
+        """To get the list of reactants"""
+        return [
+            mol for h, mol in self.catalog.items() if h in self.role_map["reactants"]
+        ]
+
+    def get_products(self) -> List[Molecule]:
+        """To get the list of products"""
+        return [
+            mol for h, mol in self.catalog.items() if h in self.role_map["products"]
+        ]
+
+    def get_reagents(self) -> List[Molecule]:
+        """To get the list of reagents"""
+        return [
+            mol for h, mol in self.catalog.items() if h in self.role_map["reagents"]
+        ]
+
+
+class Role(Enum):
+    """Class for 2-levels based classification of molecules' roles in chemical reactions"""
+
+    @classmethod
+    def list(cls):
+        """To return the list of possible values of the Role class"""
+        return list(map(lambda c: c.value, cls))
+
+    @classmethod
+    def from_string(cls, role):
+        """To build a Role instance from a string"""
+        return cls(role)
+
+    @classmethod
+    def get_class_name(cls):
+        return cls.__name__.lower()
+
+    def get_full_name(self):
+        return f"{self.get_class_name()}.{self.name}".lower()
+
+    def __str__(self):
+        return f"{self.get_class_name()}.{self.name}"
+
+
+class Product(Role):
+    """Class with possible classifications of Products in a reaction"""
+
+    DESIRED = "desired_product"
+    BYPRODUCT = "by_product"
+    SIDEPRODUCT = "side_product"
+    UNKNOWN = "unknown"
+
+
+class Reagent(Role):
+    """Class with possible classifications of Reagents in a reaction"""
+
+    SOLVENT = "solvent"
+    CATALYST = "catalyst"
+    AGENT = "agent"
+    ADDITIVE = "additive"
+    REACTANT_QUENCH = "reactant_quench"
+    REAGENT_QUENCH = "reagent_quench"
+    UNKNOWN = "unknown"
+
+
+class Reactant(Role):
+    """Class with possible classifications of Reactants in a reaction"""
+
+    BP1 = "bp1"
+    BP2 = "bp2"
+    BP3 = "bp3"
+    UNKNOWN = "unknown"

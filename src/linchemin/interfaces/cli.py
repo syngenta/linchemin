@@ -5,82 +5,67 @@ from typing import List
 from linchemin.interfaces.workflows import get_workflow_options, process_routes
 
 
-class keyvalue(argparse.Action):
-    # Constructor calling
+class KeyValueAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, dict())
-
+        my_dict = getattr(namespace, self.dest) or {}
         for value in values:
-            # split it into key and value
-            key, value = value.split("=")
-            # assign into dictionary
-            getattr(namespace, self.dest)[key] = value
+            try:
+                key, value = value.split("=")
+                my_dict[key] = value
+            except ValueError:
+                raise argparse.ArgumentError(
+                    self, f"Could not parse argument {value} as key=value pair."
+                )
+        setattr(namespace, self.dest, my_dict)
 
 
 @dataclass
 class Argument:
-    """
-    Class for storing values to pass to the add_argument() method of the  argparse.ArgumentParser() class.
-    https://docs.python.org/3/library/argparse.html#the-add-argument-method
-    """
-
     type: str = field(repr=False)
     required: bool
     help: str
-    # metavar:
     dest: str
     name_or_flags: List[str] = field(default_factory=list)
     action: str = field(default="store")
     default: str = field(default=None)
     choices: List = field(default_factory=list)
     nargs: str = field(default="?")
-    # const:
 
 
-def wrap_facade(parser):
+def create_parser():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     helper_data = get_workflow_options()
     arguments = [Argument(**v) for k, v in helper_data.items()]
 
     for argument in arguments:
-        if argument.type == list:
-            argument.type = str
-            argument.nargs = "*"
-        elif argument.type == dict:
-            argument.action = keyvalue
-            argument.type = str
-            argument.nargs = "*"
-
-        parser.add_argument(
-            *argument.name_or_flags,
-            default=argument.default,
-            choices=argument.choices,
-            help=argument.help,
-            dest=argument.dest,
-            required=argument.required,
-            action=argument.action,
-            nargs=argument.nargs,
-        )
+        kwargs = {
+            "action": KeyValueAction if argument.type == dict else argument.action,
+            "type": str,
+            "nargs": "*" if argument.type in (list, dict) else argument.nargs,
+            "default": argument.default,
+            "choices": argument.choices if argument.choices else None,
+            "help": argument.help,
+            "dest": argument.dest,
+            "required": argument.required,
+        }
+        parser.add_argument(*argument.name_or_flags, **kwargs)
 
     return parser
 
 
+def parse_arguments(argv=None):
+    parser = create_parser()
+    return parser.parse_args(argv)
+
+
 def linchemin_cli(argv=None):
     print("START: LinChemIn")
-    # 1) create the overall parser
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    # 2) add a parser argument for each facade we want to expose
-    parser = wrap_facade(parser)
-
-    parsed = parser.parse_args()
-    # 4) pass the arguments as a dictionary to the function
-
-    process_routes(**vars(parsed))
-
+    parsed_args = parse_arguments(argv)
+    process_routes(**vars(parsed_args))
     print("END: LinChemIn")
 
 
 if __name__ == "__main__":
-    print("xx")
     linchemin_cli()

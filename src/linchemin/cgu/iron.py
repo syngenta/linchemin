@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Optional
 
 """
 Module containing the definitions of the Iron class.
@@ -30,6 +31,9 @@ class Direction:
         """
         self.string = dir_string
         self.tup = (dir_string.split(">")[0], dir_string.split(">")[1])
+
+    def __eq__(self, other):
+        return isinstance(other, Direction) and self.string == other.string
 
 
 @dataclass(frozen=True, order=True)
@@ -92,7 +96,7 @@ class Iron:
 
     edges: a dictionary storing the edges of the graph
 
-    source: a list containing the sources/format transformations of the graph
+    name: a string representing the name of the graph
     """
 
     def __init__(self):
@@ -104,16 +108,16 @@ class Iron:
         """
         self.nodes = {}
         self.edges = {}
-        self.source = str
+        self.name: Optional[str] = None
 
     def __str__(self):
         return f"Nodes: {self.nodes} \nEdges: {self.edges}"
 
-    def add_node(self, k: int, node: Node):
+    def add_node(self, k: str, node: Node):
         """To add a node to an Iron instance."""
         self.nodes[k] = node
 
-    def add_edge(self, k: int, edge: Edge):
+    def add_edge(self, k: str, edge: Edge):
         """To add an edge to an Iron instance."""
         self.edges[k] = edge
 
@@ -135,21 +139,24 @@ class Iron:
                 neigh_lst.append(edge.a_iid)
         return neigh_lst
 
-    def get_child_nodes(self, b: Node) -> list:
+    def get_child_nodes(self, b_iid: str) -> list:
         """To get the list of 'child' nodes of a given node"""
-        return [edge.a_iid for id_e, edge in self.edges.items() if edge.b_iid == str(b)]
+        return [edge.a_iid for id_e, edge in self.edges.items() if edge.b_iid == b_iid]
 
-    def get_parent_nodes(self, a: Node) -> list:
+    def get_parent_nodes(self, a_iid: str) -> list:
         """To get the list of 'parent' nodes of a given node"""
-        return [edge.b_iid for id_e, edge in self.edges.items() if edge.a_iid == str(a)]
+        return [edge.b_iid for id_e, edge in self.edges.items() if edge.a_iid == a_iid]
 
     def get_edge_id(self, a: Node, b: Node) -> list:
         """To get the list of edge ids connecting the nodes a and b (direction ignored)"""
         ids_lst = []
         for id_e, edge in self.edges.items():
-            if edge.a_iid == str(a) and edge.b_iid == str(b):
-                ids_lst.append(id_e)
-            elif edge.b_iid == str(a) and edge.a_iid == str(b):
+            if (
+                edge.a_iid == str(a)
+                and edge.b_iid == str(b)
+                or edge.b_iid == str(a)
+                and edge.a_iid == str(b)
+            ):
                 ids_lst.append(id_e)
         return ids_lst
 

@@ -59,7 +59,7 @@ class BipartiteToMonopartiteReactions(Converter):
             for d in out_reaction_list
         ]
         mp_graph = MonopartiteReacSynGraph(in_reaction_list)
-        mp_graph.source = graph.source
+        mp_graph.name = graph.name
         return mp_graph
 
 
@@ -77,7 +77,7 @@ class BipartiteToMonopartiteMolecules(Converter):
             for d in out_reaction_list
         ]
         mp_graph = MonopartiteMolSynGraph(in_reaction_list)
-        mp_graph.source = graph.source
+        mp_graph.name = graph.name
         return mp_graph
 
 
@@ -94,7 +94,7 @@ class MonopartiteMoleculesToMonopartiteReactions(Converter):
             for d in out_reaction_list
         ]
         mp_graph = MonopartiteReacSynGraph(in_reaction_list)
-        mp_graph.source = graph.source
+        mp_graph.name = graph.name
         return mp_graph
 
 
@@ -111,7 +111,7 @@ class MonopartiteMoleculesToBiparite(Converter):
             for d in out_reaction_list
         ]
         bp_graph = BipartiteSynGraph(in_reaction_list)
-        bp_graph.source = graph.source
+        bp_graph.name = graph.name
         return bp_graph
 
 
@@ -128,7 +128,7 @@ class MonopartiteReactionsToMonopartiteMolecules(Converter):
             for d in out_reaction_list
         ]
         bp_graph = MonopartiteMolSynGraph(in_reaction_list)
-        bp_graph.source = graph.source
+        bp_graph.name = graph.name
         return bp_graph
 
 
@@ -145,13 +145,13 @@ class MonopartiteReactionsToBipartite(Converter):
             for d in out_reaction_list
         ]
         bp_graph = BipartiteSynGraph(in_reaction_list)
-        bp_graph.source = graph.source
+        bp_graph.name = graph.name
         return bp_graph
 
 
 # Context class
 class Conversion:
-    def __init__(self, input_data_model, output_data_model):
+    def __init__(self, input_data_model: str, output_data_model: str):
         c = next(
             subclass
             for subclass in Converter.__subclasses__()
@@ -160,20 +160,25 @@ class Conversion:
         )
         self.converter = c()
 
-    def apply_conversion(self, graph):
+    def apply_conversion(
+        self,
+        graph: Union[
+            MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph
+        ],
+    ):
         return self.converter.convert(graph)
 
 
 def converter(
-    graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph],
+    graph: Union[MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph],
     out_data_model: str,
-) -> Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]:
+) -> Union[MonopartiteReacSynGraph, MonopartiteMolSynGraph, BipartiteSynGraph]:
     """
     To convert a SynGraph object in other types of SynGraph
 
     Parameters:
     ------------
-    graph: Union[MonopartiteReacSynGraph, BipartiteSynGraph, MonopartiteMolSynGraph]
+    graph: SynGraph
         The input graph as instance of one of the available SynGraph subclasses
     out_data_model: str
         The desired output data model.
@@ -194,8 +199,7 @@ def converter(
     >>> mp_syngraph = converter(bp_syngraph, 'monopartite_molecules')
 
     """
-
-    if type(graph) not in list(SynGraph.__subclasses__()):
+    if not isinstance(graph, SynGraph):
         raise TypeError("Invalid input type. Only SynGraph objects con be converted.")
     if out_data_model not in Converter.out_datamodels:
         raise KeyError(

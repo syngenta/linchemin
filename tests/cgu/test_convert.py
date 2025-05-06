@@ -13,7 +13,7 @@ def test_strategy_structure(ibm1_path):
         "ibm_retro", graph[0], "syngraph", out_data_model="bipartite"
     )
     mp_graph = converter(syngraphs, "monopartite_reactions")
-    assert type(mp_graph) == MonopartiteReacSynGraph
+    assert isinstance(mp_graph, MonopartiteReacSynGraph)
 
     with pytest.raises(TypeError) as ke:
         graph = json.loads(open(ibm1_path).read())

@@ -1,15 +1,14 @@
 import copy
 import re
 from functools import partial
-from typing import Callable, Dict, Iterable, List, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import rdkit
 from rdchiral import template_extractor
-from rdkit import Chem, RDLogger
+from rdkit import Chem
 from rdkit.Chem import (
     DataStructs,
     Descriptors,
-    Draw,
     rdchem,
     rdChemReactions,
     rdFingerprintGenerator,
@@ -24,12 +23,48 @@ import linchemin.utilities as utilities
 logger = utilities.console_logger(__name__)
 
 
+class CanonicalizationError(Exception):
+    """To be raised if a canonicalization fails"""
+
+    pass
+
+
 # RDMOLECULE
 def rdmol_from_string(input_string: str, inp_fmt: str) -> Mol:
     """To generate an RDKit Mol object from a molecular string"""
-    function_map = {"smiles": Chem.MolFromSmiles, "smarts": Chem.MolFromSmarts}
+    function_map = {
+        "smiles": Chem.MolFromSmiles,
+        "smarts": Chem.MolFromSmarts,
+        "mol_block": Chem.MolFromMolBlock,
+    }
     func = function_map.get(inp_fmt)
     return func(input_string)
+
+
+def compute_mol_smiles(rdmol: Mol, isomeric_smiles: bool = True) -> str:
+    """To compute a molecular smiles from a rdkit Mol object"""
+    return Chem.MolToSmiles(rdmol, isomericSmiles=isomeric_smiles)
+
+
+def compute_mol_smarts(rdmol: Mol, isomeric_smiles: bool = True) -> str:
+    """To compute a molecular smarts from a rdkit Mol object"""
+    return Chem.MolToSmarts(rdmol, isomericSmiles=isomeric_smiles)
+
+
+def compute_mol_inchi_key(rdmol: Mol) -> str:
+    """To compute a molecular inchi from a rdkit Mol object"""
+    inchi = Chem.MolToInchi(rdmol, options="-KET -15T")
+    return Chem.InchiToInchiKey(inchi)
+
+
+def compute_mol_blockV3k(rdmol: Mol) -> str:
+    """To compute the V3000 MolBlock corresponding to a rdkit Mol object"""
+    return Chem.MolToV3KMolBlock(rdmol)
+
+
+def compute_mol_block(rdmol: Mol) -> str:
+    """To compute the MolBlock corresponding to a rdkit Mol object"""
+    return Chem.MolToMolBlock(rdmol)
 
 
 def remove_rdmol_atom_mapping(rdmol: Mol) -> Mol:
@@ -185,11 +220,48 @@ def canonicalize_rdmol(rdmol: Mol) -> Mol:
     return rdmol, log
 
 
-def canonicalize_rdmol_lite(rdmol: Mol, is_pattern: bool = False) -> Mol:
-    if is_pattern:
-        return Chem.MolFromSmarts(Chem.MolToSmarts(rdmol))
-    else:
-        return Chem.MolFromSmiles(Chem.MolToSmiles(rdmol))
+def canonicalize_rdmol_lite(
+    rdmol: Mol, is_pattern: bool = False, use_extended_info: bool = True
+) -> Mol:
+    """
+    To canonicalize an RDKit molecule with options for pattern (SMARTS) and extended information (CXSMILES).
+
+    Args:
+        rdmol (Mol): The RDKit molecule to canonicalize.
+        is_pattern (bool, optional): Whether the molecule should be treated as a pattern (SMARTS). Defaults to False.
+        use_extended_info (bool, optional): Whether to use extended canonicalization information (CXSMILES). Defaults to True.
+
+    Returns:
+        Mol: The canonicalized molecule
+
+    Raises:
+        CanonicalizationError: if the canonicalization fails
+    """
+    try:
+        if is_pattern:
+            mol_to_str = Chem.MolToCXSmarts if use_extended_info else Chem.MolToSmarts
+            str_to_mol = Chem.MolFromSmarts if use_extended_info else Chem.MolFromSmarts
+        else:
+            mol_to_str = (
+                partial(
+                    Chem.MolToCXSmiles,
+                    canonical=True,
+                )
+                if use_extended_info
+                else Chem.MolToSmiles
+            )
+            str_to_mol = (
+                Chem.MolFromSmiles
+            )  # Smiles and CXSmiles use the same MolFrom function
+
+        mol_str = mol_to_str(rdmol)
+        rdmol = str_to_mol(mol_str)
+
+        return rdmol
+    except Exception as e:
+        logger.error("Molecule canonicalization failed")
+        # Log the error, raise an exception, or return None depending on the desired behavior
+        raise CanonicalizationError
 
 
 def canonicalize_mapped_rdmol(mapped_rdmol: Mol) -> Mol:
@@ -251,12 +323,138 @@ def extract_map_numers(mapped_rdmol: Mol) -> dict:
     return d
 
 
+def extract_atom_properties(rdmol: Mol) -> Dict[int, Dict[str, Any]]:
+    """
+    To extract the properties of all atoms in an RDKit molecule and clear them from the molecule.
+
+    Args:
+        rdmol (Mol): The RDKit molecule from which to extract atom properties.
+
+    Returns:
+        Dict[int, Dict[str, Any]]: A dictionary mapping atom indices to their respective properties.
+    """
+    properties = {}
+    for atom in rdmol.GetAtoms():
+        atom_idx = atom.GetIdx()
+        props = atom.GetPropsAsDict(True, False)
+        properties[atom_idx] = props
+        # Clearing properties using ClearProp on each property name
+        for prop_name in list(
+            props.keys()
+        ):  # Create a list to avoid modifying the dict while iterating
+            atom.ClearProp(prop_name)
+    return properties
+
+
+def atomic_properties_lookup(
+    properties_old_ids: Dict[int, Any], canon_idx_old_idx: List[Tuple[int, int]]
+) -> Dict[int, Any]:
+    """
+    To associate the atomic properties with new atom IDs based on a mapping from new IDs to old IDs.
+
+    Args:
+        properties_old_ids (Dict[int, Any]): A dictionary containing atomic properties keyed by old atom IDs.
+        canon_idx_old_idx (List[Tuple[int, int]]): A list of tuples mapping new atom IDs to old atom IDs.
+
+    Returns:
+        Dict[int, Any]: A dictionary containing atomic properties keyed by new atom IDs.
+
+    Raises:
+        KeyError: If an old atom ID from the mapping does not exist in the properties_old_ids dictionary.
+    """
+    properties_new_ids = {}
+    for new_id, old_id in canon_idx_old_idx:
+        if old_id not in properties_old_ids:
+            raise KeyError(
+                f"Old atom ID {old_id} is not present in the properties dictionary."
+            )
+        properties_new_ids[new_id] = properties_old_ids[old_id]
+    return properties_new_ids
+
+
+def set_atomic_properties(rdmol: Mol, atomic_properties: dict) -> None:
+    """
+    To set properties on atoms in an RDKit molecule based on the provided atomic properties dictionary.
+
+    Args:
+        rdmol (Chem.Mol): The RDKit molecule to which properties will be added.
+        atomic_properties (Dict[int, Dict[str, Any]]): A dictionary mapping atom indices to property dictionaries.
+    """
+    for atom in rdmol.GetAtoms():
+        atom_idx = atom.GetIdx()
+        # Directly access the dictionary for the current atom index if it exists
+        props_dict = atomic_properties.get(atom_idx, {})
+        for prop_name, prop_value in props_dict.items():
+            # Use the appropriate RDKit method to set the property based on its type
+            if isinstance(prop_value, int):
+                atom.SetIntProp(prop_name, prop_value)
+            elif isinstance(prop_value, float):
+                atom.SetDoubleProp(prop_name, prop_value)
+            elif isinstance(prop_value, str):
+                atom.SetProp(prop_name, prop_value)
+            else:
+                logger.warning(
+                    f"Unsupported property found: {prop_name}: {prop_value} ({type(prop_value)})"
+                )
+                pass
+
+
+def new_molecule_canonicalization(rdmol: Mol) -> Mol:
+    """
+    To canonicalize an RDKit molecule by renumbering its atoms according to their canonical
+    ranking and reassigning their properties accordingly.
+
+    Args:
+        rdmol (Mol): The RDKit molecule to be canonicalized.
+
+    Returns:
+        Mol: A new RDKit molecule object with atoms renumbered and original properties reassigned.
+    """
+    # Update the property cache of the molecule
+    rdmol.UpdatePropertyCache()
+
+    # Extract atom properties and clear them from the original molecule
+    properties_old_ids = extract_atom_properties(rdmol)
+
+    # Determine the canonical ranking of atoms, including chirality
+    canonical_ranks = Chem.CanonicalRankAtoms(rdmol, includeChirality=True)
+
+    # Create a mapping of new canonical indices to old indices
+    canonical_to_old_idx_map = [
+        (new_idx, old_idx) for old_idx, new_idx in enumerate(canonical_ranks)
+    ]
+
+    # Sort the old indices according to the new canonical indices
+    canonical_order = [old_idx for _, old_idx in sorted(canonical_to_old_idx_map)]
+
+    # Lookup the old properties and map them to the new canonical indices
+    properties_new_ids = atomic_properties_lookup(
+        properties_old_ids, canonical_to_old_idx_map
+    )
+
+    # Renumber the atoms of the original molecule according to the canonical order
+    new_rdmol = Chem.RenumberAtoms(rdmol, canonical_order)
+
+    # Reassign the properties to the atoms in the new molecule
+    set_atomic_properties(new_rdmol, properties_new_ids)
+
+    # Sanitize molecule: following the procedure described here https://github.com/rdkit/rdkit/issues/2361
+    Chem.SanitizeMol(new_rdmol)
+    cleaning = True
+    force = True
+    flag_possible = True
+    Chem.AssignStereochemistry(new_rdmol, cleaning, force, flag_possible)
+    return new_rdmol
+
+
 def map_number_lookup(map_numbers: dict, canon_idx_old_idx: tuple) -> dict:
     """To associate the map numbers of the old atoms' id with the new ids"""
     mapping = {}
     for new_id, old_id in canon_idx_old_idx:
-        if mapping_n := [m for old, m in map_numbers.items() if old == old_id]:
-            mapping[new_id] = int(mapping_n[0])
+        if mapping_n := next(
+            (m for old, m in map_numbers.items() if old == old_id), None
+        ):
+            mapping[new_id] = int(mapping_n)
         else:
             mapping[new_id] = 0
     return mapping
@@ -282,22 +480,6 @@ def bstr_to_rdmol(rdmol_bstr: str) -> rdkit.Chem.rdchem.Mol:
 MolPropertyFunction = Callable[[Mol], str]
 
 
-def compute_mol_smiles(rdmol: Mol, isomeric_smiles: bool = True) -> str:
-    """To compute a molecular smiles from a rdkit Mol object"""
-    return Chem.MolToSmiles(rdmol, isomericSmiles=isomeric_smiles)
-
-
-def compute_mol_smarts(rdmol: Mol, isomeric_smiles: bool = True) -> str:
-    """To compute a molecular smarts from a rdkit Mol object"""
-    return Chem.MolToSmarts(rdmol, isomericSmiles=isomeric_smiles)
-
-
-def compute_mol_inchi_key(rdmol: Mol) -> str:
-    """To compute a molecular inchi from a rdkit Mol object"""
-    inchi = Chem.MolToInchi(rdmol, options="-KET -15T")
-    return Chem.InchiToInchiKey(inchi)
-
-
 def get_mol_property_function(property_name: str) -> MolPropertyFunction:
     mol_property_function_factory = {
         "smiles": compute_mol_smiles,
@@ -306,13 +488,26 @@ def get_mol_property_function(property_name: str) -> MolPropertyFunction:
     return mol_property_function_factory.get(property_name)
 
 
-def is_mapped_molecule(rdmol):
+def is_mapped_molecule(rdmol: Mol) -> bool:
     """To check whether a rdmol is mapped"""
     mapped_atoms = [a.GetAtomMapNum() for a in rdmol.GetAtoms()]
     if not mapped_atoms or set(mapped_atoms) == {0} or set(mapped_atoms) == {-1}:
         return False
     else:
         return True
+
+
+def has_enhanced_stereo(rdmol: Mol) -> bool:
+    """To check whether a rdmol has enhanced stereochemistry information"""
+    if rdmol.GetStereoGroups():
+        return True
+    else:
+        return False
+
+
+def compute_molecular_weigth(rdmol: Mol) -> float:
+    """To compute the molecular weigth of the input rdmol"""
+    return Descriptors.ExactMolWt(rdmol)
 
 
 ####################################################################################################
@@ -324,7 +519,7 @@ def rdrxn_from_string(
     format_function_map = {
         "smiles": partial(Chem.rdChemReactions.ReactionFromSmarts, useSmiles=True),
         "smarts": partial(Chem.rdChemReactions.ReactionFromSmarts, useSmiles=False),
-        "rxn": Chem.rdChemReactions.ReactionFromRxnBlock,
+        "rxn_block": Chem.rdChemReactions.ReactionFromRxnBlock,
     }
 
     func = format_function_map.get(inp_fmt)
@@ -345,9 +540,15 @@ def rdrxn_to_string(
     function_map = {
         "smiles": partial(Chem.rdChemReactions.ReactionToSmiles, canonical=True),
         "smarts": Chem.rdChemReactions.ReactionToSmarts,
-        # 'rxn': partial(Chem.rdChemReactions.ReactionToRxnBlock, forceV3000=True),
-        "rxn": Chem.rdChemReactions.ReactionToRxnBlock,
-        # 'rxn': Chem.rdChemReactions.ReactionToV3KRxnBlock,
+        "rxn": partial(
+            Chem.rdChemReactions.ReactionToRxnBlock,
+            forceV3000=True,
+            separateAgents=True,
+        ),
+        "rxn_blockV2K": Chem.rdChemReactions.ReactionToRxnBlock,
+        "rxn_blockV3K": partial(
+            Chem.rdChemReactions.ReactionToV3KRxnBlock, separateAgents=True
+        ),
     }
     func = function_map.get(out_fmt)
     return func(rdrxn_)
@@ -388,10 +589,7 @@ def rdrxn_to_molecule_catalog(
     mol_catalog = {}
     for role, rdmols in reaction_rdmols.items():
         mol_catalog[role] = [
-            constructor.build_from_rdmol(rdmol=rdmol)
-            for r, rdmol_list in reaction_rdmols.items()
-            if r == role
-            for rdmol in rdmol_list
+            constructor.build_from_rdmol(rdmol=rdmol) for rdmol in rdmols
         ]
     return mol_catalog
 
@@ -401,7 +599,7 @@ def has_mapped_products(rdrxn: rdChemReactions.ChemicalReaction) -> bool:
     return any(is_mapped_molecule(mol) for mol in list(rdrxn.GetProducts()))
 
 
-def select_desired_product(mol_catalog: dict):
+def select_desired_product(mol_catalog: list):
     """
     To select the 'desired product' among the products of a reaction.
 
@@ -415,10 +613,15 @@ def select_desired_product(mol_catalog: dict):
     desired product: Molecule
         the Molecule instance corresponding to the desired product
     """
-    d = {
-        p: sum(atom.GetMass() for atom in p.rdmol.GetAtoms())
-        for p in mol_catalog.get("products")
-    }
+    d = {p: sum(atom.GetMass() for atom in p.rdmol.GetAtoms()) for p in mol_catalog}
+    return max(d, key=d.get)
+
+
+def get_heaviest_mol(mol_list: List):
+    """
+    To select the molecule with the bigger mass among a list of molecules
+    """
+    d = {p: sum(atom.GetMass() for atom in p.rdmol.GetAtoms()) for p in mol_list}
     return max(d, key=d.get)
 
 
@@ -579,10 +782,12 @@ def clean_full_map_info(full_map_info_new: dict) -> dict:
     return full_map_info_new
 
 
-def mapping_diagnosis(chemical_equation, desired_product) -> list:
+def mapping_diagnosis(chemical_equation, desired_product) -> Union[list, None]:
     """
-    To check possible issues in the atom mapping: (i) if there are unmapped atoms in the desired product (issues
-    in computing route metrics); (ii) if there are unmapped atoms in the reactants (possible hint for leaving groups)
+    To validate the chemical equation with atom mapping.
+    To check possible issues in the atom mapping:
+    (i) if there are unmapped atoms in the desired product (issues in computing route metrics, missing reactants);
+    (ii) if there are unmapped atoms in the reactants (possible hint for leaving groups)
 
     Parameters:
     ------------
@@ -593,11 +798,39 @@ def mapping_diagnosis(chemical_equation, desired_product) -> list:
 
     Returns:
     ---------
-    unmapped_fragments: list
+    unmapped_fragments: Union[list, None]
         The list of smiles referring to the unmapped atoms of each reactant
     """
+    check_product_mapping(
+        desired_product, chemical_equation.mapping.atom_transformations
+    )
+    reactants = chemical_equation.get_reactants()
+    if unmapped_fragments := check_reactants_mapping(reactants):
+        return unmapped_fragments
 
-    if [
+
+def check_reactants_mapping(reactants: list) -> list:
+    """To check if there are unmapped atoms in the reactants"""
+    unmapped_fragments = []
+    for m in [mol.rdmol_mapped for mol in reactants]:
+        if unmapped_atoms := [a for a in m.GetAtoms() if a.GetAtomMapNum() in [0, -1]]:
+            atoms_indices = [a.GetIdx() for a in unmapped_atoms]
+            fragment = Chem.rdmolfiles.MolFragmentToSmiles(
+                m,
+                atomsToUse=atoms_indices,
+                atomSymbols=[a.GetSymbol() for a in m.GetAtoms()],
+            )
+
+            unmapped_fragments.append(fragment)
+    return unmapped_fragments
+
+
+def check_product_mapping(desired_product, atom_transformations: list) -> None:
+    """To check if there are unmapped atoms in the desired product"""
+    at_desired_product = [
+        at for at in atom_transformations if at.product_uid == desired_product.uid
+    ]
+    if len(at_desired_product) != desired_product.rdmol.GetNumAtoms() or [
         a
         for a in desired_product.rdmol_mapped.GetAtoms()
         if a.GetAtomMapNum() in [0, -1]
@@ -605,26 +838,6 @@ def mapping_diagnosis(chemical_equation, desired_product) -> list:
         logger.warning(
             "Some atoms in the desired product remain unmapped: possible important reactants are missing"
         )
-
-    unamapped_fragments = []
-    for uid in chemical_equation.role_map["reactants"]:
-        mols = [
-            m.rdmol_mapped for u, m in chemical_equation.catalog.items() if u == uid
-        ]
-
-        for m in mols:
-            if unmapped_atoms := [
-                a for a in m.GetAtoms() if a.GetAtomMapNum() in [0, -1]
-            ]:
-                atoms_indices = [a.GetIdx() for a in unmapped_atoms]
-                fragment = Chem.rdmolfiles.MolFragmentToSmiles(
-                    m,
-                    atomsToUse=atoms_indices,
-                    atomSymbols=[a.GetSymbol() for a in m.GetAtoms()],
-                )
-
-                unamapped_fragments.append(fragment)
-    return unamapped_fragments
 
 
 def get_hydrogenation_info(
@@ -648,7 +861,7 @@ def get_hydrogenation_info(
     """
     bonds = []
     for hydrogen_info in hydrogenated_atoms:
-        if delta := hydrogen_info[1] > 0:
+        if hydrogen_info[1] > 0:
             p_atom_idx = hydrogen_info[0]
             disconnection_rdmol = Chem.AddHs(
                 disconnection_rdmol, onlyOnAtoms=[p_atom_idx]
@@ -659,16 +872,8 @@ def get_hydrogenation_info(
                 if a.GetSymbol() == "H"
                 and disconnection_rdmol.GetBondBetweenAtoms(a.GetIdx(), p_atom_idx)
             ]
-            # h_idxs = list(
-            #     range(
-            #         disconnection_rdmol.GetNumAtoms() - delta,
-            #         disconnection_rdmol.GetNumAtoms(),
-            #     )
-            # )
-            for i in h_idxs:
-                # new bond with hydrogen atom
-                pbond = disconnection_rdmol.GetBondBetweenAtoms(i, p_atom_idx)
-                bonds.append(sorted((i, p_atom_idx)))
+
+            bonds.extend(sorted((i, p_atom_idx)) for i in h_idxs)
     return bonds, disconnection_rdmol
 
 

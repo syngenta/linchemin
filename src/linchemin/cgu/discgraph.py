@@ -86,7 +86,7 @@ class DisconnectionGraph:
 
         """
         if type(nodes_tup[0]) is not Disconnection or any(
-            type(n) != Disconnection for n in nodes_tup[1]
+            not isinstance(n, Disconnection) for n in nodes_tup[1]
         ):
             raise TypeError(
                 "Invalid node type. Only Disconnection instances can be used as nodes of a "

@@ -14,7 +14,3 @@ def test_camel_to_snake():
     assert utilities.camel_to_snake("foo_bar") == "foo_bar"
     assert utilities.camel_to_snake("fooBAR") == "foo_b_a_r"
     assert utilities.camel_to_snake("Foo_bar") == "foo_bar"
-
-
-def test_list_of_dict_groupby():
-    print("\n\nMISSING: test_utilities.test_list_of_dict_groupby")  #  TODO

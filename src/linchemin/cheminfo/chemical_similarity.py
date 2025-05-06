@@ -338,7 +338,7 @@ def compute_similarity(
         metric = similarity_map.get(similarity_name)
     else:
         logger.error(
-            f"Invalid similiarity algorithm: {similarity_name} is not available."
+            f"Invalid similarity algorithm: {similarity_name} is not available."
             f"Available options are: {similarity_map.keys()}"
         )
         raise KeyError

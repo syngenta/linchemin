@@ -15,7 +15,7 @@ functionalities of LinChemIn.
 .. toctree::
    :maxdepth: 1
 
-   code_customization_translate
+   translate_customization
    descriptors_customization
    ged_customization
    cluster_customization
